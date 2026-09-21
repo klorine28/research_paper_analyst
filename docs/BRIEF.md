@@ -81,7 +81,8 @@ and Conversational Analytics) are resolved and now live in `CONTEXT.md`.
    APIs can be added easily later.
 3. **Extraction method (settled):** LLM-based via Anthropic with disk
    caching; see `docs/adr/0001`. Still open (research task): which Anthropic
-   model and which PDF-parsing library.
+   model and which PDF-parsing library — answered in `docs/research/`:
+   Claude Sonnet 5 with structured outputs; docling for PDF parsing.
 4. **Dashboard framework (settled):** Streamlit over a framework-agnostic
    data artifact; free/open-source tools only; see `docs/adr/0002`.
 5. **Human in the loop (settled):** v1 includes accept/reject of Candidate
