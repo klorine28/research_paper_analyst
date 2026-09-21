@@ -1,0 +1,7 @@
+# Handle text files automatically and force LF on checkout
+* text=auto eol=lf
+
+# Denote binary files to prevent Git from modifying their line endings
+*.png binary
+*.jpg binary
+*.gif binary

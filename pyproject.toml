@@ -1,0 +1,114 @@
+[project]
+name = "research-gap-dashboard"
+version = "0.0.1"
+description = "Detects research gaps in a corpus of papers and presents them as an evidence-linked dashboard."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "pytest>=7.2.1",
+  "ruff>=0.6.0",
+  "pylint>=4.0.6",
+  "pyright>=1.1.292",
+  "ty>=0.0.56",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.6,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = "src"
+
+[tool.ty.environment]
+root = [
+  "./src",
+]
+python = "./.venv"
+python-version = "3.12"
+python-platform = "All"
+
+[tool.ty.src]
+exclude = [
+  "**/__pycache__",
+  "**/data",
+  "**/logs",
+  "**/docker",
+  "**/dockerfiles",
+  ".git",
+  ".venv",
+  ".uv-cache",
+  ".uv-python",
+]
+
+[tool.ty.rules]
+possibly-unresolved-reference = "warn"
+possibly-missing-import = "warn"
+
+[tool.pyright]
+include = [
+  "src",
+]
+exclude = [
+  "**/__pycache__",
+  "**/data",
+  "**/logs",
+  "**/docker",
+  "**/dockerfiles",
+  ".git",
+  ".venv",
+  ".uv-cache",
+  ".uv-python",
+]
+ignore = []
+
+venvPath = "."
+venv = ".venv"
+
+typeCheckingMode = "standard"
+# defineConstant = { DEBUG = true }
+reportMissingImports = true
+reportMissingTypeStubs = false
+# reportMissingModuleSource = false
+# reportOptionalMemberAccess = false
+pythonVersion = "3.12"
+pythonPlatform = "All"
+useLibraryCodeForTypes = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.pylint.format]
+# Match ruff's indent-width below; pylint defaults to 4 spaces.
+indent-string = "  "
+
+[tool.ruff]
+indent-width = 2
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "D"]
+ignore = [
+  "D107", # Missing docstring in __init__
+  "D203", # One blank line required before class docstring
+  "D212", # Multi-line docstring summary should start at the first line
+]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+skip-magic-trailing-comma = false
+line-ending = "lf"
+
+docstring-code-format = false
+docstring-code-line-length = "dynamic"

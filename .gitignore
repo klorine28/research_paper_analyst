@@ -1,0 +1,75 @@
+
+# ==========================================
+# uv & Environment Specific
+# ==========================================
+.venv/
+.python-version
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# Python Artifacts
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ==========================================
+# Testing & Coverage
+# ==========================================
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+.ruff_cache/
+
+# ==========================================
+# IDEs and Editors
+# ==========================================
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# ==========================================
+# Temporary dir and logs
+# ==========================================
+
+*.log
+tmp/
+
+# ==========================================
+# Project data
+# ==========================================
+# Corpora (often copyrighted PDFs), pipeline artifacts and API/LLM caches
+# stay local. Small test corpora live under tests/fixtures/ and are committed.
+data/
+outputs/
