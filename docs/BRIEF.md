@@ -70,6 +70,11 @@ and Conversational Analytics) are resolved and now live in `CONTEXT.md`.
 
 ## Open decisions (resolve during grilling, record as ADRs)
 
+0. **Detect-stage prompt architecture (settled):** v1 keeps detection simple;
+   the AIPOCH-inspired prompt architecture (pseudo-gap rejection, confidence
+   rubric, audit-basis/minimal-study gap-card fields, self-critical review
+   pass — see `docs/research/aipoch-gap-finder-analysis.md`) is deferred
+   to v2.
 1. **What counts as a gap (settled):** v1 detects Knowledge Gaps, Coverage
    Gaps, Unanswered Limitations, and Retrieval Gaps; contradictions and
    theoretical gaps are out of scope (see `CONTEXT.md` > Gap Type).
