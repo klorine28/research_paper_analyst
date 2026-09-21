@@ -51,12 +51,22 @@ unless the user asks.
 
 ## Agent skills
 
+### Issue tracker
+
+Issues live in GitHub Issues on `klorine28/research_paper_analyst` (via the
+`gh` CLI). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default labels (`needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
 ### Domain docs
 
-Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`
-(written by `/setup-matt-pocock-skills`). `docs/BRIEF.md` holds draft terms and
-open decisions that `/grill-with-docs` should resolve and promote into
-`CONTEXT.md` and `docs/adr/`, deleting them from the brief as it goes.
+Single-context: `CONTEXT.md` and `docs/adr/` at the repo root. See
+`docs/agents/domain.md`. `docs/BRIEF.md` holds the remaining open items;
+`/grill-with-docs` resolves and promotes them into `CONTEXT.md` and
+`docs/adr/`, deleting them from the brief as it goes.
 
 
 ### Python adaptation for Matt Pocock skills
