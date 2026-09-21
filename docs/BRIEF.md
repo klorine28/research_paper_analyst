@@ -46,7 +46,12 @@ can be re-run without redoing the ones before it:
   lines of work.
 - **Unanswered limitations:** limitations and future-work statements, grouped,
   with a count of how many later papers addressed each.
-- **Contradictions:** findings that disagree, side by side with their sources.
+- **Contradictions (deferred past v1):** findings that disagree, side by side
+  with their sources. Deferred with evidence-gap detection.
+- **Paper Explainer:** each Paper's experiment explained in domain language
+  and in lay language, grounded in the Paper's own text.
+- **Conversational Analytics:** chat grounded in the Corpus to discuss
+  Papers, Candidate Gaps, and dashboard data.
 - **Gap cards:** one card per Candidate Gap, with its Gap Type, a short written
   explanation, a confidence level, and links to the Evidence.
 - **Paper comparison:** the researcher picks 2 or more Papers and sees them
@@ -60,46 +65,40 @@ can be re-run without redoing the ones before it:
 
 ## Candidate vocabulary (for `/domain-modeling` to confirm or reject)
 
-- **Corpus:** the set of papers one analysis runs over.
-- **Paper:** one publication in a Corpus, identified by DOI where available.
-- **Extraction:** the structured facts pulled from one Paper.
-- **Evidence:** a specific passage or data point in a Paper that supports a
-  claim the dashboard makes.
-- **Candidate Gap:** something the tool proposes as a gap, before a human
-  confirms it.
-- **Gap Type:** the kind of gap. A common starting taxonomy: evidence gap
-  (contradictory findings), knowledge gap (not studied at all), methodological
-  gap, empirical gap (claims not yet tested), theoretical gap, population gap.
-- **Coverage Matrix:** a two-axis count of Papers per category pair.
+All candidate terms (including Gap Type and its v1 taxonomy, Paper Explainer,
+and Conversational Analytics) are resolved and now live in `CONTEXT.md`.
 
 ## Open decisions (resolve during grilling, record as ADRs)
 
-1. **What exactly counts as a gap?** Which Gap Types does v1 detect, and which
-   are out of scope?
-2. **Corpus input:** user-uploaded PDFs, a DOI/BibTeX list, a live search
-   against a scholarly API (OpenAlex, Semantic Scholar, arXiv, PubMed), or a
-   combination? Full text or abstracts only?
-3. **Extraction method:** LLM-based, rule/NLP-based, or hybrid? Which model and
-   provider? How are LLM results cached so reruns are cheap and repeatable?
-4. **Dashboard language and framework:** Python (Streamlit, Dash, Shiny for
-   Python), R (Shiny), TypeScript (React + a charting library), or a
-   generated static HTML report. Leading option: keep the pipeline in Python
-   and have it write a clean data artifact (papers, extractions, gaps,
-   evidence) that the dashboard only reads, so the front end can be swapped
-   later. Choosing R or TypeScript for the front end means a two-language repo
-   and changes to `AGENTS.md`, which currently forbids npm/TypeScript tooling.
-5. **Human in the loop:** can the researcher accept, reject, or edit Candidate
-   Gaps, and should those edits persist?
-6. **Scale:** target corpus size for v1 (e.g. 50 papers vs. 5,000). Drives
-   cost, storage, and whether a database is needed.
-7. **Text language:** is dashboard text in English, Spanish, or switchable? Are
-   non-English papers in scope?
-8. **Paper comparison scope:** how many Papers can be compared at once? Only
-   Papers inside one Corpus, or also across Corpora? Should a researcher be
-   able to compare their own planned study (a draft abstract or research
-   question) against the Corpus to see whether it fills a Candidate Gap?
-9. **Scope of v1:** which single field or example topic is the first
-   end-to-end test case?
+1. **What counts as a gap (settled):** v1 detects Knowledge Gaps, Coverage
+   Gaps, Unanswered Limitations, and Retrieval Gaps; contradictions and
+   theoretical gaps are out of scope (see `CONTEXT.md` > Gap Type).
+2. **Corpus input (partly settled):** a DOI/BibTeX list plus matching
+   full-text PDF uploads, stored in a local multimedia data lake; extraction
+   is section-aware over full text. Still open: exact storage layout and
+   whether a scholarly API assists ingestion. Retrieval Gap detection uses
+   OpenAlex (primary) and PubMed, behind a source-adapter interface so more
+   APIs can be added easily later.
+3. **Extraction method (settled):** LLM-based via Anthropic with disk
+   caching; see `docs/adr/0001`. Still open (research task): which Anthropic
+   model and which PDF-parsing library.
+4. **Dashboard framework (settled):** Streamlit over a framework-agnostic
+   data artifact; free/open-source tools only; see `docs/adr/0002`.
+5. **Human in the loop (settled):** v1 includes accept/reject of Candidate
+   Gaps and a Conversational Analytics section grounded in the Corpus.
+   Judgments and chat history persist locally as JSON alongside the data
+   artifact, so an analysis can run over months on longer projects.
+6. **Scale (settled):** 10–75 papers per Corpus in v1; flat files, no
+   database.
+7. **Text language (settled):** English-only for v1 (papers and dashboard
+   text); German and Spanish are candidates for later.
+8. **Paper comparison scope (settled):** 2–5 Papers compared directly; a
+   larger selection (up to 15) is split into sets of ≤5, each set
+   summarized, and the summaries compared. Single Corpus only in v1.
+   Comparing the researcher's own planned study against the Corpus is
+   deferred to v2.
+9. **Scope of v1 (settled):** the medical field, particularly cardiology, is
+   the first end-to-end test case.
 
 ## Non-negotiables (already decided)
 
