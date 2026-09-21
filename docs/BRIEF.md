@@ -70,6 +70,10 @@ and Conversational Analytics) are resolved and now live in `CONTEXT.md`.
 
 ## Open decisions (resolve during grilling, record as ADRs)
 
+-1. **Sparse-cell threshold (provisional):** empty cells only for corpora
+   under 25 Papers; empty-or-single-paper cells at 25+. Gap cards state their
+   cell count. Revisit with a research task on gap-detection thresholds
+   before v2.
 0. **Detect-stage prompt architecture (settled):** v1 keeps detection simple;
    the AIPOCH-inspired prompt architecture (pseudo-gap rejection, confidence
    rubric, audit-basis/minimal-study gap-card fields, self-critical review
