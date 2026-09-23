@@ -8,6 +8,7 @@ import pytest
 
 from research_gap_dashboard.cli import main
 from research_gap_dashboard.ingest import CorpusSizeError, ingest_corpus
+from research_gap_dashboard.sources import WorkRecord
 
 
 @pytest.fixture(name="corpus")
@@ -16,6 +17,19 @@ def corpus_fixture(cardiology_corpus: Path, tmp_path: Path) -> Path:
   target = tmp_path / "corpus"
   shutil.copytree(cardiology_corpus, target)
   return target
+
+
+class _StubAdapter:  # pylint: disable=too-few-public-methods
+  """A source adapter returning canned WorkRecords keyed by DOI."""
+
+  name = "stub"
+
+  def __init__(self, records: dict[str, WorkRecord]):
+    self._records = records
+
+  def resolve(self, doi: str) -> WorkRecord | None:
+    """Return the canned record for a DOI, or None when there is none."""
+    return self._records.get(doi)
 
 
 def test_manifest_lists_every_matched_paper(corpus: Path):
@@ -112,6 +126,56 @@ def _pad_corpus(corpus: Path, count: int) -> None:
       )
       name = f"pad{index:03d}-{doi.replace('/', '_')}.pdf"
       shutil.copy(template, corpus / "papers" / name)
+
+
+def test_resolution_enriches_papers_with_canonical_metadata(corpus: Path):
+  """A resolved DOI overwrites the paper's metadata with the canonical record."""
+  base = ingest_corpus(corpus)
+  target = base.papers[0]
+  adapter = _StubAdapter(
+    {
+      target.doi: WorkRecord(
+        doi=target.doi,
+        title="Canonical Title",
+        year=1999,
+        venue="Canonical Journal",
+        authors=["Canon, First"],
+        openalex_id="https://openalex.org/W1",
+        referenced_works=["https://openalex.org/W2"],
+        cited_by_count=42,
+      )
+    }
+  )
+
+  manifest = ingest_corpus(corpus, adapter=adapter)
+
+  enriched = next(p for p in manifest.papers if p.doi == target.doi)
+  assert enriched.title == "Canonical Title"
+  assert enriched.year == 1999
+  assert enriched.journal == "Canonical Journal"
+  assert enriched.authors == ["Canon, First"]
+  assert enriched.openalex_id == "https://openalex.org/W1"
+  assert enriched.referenced_works == ["https://openalex.org/W2"]
+  assert enriched.cited_by_count == 42
+  assert enriched.resolution_error is None
+
+
+def test_unresolved_dois_are_reported_per_paper(corpus: Path):
+  """A DOI the adapter cannot resolve is flagged, and the Paper is kept."""
+  adapter = _StubAdapter({})  # resolves nothing
+
+  manifest = ingest_corpus(corpus, adapter=adapter)
+
+  assert len(manifest.papers) == 10
+  assert all(paper.resolution_error is not None for paper in manifest.papers)
+
+
+def test_without_an_adapter_papers_keep_bibtex_metadata(corpus: Path):
+  """Ingest resolves nothing when no adapter is supplied."""
+  manifest = ingest_corpus(corpus)
+
+  assert all(paper.resolution_error is None for paper in manifest.papers)
+  assert all(paper.openalex_id == "" for paper in manifest.papers)
 
 
 def test_cli_ingest_writes_the_manifest(corpus: Path):

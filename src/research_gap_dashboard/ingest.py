@@ -16,6 +16,7 @@ from bibtexparser.model import Entry
 from pydantic import BaseModel
 
 from research_gap_dashboard.corpus_layout import inspect_corpus_layout
+from research_gap_dashboard.sources import SourceAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,10 @@ class Paper(BaseModel):
   year: int | None = None
   journal: str = ""
   pdf_path: Path
+  openalex_id: str = ""
+  referenced_works: list[str] = []
+  cited_by_count: int = 0
+  resolution_error: str | None = None
 
 
 class CorpusManifest(BaseModel):
@@ -71,8 +76,13 @@ class CorpusManifest(BaseModel):
   orphan_pdfs: list[Path]
 
 
-def ingest_corpus(root: Path) -> CorpusManifest:
-  """Build the CorpusManifest for a corpus directory and write it to artifacts/."""
+def ingest_corpus(root: Path, adapter: SourceAdapter | None = None) -> CorpusManifest:
+  """
+  Build the CorpusManifest for a corpus directory and write it to artifacts/.
+
+  When an `adapter` is given, each Paper's DOI is resolved to canonical
+  metadata; without one, Papers keep the metadata read from the paper list.
+  """
   report = inspect_corpus_layout(root)
   if report.paper_list_path is None:
     raise CorpusLayoutError(
@@ -82,6 +92,8 @@ def ingest_corpus(root: Path) -> CorpusManifest:
 
   entries = _read_paper_list(report.paper_list_path)
   manifest = _match(root, entries, report.pdf_paths)
+  if adapter is not None:
+    _resolve(manifest, adapter)
   _check_envelope(manifest)
 
   artifact_path = report.layout.artifacts_dir / MANIFEST_NAME
@@ -95,6 +107,23 @@ def ingest_corpus(root: Path) -> CorpusManifest:
     artifact_path,
   )
   return manifest
+
+
+def _resolve(manifest: CorpusManifest, adapter: SourceAdapter) -> None:
+  """Enrich each Paper with canonical metadata, flagging DOIs that don't resolve."""
+  for paper in manifest.papers:
+    record = adapter.resolve(paper.doi)
+    if record is None:
+      paper.resolution_error = f"{adapter.name} could not resolve DOI {paper.doi}"
+      continue
+    paper.title = record.title or paper.title
+    paper.year = record.year if record.year is not None else paper.year
+    paper.journal = record.venue or paper.journal
+    paper.authors = record.authors or paper.authors
+    paper.openalex_id = record.openalex_id
+    paper.referenced_works = record.referenced_works
+    paper.cited_by_count = record.cited_by_count
+    paper.resolution_error = None
 
 
 def read_manifest(root: Path) -> CorpusManifest:
