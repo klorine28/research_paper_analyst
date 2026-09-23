@@ -33,6 +33,20 @@ it knows where everything lives.
 | --- | --- | --- |
 | `artifacts/corpus-manifest.json` | `ingest` | One record per Paper (citation key, DOI, title, authors, year, journal, PDF path), plus the paper-list entries with no PDF and the PDFs with no entry |
 
+## Per-Paper derived data
+
+| File | Written by | Holds |
+| --- | --- | --- |
+| `paper-data/<citation-key>.parsed.json` | `parse` | The Paper's PDF as labeled sections (a `ParsedPaper`), with the PDF library's types stripped away |
+
+The `parse` stage reads the manifest and turns each Paper's PDF into sectioned
+text behind a single internal seam (`PdfParser`), so the PDF library can be
+swapped later. It parses each Paper independently: a PDF that fails is reported
+in the stage's `ParseReport` and the run carries on with the rest of the Corpus.
+The default parser is [docling](https://github.com/docling-project/docling),
+installed with the `pdf` optional extra (`uv sync --extra pdf`); the offline
+test suite injects a fake converter instead.
+
 ## Checking a directory
 
 ```python

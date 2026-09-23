@@ -16,6 +16,7 @@ from research_gap_dashboard.ingest import (
   CorpusSizeError,
   ingest_corpus,
 )
+from research_gap_dashboard.parsing import parse_corpus
 from research_gap_dashboard.sources import OpenAlexAdapter
 
 logger = logging.getLogger("research_gap_dashboard")
@@ -45,6 +46,11 @@ def build_parser() -> argparse.ArgumentParser:
     default=None,
     help="Contact email to join OpenAlex's polite pool when resolving.",
   )
+  parse = subcommands.add_parser(
+    "parse",
+    help="Parse each Paper's PDF into sectioned text under paper-data/.",
+  )
+  parse.add_argument("corpus", type=Path, help="Path to the corpus directory.")
   return parser
 
 
@@ -53,6 +59,13 @@ def main(argv: Sequence[str] | None = None) -> int:
   logging.basicConfig(level=logging.INFO, format="%(message)s")
   arguments = build_parser().parse_args(argv)
 
+  if arguments.command == "parse":
+    return _run_parse(arguments)
+  return _run_ingest(arguments)
+
+
+def _run_ingest(arguments: argparse.Namespace) -> int:
+  """Pair the paper list with the PDFs and write the CorpusManifest."""
   adapter = OpenAlexAdapter(mailto=arguments.mailto) if arguments.resolve else None
   try:
     manifest = ingest_corpus(arguments.corpus, adapter=adapter)
@@ -68,6 +81,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     len(manifest.orphan_pdfs),
     unresolved,
   )
+  return EXIT_OK
+
+
+def _run_parse(arguments: argparse.Namespace) -> int:
+  """Parse each Paper's PDF into sectioned text under paper-data/."""
+  try:
+    report = parse_corpus(arguments.corpus)
+  except FileNotFoundError as error:
+    logger.error("Run `ingest` first: %s", error)
+    return EXIT_ERROR
+
+  logger.info(
+    "Parsed %d Papers into paper-data/ (%d failed).",
+    len(report.parsed_paths),
+    len(report.failures),
+  )
+  for failure in report.failures:
+    logger.warning("  %s: %s", failure.citation_key, failure.error)
   return EXIT_OK
 
 
