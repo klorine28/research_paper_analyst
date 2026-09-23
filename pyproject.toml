@@ -4,7 +4,9 @@ version = "0.0.1"
 description = "Detects research gaps in a corpus of papers and presents them as an evidence-linked dashboard."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    "pydantic>=2.13.5",
+]
 
 [dependency-groups]
 dev = [
