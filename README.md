@@ -20,6 +20,23 @@ cd research-gap-dashboard
 just init
 ```
 
+## Configuration
+
+Settings are read from the project-root `.env` (never committed); copy
+`.env.example` and fill it in. The LLM boundary (see
+[`docs/adr/0001-llm-extraction-with-anthropic.md`](docs/adr/0001-llm-extraction-with-anthropic.md))
+reads:
+
+| Variable | Default | Why |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | _(none)_ | Anthropic API key; required for real runs. Leave unset for offline, recorded-response runs. |
+| `LLM_DEFAULT_MODEL` | `claude-sonnet-4-5` | Model for the capable (default) tier. |
+| `LLM_CHEAP_MODEL` | `claude-haiku-4-5` | Model for the cheap, high-volume tier. |
+| `LLM_MAX_TOKENS` | `4096` | Max output tokens per completion. |
+
+The test suite never calls the API or the network: it uses recorded responses,
+so `just test` runs with no API key.
+
 ## Working on this project with an agent
 
 This project is built with the [pi](https://pi.dev) coding agent, Matt
