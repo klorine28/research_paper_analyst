@@ -1,0 +1,3 @@
+# Derived data: regenerate by re-running the stages, never commit.
+artifacts/*.json
+paper-data/

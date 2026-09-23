@@ -27,6 +27,12 @@ it knows where everything lives.
 - **A Corpus holds 10–75 Papers.** The envelope is enforced by ingest, not by
   the layout check.
 
+## Artifacts
+
+| File | Written by | Holds |
+| --- | --- | --- |
+| `artifacts/corpus-manifest.json` | `ingest` | One record per Paper (citation key, DOI, title, authors, year, journal, PDF path), plus the paper-list entries with no PDF and the PDFs with no entry |
+
 ## Checking a directory
 
 ```python

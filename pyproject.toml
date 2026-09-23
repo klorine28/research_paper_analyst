@@ -5,8 +5,12 @@ description = "Detects research gaps in a corpus of papers and presents them as 
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "bibtexparser>=2.0.1",
     "pydantic>=2.13.5",
 ]
+
+[project.scripts]
+research-gap-dashboard = "research_gap_dashboard.cli:main"
 
 [dependency-groups]
 dev = [
