@@ -136,6 +136,8 @@ def _misplaced_files(layout: CorpusLayout) -> list[CorpusLayoutProblem]:
   problems: list[CorpusLayoutProblem] = []
 
   for path in sorted(layout.root.iterdir()):
+    if _is_hidden(path):
+      continue
     if path.is_file() and _is_pdf(path):
       problems.append(
         CorpusLayoutProblem(
@@ -147,6 +149,8 @@ def _misplaced_files(layout: CorpusLayout) -> list[CorpusLayoutProblem]:
 
   if layout.papers_dir.is_dir():
     for path in sorted(layout.papers_dir.iterdir()):
+      if _is_hidden(path):
+        continue
       if not _is_pdf(path):
         problems.append(
           CorpusLayoutProblem(
@@ -160,6 +164,11 @@ def _misplaced_files(layout: CorpusLayout) -> list[CorpusLayoutProblem]:
         )
 
   return problems
+
+
+def _is_hidden(path: Path) -> bool:
+  """Report whether the path is housekeeping (.gitkeep, .DS_Store), not content."""
+  return path.name.startswith(".")
 
 
 def _is_pdf(path: Path) -> bool:

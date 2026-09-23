@@ -1,0 +1,112 @@
+[
+  {
+    "file": "hanna2019-10.3389_fcvm.2019.00140.pdf",
+    "doi": "10.3389/fcvm.2019.00140",
+    "title": "The Role of the TGF-\u03b2 Superfamily in Myocardial Infarction",
+    "journal": "Frontiers in Cardiovascular Medicine",
+    "year": 2019,
+    "license": "cc-by",
+    "source_url": "https://www.frontiersin.org/articles/10.3389/fcvm.2019.00140/pdf",
+    "openalex_id": "https://openalex.org/W2971555794",
+    "bytes": 950368
+  },
+  {
+    "file": "puhl2019-10.3389_fcvm.2019.00025.pdf",
+    "doi": "10.3389/fcvm.2019.00025",
+    "title": "Neutrophils in Post-myocardial Infarction Inflammation: Damage vs. Resolution?",
+    "journal": "Frontiers in Cardiovascular Medicine",
+    "year": 2019,
+    "license": "cc-by",
+    "source_url": "https://www.frontiersin.org/articles/10.3389/fcvm.2019.00025/pdf",
+    "openalex_id": "https://openalex.org/W2916953793",
+    "bytes": 437237
+  },
+  {
+    "file": "gogiraju2019-10.3389_fcvm.2019.00020.pdf",
+    "doi": "10.3389/fcvm.2019.00020",
+    "title": "Angiogenic Endothelial Cell Signaling in Cardiac Hypertrophy and Heart Failure",
+    "journal": "Frontiers in Cardiovascular Medicine",
+    "year": 2019,
+    "license": "cc-by",
+    "source_url": "https://www.frontiersin.org/articles/10.3389/fcvm.2019.00020/pdf",
+    "openalex_id": "https://openalex.org/W2922173784",
+    "bytes": 1368430
+  },
+  {
+    "file": "lee2018-10.1371_journal.pone.0209687.pdf",
+    "doi": "10.1371/journal.pone.0209687",
+    "title": "Mortality and causes of death in patients with atrial fibrillation: A nationwide population-based study",
+    "journal": "PLoS ONE",
+    "year": 2018,
+    "license": "cc-by",
+    "source_url": "https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0209687&type=printable",
+    "openalex_id": "https://openalex.org/W2905735807",
+    "bytes": 1095960
+  },
+  {
+    "file": "zhou2020-10.3389_fcvm.2020.00062.pdf",
+    "doi": "10.3389/fcvm.2020.00062",
+    "title": "Evidence for Inflammation as a Driver of Atrial Fibrillation",
+    "journal": "Frontiers in Cardiovascular Medicine",
+    "year": 2020,
+    "license": "cc-by",
+    "source_url": "https://www.frontiersin.org/articles/10.3389/fcvm.2020.00062/pdf",
+    "openalex_id": "https://openalex.org/W3023335388",
+    "bytes": 406944
+  },
+  {
+    "file": "hill2019-10.1371_journal.pone.0224582.pdf",
+    "doi": "10.1371/journal.pone.0224582",
+    "title": "Predicting atrial fibrillation in primary care using machine learning",
+    "journal": "PLoS ONE",
+    "year": 2019,
+    "license": "cc-by",
+    "source_url": "https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0224582&type=printable",
+    "openalex_id": "https://openalex.org/W2987212315",
+    "bytes": 879195
+  },
+  {
+    "file": "italia2021-10.3389_fcvm.2021.713560.pdf",
+    "doi": "10.3389/fcvm.2021.713560",
+    "title": "COVID-19 and Heart Failure: From Epidemiology During the Pandemic to Myocardial Injury, Myocarditis, and Heart Failure Sequelae",
+    "journal": "Frontiers in Cardiovascular Medicine",
+    "year": 2021,
+    "license": "cc-by",
+    "source_url": "https://www.frontiersin.org/journals/cardiovascular-medicine/articles/10.3389/fcvm.2021.713560/pdf",
+    "openalex_id": "https://openalex.org/W3188578719",
+    "bytes": 680536
+  },
+  {
+    "file": "dubrock2018-10.1371_journal.pone.0201836.pdf",
+    "doi": "10.1371/journal.pone.0201836",
+    "title": "High-sensitivity C-reactive protein in heart failure with preserved ejection fraction",
+    "journal": "PLoS ONE",
+    "year": 2018,
+    "license": "cc-by",
+    "source_url": "https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0201836&type=printable",
+    "openalex_id": "https://openalex.org/W2886376221",
+    "bytes": 1457924
+  },
+  {
+    "file": "seid2019-10.1371_journal.pone.0211768.pdf",
+    "doi": "10.1371/journal.pone.0211768",
+    "title": "Adherence to self-care recommendations and associated factors among adult heart failure patients. From the patients\u2019 point of view",
+    "journal": "PLoS ONE",
+    "year": 2019,
+    "license": "cc-by",
+    "source_url": "https://journals.plos.org/plosone/article/file?id=10.1371/journal.pone.0211768&type=printable",
+    "openalex_id": "https://openalex.org/W2914647662",
+    "bytes": 829402
+  },
+  {
+    "file": "maejima2020-10.3389_fcvm.2019.00186.pdf",
+    "doi": "10.3389/fcvm.2019.00186",
+    "title": "SGLT2 Inhibitors Play a Salutary Role in Heart Failure via Modulation of the Mitochondrial Function",
+    "journal": "Frontiers in Cardiovascular Medicine",
+    "year": 2020,
+    "license": "cc-by",
+    "source_url": "https://www.frontiersin.org/articles/10.3389/fcvm.2019.00186/pdf",
+    "openalex_id": "https://openalex.org/W2998741974",
+    "bytes": 1215130
+  }
+]

@@ -94,6 +94,17 @@ def test_non_pdf_files_in_the_papers_directory_are_reported_as_misplaced(
   ]
 
 
+def test_hidden_files_are_ignored(tmp_path: Path):
+  """Housekeeping files (.gitkeep, .DS_Store) are not corpus content."""
+  make_valid_corpus(tmp_path)
+  (tmp_path / "papers" / ".gitkeep").touch()
+  (tmp_path / ".DS_Store").touch()
+
+  report = inspect_corpus_layout(tmp_path)
+
+  assert report.is_valid
+
+
 def test_pdf_paths_are_listed_for_a_valid_corpus(tmp_path: Path):
   """The report lists the Papers' PDFs so later stages need not re-scan."""
   report = inspect_corpus_layout(make_valid_corpus(tmp_path))

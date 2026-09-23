@@ -34,6 +34,8 @@ python-platform = "All"
 
 [tool.ty.src]
 exclude = [
+  # PEP 723 scripts declare their own dependencies and are not in the project env.
+  "scripts",
   "**/__pycache__",
   "**/data",
   "**/logs",
