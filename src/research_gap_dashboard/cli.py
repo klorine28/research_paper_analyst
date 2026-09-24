@@ -11,13 +11,17 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from research_gap_dashboard.extract import extract_corpus
 from research_gap_dashboard.ingest import (
   CorpusLayoutError,
   CorpusSizeError,
   ingest_corpus,
 )
+from research_gap_dashboard.llm import LlmConfigError, build_llm_client
 from research_gap_dashboard.parsing import parse_corpus
 from research_gap_dashboard.sources import OpenAlexAdapter
+
+LLM_CACHE_DIR = ".llm-cache"
 
 logger = logging.getLogger("research_gap_dashboard")
 
@@ -51,6 +55,17 @@ def build_parser() -> argparse.ArgumentParser:
     help="Parse each Paper's PDF into sectioned text under paper-data/.",
   )
   parse.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  extract = subcommands.add_parser(
+    "extract",
+    help="LLM-extract structured facts with verified Evidence into the artifact.",
+  )
+  extract.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  extract.add_argument(
+    "--tier",
+    choices=["default", "cheap"],
+    default="default",
+    help="Model tier to extract with (default: the capable model).",
+  )
   return parser
 
 
@@ -61,6 +76,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
   if arguments.command == "parse":
     return _run_parse(arguments)
+  if arguments.command == "extract":
+    return _run_extract(arguments)
   return _run_ingest(arguments)
 
 
@@ -99,6 +116,30 @@ def _run_parse(arguments: argparse.Namespace) -> int:
   )
   for failure in report.failures:
     logger.warning("  %s: %s", failure.citation_key, failure.error)
+  return EXIT_OK
+
+
+def _run_extract(arguments: argparse.Namespace) -> int:
+  """LLM-extract structured facts with verified Evidence into the artifact."""
+  try:
+    client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
+  except LlmConfigError as error:
+    logger.error("%s", error)
+    return EXIT_ERROR
+
+  try:
+    report = extract_corpus(arguments.corpus, client, tier=arguments.tier)
+  except FileNotFoundError as error:
+    logger.error("Run `ingest` and `parse` first: %s", error)
+    return EXIT_ERROR
+
+  logger.info(
+    "Extracted %d Papers (%d failed).",
+    len(report.extractions),
+    len(report.failures),
+  )
+  for failure in report.failures:
+    logger.warning("  %s: %s", failure.citation_key, failure.reason)
   return EXIT_OK
 
 
