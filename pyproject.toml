@@ -4,7 +4,19 @@ version = "0.0.1"
 description = "Detects research gaps in a corpus of papers and presents them as an evidence-linked dashboard."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    "bibtexparser>=2.0.1",
+    "httpx>=0.28.1",
+    "pydantic>=2.13.5",
+]
+
+[project.scripts]
+research-gap-dashboard = "research_gap_dashboard.cli:main"
+
+[project.optional-dependencies]
+pdf = [
+    "docling>=2.130.0",
+]
 
 [dependency-groups]
 dev = [
@@ -32,6 +44,8 @@ python-platform = "All"
 
 [tool.ty.src]
 exclude = [
+  # PEP 723 scripts declare their own dependencies and are not in the project env.
+  "scripts",
   "**/__pycache__",
   "**/data",
   "**/logs",
