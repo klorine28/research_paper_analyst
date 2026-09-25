@@ -119,10 +119,44 @@ class _StubClient:  # pylint: disable=too-few-public-methods
     *,
     prompt_version: str,
     tier: str = "default",
+    refresh: bool = False,
   ) -> dict[str, Any]:
     """Count the call and return the canned extraction."""
     self.calls += 1
     return self.result
+
+
+class _MisfireClient:  # pylint: disable=too-few-public-methods
+  """Returns an empty object first, then the grounded extraction (a misfire+retry)."""
+
+  name = "misfire"
+
+  def __init__(self, good: dict[str, Any]):
+    self.good = good
+    self.calls = 0
+
+  def complete(  # pylint: disable=unused-argument
+    self,
+    prompt: str,
+    schema: dict[str, Any],
+    *,
+    prompt_version: str,
+    tier: str = "default",
+    refresh: bool = False,
+  ) -> dict[str, Any]:
+    """Return an empty object on the first call, the grounded one thereafter."""
+    self.calls += 1
+    return {} if self.calls == 1 else self.good
+
+
+def test_an_empty_misfire_is_retried_not_accepted() -> None:
+  """An all-empty structured response is retried instead of yielding no facts."""
+  client = _MisfireClient(_GROUNDED_FIELDS)
+
+  extraction = extract_paper("hanna2019", _parsed_sample(), client)
+
+  assert client.calls == 2
+  assert extraction.fields.methods[0].evidence.passage
 
 
 @pytest.fixture(name="parsed_corpus")
