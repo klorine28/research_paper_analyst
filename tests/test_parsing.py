@@ -99,6 +99,20 @@ def test_headings_become_labeled_sections():
   assert parsed.section("future_work") is not None
 
 
+def test_docling_markdown_escapes_are_stripped_from_text():
+  """Docling's HTML entities, backslash escapes, and comment placeholders go away."""
+  markdown = (
+    "## Methods\n\n"
+    "Emotional trigger (P&lt;0.01) in cel\\_miR-39 <!-- image --> from R&amp;D."
+  )
+  parser = DoclingParser(convert=lambda _: markdown)
+
+  methods = parser.parse(Path("some.pdf")).section("methods")
+
+  assert methods is not None
+  assert methods.text == "Emotional trigger (P<0.01) in cel_miR-39  from R&D."
+
+
 def test_text_before_the_first_heading_is_kept_as_front_matter():
   """The title block ahead of any heading is preserved, not dropped."""
   parser = DoclingParser(convert=lambda _: _SAMPLE_MARKDOWN)

@@ -65,6 +65,7 @@ class _CountingClient:  # pylint: disable=too-few-public-methods
     *,
     prompt_version: str,
     tier: str = "default",
+    refresh: bool = False,
   ) -> dict[str, Any]:
     """Count the call and return the fixed result."""
     self.calls += 1
@@ -132,6 +133,102 @@ def test_complete_model_validates_into_the_model() -> None:
 
   assert isinstance(extraction, Extraction)
   assert extraction.findings == ["a"]
+
+
+def test_complete_model_unwraps_a_spurious_wrapper_key() -> None:
+  """Fields wrapped under a junk key (a real Anthropic quirk) are recovered."""
+  real = {"research_question": "Does X cause Y?", "findings": ["a", "b"]}
+  for wrapper in ("parameters", "$PARAMETER_NAME", "$STRUCTURED_OUTPUT", "$schema"):
+    client = AnthropicClient(
+      LlmConfig(api_key="sk-test"),
+      post=_RecordingPost(_tool_use_response({wrapper: real})),
+    )
+
+    extraction = complete_model(client, "prompt", Extraction, prompt_version="v1")
+
+    assert extraction.findings == ["a", "b"], wrapper
+
+
+def test_complete_model_drops_schema_metadata_beside_real_fields() -> None:
+  """A stray $defs alongside the real fields is ignored, not treated as data."""
+  payload = {
+    "$defs": {"Whatever": {"type": "object"}},
+    "research_question": "q",
+    "findings": ["a"],
+  }
+  client = AnthropicClient(
+    LlmConfig(api_key="sk-test"), post=_RecordingPost(_tool_use_response(payload))
+  )
+
+  extraction = complete_model(client, "prompt", Extraction, prompt_version="v1")
+
+  assert extraction.findings == ["a"]
+
+
+class _SequenceClient:  # pylint: disable=too-few-public-methods
+  """Returns a scripted sequence of responses, counting refresh calls."""
+
+  name = "sequence"
+
+  def __init__(self, results: list[dict[str, Any]]):
+    self.results = results
+    self.calls = 0
+
+  def complete(  # pylint: disable=unused-argument
+    self,
+    prompt: str,
+    schema: dict[str, Any],
+    *,
+    prompt_version: str,
+    tier: str = "default",
+    refresh: bool = False,
+  ) -> dict[str, Any]:
+    """Return the next scripted response."""
+    result = self.results[min(self.calls, len(self.results) - 1)]
+    self.calls += 1
+    return result
+
+
+def test_complete_model_retries_past_a_rejected_result() -> None:
+  """An `accept`-rejected result is retried until one is accepted."""
+  empty = {"research_question": "", "findings": []}
+  good = {"research_question": "q", "findings": ["a"]}
+  client = _SequenceClient([empty, good])
+
+  result = complete_model(
+    client,
+    "prompt",
+    Extraction,
+    prompt_version="v1",
+    attempts=3,
+    accept=lambda ex: bool(ex.findings),
+  )
+
+  assert result.findings == ["a"]
+  assert client.calls == 2
+
+
+def test_complete_model_retry_bypasses_the_cache(tmp_path: Path) -> None:
+  """Retries refresh the cache so a bad first response is not served again."""
+  inner = _SequenceClient(
+    [
+      {"research_question": "", "findings": []},
+      {"research_question": "q", "findings": ["a"]},
+    ]
+  )
+  client = CachingLlmClient(inner, DiskCache(tmp_path))
+
+  result = complete_model(
+    client,
+    "prompt",
+    Extraction,
+    prompt_version="v1",
+    attempts=3,
+    accept=lambda ex: bool(ex.findings),
+  )
+
+  assert result.findings == ["a"]
+  assert inner.calls == 2
 
 
 def test_identical_requests_hit_the_disk_cache(tmp_path: Path) -> None:

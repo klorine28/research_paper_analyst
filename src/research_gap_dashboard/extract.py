@@ -37,6 +37,11 @@ EXTRACTIONS_NAME = "extractions.json"
 # (ADR 0001), so a bump reruns extraction instead of serving stale answers.
 PROMPT_VERSION = "extract-v1"
 
+# Forced structured-output calls occasionally misfire (an empty object, or the
+# schema echoed back), yielding an all-empty Extraction for a Paper that plainly
+# has facts. Retry a few times, bypassing the cache, before accepting emptiness.
+EXTRACT_ATTEMPTS = 3
+
 # The seven Extraction fields, in a fixed order for verification and display.
 _FIELD_NAMES: tuple[str, ...] = (
   "research_question",
@@ -195,9 +200,16 @@ def extract_paper(
     ExtractionFields,
     prompt_version=prompt_version,
     tier=tier,
+    attempts=EXTRACT_ATTEMPTS,
+    accept=_has_any_fact,
   )
   _verify_evidence(parsed, fields)
   return Extraction(citation_key=citation_key, fields=fields)
+
+
+def _has_any_fact(fields: ExtractionFields) -> bool:
+  """Report whether an extraction found at least one fact in any field."""
+  return any(getattr(fields, name) for name in _FIELD_NAMES)
 
 
 def read_extractions(root: Path) -> ExtractReport:

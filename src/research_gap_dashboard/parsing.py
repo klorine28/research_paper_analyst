@@ -13,6 +13,7 @@ sectioned-text file per Paper under `paper-data/` and surfacing a per-Paper
 failure without aborting the run.
 """
 
+import html
 import logging
 import re
 from collections.abc import Callable
@@ -66,6 +67,17 @@ _LABEL_KEYWORDS: tuple[tuple[SectionLabel, tuple[str, ...]], ...] = (
 )
 
 _HEADING = re.compile(r"^#{1,6}\s+(?P<heading>.+?)\s*#*$")
+
+# Docling exports Markdown, which encodes punctuation two ways that are artifacts
+# of the export, not the paper's prose: HTML entities (`P&lt;0.01`, `R&amp;D`) and
+# backslash escapes (`cel\_miR-39`). Both break verbatim Evidence matching (the LLM
+# quotes the decoded prose), so section text is decoded and un-escaped. This regex
+# matches a backslash before one ASCII-punctuation character it can escape.
+_MD_ESCAPE = re.compile(r"\\([\\`*_{}\[\]()#+.!|&~<>-])")
+
+# Docling injects HTML comments as placeholders (e.g. `<!-- image -->`) mid-text;
+# they are pure noise, so they are removed from section text.
+_HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 
 
 class ParsedSection(BaseModel):
@@ -188,7 +200,7 @@ def _sections_from_markdown(markdown: str) -> list[ParsedSection]:
   body: list[str] = []
 
   def flush() -> None:
-    text = "\n".join(body).strip()
+    text = _unescape_markdown("\n".join(body)).strip()
     if not heading and not text:
       return
     sections.append(
@@ -203,13 +215,19 @@ def _sections_from_markdown(markdown: str) -> list[ParsedSection]:
     match = _HEADING.match(line)
     if match:
       flush()
-      heading = match.group("heading").strip()
+      heading = _unescape_markdown(match.group("heading").strip())
       body = []
     else:
       body.append(line)
   flush()
 
   return sections
+
+
+def _unescape_markdown(text: str) -> str:
+  """Clean docling's Markdown: drop comment placeholders, decode entities/escapes."""
+  text = _HTML_COMMENT.sub("", text)
+  return _MD_ESCAPE.sub(r"\1", html.unescape(text))
 
 
 def _label_for(heading: str, first: bool) -> SectionLabel:

@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any, Literal, Protocol, TypeVar
 
 import httpx
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -103,8 +103,9 @@ class LlmClient(Protocol):  # pylint: disable=too-few-public-methods
     *,
     prompt_version: str,
     tier: ModelTier = "default",
+    refresh: bool = False,
   ) -> dict[str, Any]:
-    """Return a dict shaped by `schema`, produced from `prompt`."""
+    """Return a dict shaped by `schema`; `refresh` forces past any cache."""
     raise NotImplementedError
 
 
@@ -124,13 +125,14 @@ class AnthropicClient:  # pylint: disable=too-few-public-methods
     self._api_key = config.api_key
     self._post = post or _httpx_post
 
-  def complete(
+  def complete(  # pylint: disable=unused-argument
     self,
     prompt: str,
     schema: dict[str, Any],
     *,
     prompt_version: str,
     tier: ModelTier = "default",
+    refresh: bool = False,
   ) -> dict[str, Any]:
     """Force a single structured-output tool call and return its input dict."""
     model = self._config.model_for(tier)
@@ -174,13 +176,14 @@ class RecordedLlmClient:  # pylint: disable=too-few-public-methods
     """Load recorded responses from a JSON file mapping fingerprints to dicts."""
     return cls(json.loads(path.read_text(encoding="utf-8")))
 
-  def complete(
+  def complete(  # pylint: disable=unused-argument
     self,
     prompt: str,
     schema: dict[str, Any],
     *,
     prompt_version: str,
     tier: ModelTier = "default",
+    refresh: bool = False,
   ) -> dict[str, Any]:
     """Return the recorded response for this request, or fail if none exists."""
     fingerprint = request_fingerprint(prompt, schema, tier, prompt_version)
@@ -242,15 +245,17 @@ class CachingLlmClient:  # pylint: disable=too-few-public-methods
     *,
     prompt_version: str,
     tier: ModelTier = "default",
+    refresh: bool = False,
   ) -> dict[str, Any]:
-    """Return a cached completion when present, else call `inner` and cache it."""
+    """Serve from cache unless `refresh`, then call `inner` and (re)cache."""
     fingerprint = request_fingerprint(prompt, schema, tier, prompt_version)
-    cached = self._cache.get(fingerprint)
-    if cached is not None:
-      logger.debug("LLM cache hit %s", fingerprint)
-      return cached
+    if not refresh:
+      cached = self._cache.get(fingerprint)
+      if cached is not None:
+        logger.debug("LLM cache hit %s", fingerprint)
+        return cached
     result = self._inner.complete(
-      prompt, schema, prompt_version=prompt_version, tier=tier
+      prompt, schema, prompt_version=prompt_version, tier=tier, refresh=refresh
     )
     self._cache.put(
       fingerprint,
@@ -275,22 +280,85 @@ def build_llm_client(
   return client
 
 
-def complete_model(
+def complete_model(  # pylint: disable=too-many-arguments
   client: LlmClient,
   prompt: str,
   model: type[_ModelT],
   *,
   prompt_version: str,
   tier: ModelTier = "default",
+  attempts: int = 1,
+  accept: Callable[[_ModelT], bool] | None = None,
 ) -> _ModelT:
-  """Complete against a pydantic model's schema and validate the result into it."""
-  result = client.complete(
-    prompt,
-    model.model_json_schema(),
-    prompt_version=prompt_version,
-    tier=tier,
+  """
+  Complete against a pydantic model's schema and validate the result into it.
+
+  Forced structured-output calls occasionally misfire (an empty object, or the
+  schema echoed back). When `attempts` > 1, a call whose result fails validation
+  or is rejected by `accept` is retried with the cache bypassed, so a fresh
+  model response replaces the bad one instead of being served from cache.
+  """
+  fields = set(model.model_fields)
+  schema = model.model_json_schema()
+  last_error: ValidationError | None = None
+  parsed: _ModelT | None = None
+  for attempt in range(attempts):
+    result = client.complete(
+      prompt,
+      schema,
+      prompt_version=prompt_version,
+      tier=tier,
+      refresh=attempt > 0,
+    )
+    try:
+      parsed = model.model_validate(_coerce_to_model(result, fields))
+    except ValidationError as error:
+      last_error = error
+      continue
+    if accept is None or accept(parsed):
+      return parsed
+  if parsed is not None:
+    return parsed
+  raise (
+    last_error
+    if last_error is not None
+    else LlmResponseError("Structured output could not be validated.")
   )
-  return model.model_validate(result)
+
+
+# JSON-Schema metadata keys a model sometimes echoes alongside (or instead of)
+# the data; they are never fields of ours, so they are dropped before validation.
+_SCHEMA_META = frozenset(
+  {
+    "$defs",
+    "$schema",
+    "$id",
+    "properties",
+    "required",
+    "title",
+    "type",
+    "description",
+    "additionalProperties",
+  }
+)
+
+
+def _coerce_to_model(result: dict[str, Any], fields: set[str]) -> dict[str, Any]:
+  """
+  Recover a model's fields from a structured-output payload.
+
+  Anthropic's forced tool calls sometimes wrap the real object under a spurious
+  key (e.g. ``parameters``, ``$PARAMETER_NAME``) or pad it with JSON-Schema
+  metadata. Left as-is, none of the expected fields are at the top level and
+  every field silently validates to its default. This unwraps one such layer
+  and strips schema metadata so the real extraction is not lost.
+  """
+  if fields & result.keys():
+    return {k: v for k, v in result.items() if k not in _SCHEMA_META}
+  for value in result.values():
+    if isinstance(value, dict) and fields & value.keys():
+      return {k: v for k, v in value.items() if k not in _SCHEMA_META}
+  return result
 
 
 def content_hash(prompt: str, schema: dict[str, Any], tier: ModelTier) -> str:
