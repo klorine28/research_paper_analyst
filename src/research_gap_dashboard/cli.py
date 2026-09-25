@@ -12,6 +12,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from research_gap_dashboard.aggregate import aggregate_corpus, load_pipeline_taxonomies
+from research_gap_dashboard.detect import detect_corpus
 from research_gap_dashboard.extract import extract_corpus
 from research_gap_dashboard.ingest import (
   CorpusLayoutError,
@@ -95,6 +96,11 @@ def build_parser() -> argparse.ArgumentParser:
     default="default",
     help="Model tier to normalize with (default: the capable model).",
   )
+  detect = subcommands.add_parser(
+    "detect",
+    help="Find Knowledge and Coverage Gaps in the Coverage Matrices.",
+  )
+  detect.add_argument("corpus", type=Path, help="Path to the corpus directory.")
   taxonomy = subcommands.add_parser(
     "taxonomy",
     help="Validate a taxonomy file (any axis) and report any problems.",
@@ -120,6 +126,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     return _run_extract(arguments)
   if arguments.command == "aggregate":
     return _run_aggregate(arguments)
+  if arguments.command == "detect":
+    return _run_detect(arguments)
   if arguments.command == "taxonomy":
     return _run_taxonomy(arguments)
   return _run_ingest(arguments)
@@ -217,6 +225,23 @@ def _run_aggregate(arguments: argparse.Namespace) -> int:
   )
   for failure in report.failures:
     logger.warning("  %s: %s", failure.citation_key, failure.reason)
+  return EXIT_OK
+
+
+def _run_detect(arguments: argparse.Namespace) -> int:
+  """Find Knowledge and Coverage Gaps and write the CandidateGaps artifact."""
+  try:
+    report = detect_corpus(arguments.corpus)
+  except FileNotFoundError as error:
+    logger.error("Run `ingest` and `aggregate` first: %s", error)
+    return EXIT_ERROR
+
+  logger.info(
+    "Found %d candidate gaps over %d Papers (cells with at most %d Papers).",
+    len(report.gaps),
+    report.corpus_paper_count,
+    report.sparse_max_count,
+  )
   return EXIT_OK
 
 
