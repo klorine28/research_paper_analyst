@@ -11,6 +11,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from research_gap_dashboard.aggregate import aggregate_corpus, load_pipeline_taxonomy
 from research_gap_dashboard.extract import extract_corpus
 from research_gap_dashboard.ingest import (
   CorpusLayoutError,
@@ -71,6 +72,23 @@ def build_parser() -> argparse.ArgumentParser:
     default="default",
     help="Model tier to extract with (default: the capable model).",
   )
+  aggregate = subcommands.add_parser(
+    "aggregate",
+    help="Normalize each Paper's extracted facts onto the taxonomy Topics.",
+  )
+  aggregate.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  aggregate.add_argument(
+    "--taxonomy",
+    type=Path,
+    default=CARDIOLOGY_SEED_PATH,
+    help="Taxonomy file to normalize onto (default: the shipped cardiology seed).",
+  )
+  aggregate.add_argument(
+    "--tier",
+    choices=["default", "cheap"],
+    default="default",
+    help="Model tier to normalize with (default: the capable model).",
+  )
   taxonomy = subcommands.add_parser(
     "taxonomy",
     help="Validate a topic-taxonomy file and report any problems.",
@@ -94,6 +112,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     return _run_parse(arguments)
   if arguments.command == "extract":
     return _run_extract(arguments)
+  if arguments.command == "aggregate":
+    return _run_aggregate(arguments)
   if arguments.command == "taxonomy":
     return _run_taxonomy(arguments)
   return _run_ingest(arguments)
@@ -154,6 +174,38 @@ def _run_extract(arguments: argparse.Namespace) -> int:
   logger.info(
     "Extracted %d Papers (%d failed).",
     len(report.extractions),
+    len(report.failures),
+  )
+  for failure in report.failures:
+    logger.warning("  %s: %s", failure.citation_key, failure.reason)
+  return EXIT_OK
+
+
+def _run_aggregate(arguments: argparse.Namespace) -> int:
+  """Normalize each Paper's extracted facts onto the taxonomy Topics."""
+  try:
+    taxonomy = load_pipeline_taxonomy(arguments.taxonomy)
+  except TaxonomyError as error:
+    logger.error("Taxonomy '%s' is invalid:", arguments.taxonomy)
+    for problem in error.problems:
+      logger.error("  - %s", problem)
+    return EXIT_ERROR
+
+  try:
+    client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
+  except LlmConfigError as error:
+    logger.error("%s", error)
+    return EXIT_ERROR
+
+  try:
+    report = aggregate_corpus(arguments.corpus, client, taxonomy, tier=arguments.tier)
+  except FileNotFoundError as error:
+    logger.error("Run `extract` first: %s", error)
+    return EXIT_ERROR
+
+  logger.info(
+    "Normalized %d Papers (%d failed).",
+    len(report.normalized),
     len(report.failures),
   )
   for failure in report.failures:

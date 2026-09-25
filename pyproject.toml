@@ -37,6 +37,9 @@ module-root = "src"
 [tool.ty.environment]
 root = [
   "./src",
+  # Tests import shared helpers from tests/conftest.py by module name, the way
+  # pytest puts the tests directory on sys.path; keep ty's resolver in step.
+  "./tests",
 ]
 python = "./.venv"
 python-version = "3.12"

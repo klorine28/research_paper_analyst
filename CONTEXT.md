@@ -22,6 +22,14 @@ The structured facts pulled from one Paper: research question, methods,
 populations/samples, datasets, key findings, stated limitations, stated
 future work.
 
+### Normalized Facts
+
+One Paper's free-text Extraction phrases mapped onto the shared taxonomy
+categories, produced by the Aggregate stage so Papers can be compared in the
+Coverage Matrix. Every mapping records the Paper's original term and the
+assigned category; a phrase that fits no category is surfaced as an unmapped
+term for taxonomy editing, never silently dropped.
+
 ### Evidence
 
 A specific passage or data point in a Paper that supports a claim the
