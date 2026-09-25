@@ -92,7 +92,7 @@ doing>`. Ending a session mid-task? `/skill:handoff`. Pi sessions are trees:
 | `README.md` | Humans | What the project is and how to run it |
 | `docs/BRIEF.md` | Humans + agents | Draft plan and open decisions; shrinks over time |
 | `docs/corpus-layout.md` | Humans + agents | The Corpus directory convention every stage relies on |
-| `docs/taxonomy.md` | Humans + agents | The MeSH-seeded topic taxonomy format and how to edit it |
+| `docs/taxonomy.md` | Humans + agents | The MeSH-seeded Topic, Method, Population, and Dataset taxonomies and how to edit them |
 | `CONTEXT.md` | Agents | Resolved domain vocabulary (created during grilling) |
 | `docs/adr/` | Humans + agents | Recorded design decisions (created during grilling) |
 | `AGENTS.md` | Agents | Environment, commands, and skill conventions |

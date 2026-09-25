@@ -32,6 +32,28 @@ class StubLlmClient:  # pylint: disable=too-few-public-methods
     return self.result
 
 
+class ScriptedLlmClient(StubLlmClient):  # pylint: disable=too-few-public-methods
+  """A keyless LlmClient returning its scripted results in turn, cycling."""
+
+  def __init__(self, results: list[dict[str, Any]]):
+    super().__init__(results[0])
+    self.results = results
+
+  def complete(
+    self,
+    prompt: str,
+    schema: dict[str, Any],
+    *,
+    prompt_version: str,
+    tier: str = "default",
+    refresh: bool = False,
+  ) -> dict[str, Any]:
+    """Count the call and return the next scripted result."""
+    result = self.results[self.calls % len(self.results)]
+    self.calls += 1
+    return result
+
+
 @pytest.fixture(name="cardiology_corpus")
 def cardiology_corpus_fixture() -> Path:
   """Return the root of the committed cardiology fixture Corpus."""

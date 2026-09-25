@@ -11,7 +11,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from research_gap_dashboard.aggregate import aggregate_corpus, load_pipeline_taxonomy
+from research_gap_dashboard.aggregate import aggregate_corpus, load_pipeline_taxonomies
 from research_gap_dashboard.extract import extract_corpus
 from research_gap_dashboard.ingest import (
   CorpusLayoutError,
@@ -23,6 +23,7 @@ from research_gap_dashboard.parsing import parse_corpus
 from research_gap_dashboard.sources import OpenAlexAdapter
 from research_gap_dashboard.taxonomy import (
   CARDIOLOGY_SEED_PATH,
+  SEED_PATHS,
   TaxonomyError,
   load_taxonomy,
 )
@@ -74,14 +75,19 @@ def build_parser() -> argparse.ArgumentParser:
   )
   aggregate = subcommands.add_parser(
     "aggregate",
-    help="Normalize each Paper's extracted facts onto the taxonomy Topics.",
+    help="Normalize each Paper's extracted facts onto the axis taxonomies.",
   )
   aggregate.add_argument("corpus", type=Path, help="Path to the corpus directory.")
   aggregate.add_argument(
     "--taxonomy",
     type=Path,
-    default=CARDIOLOGY_SEED_PATH,
-    help="Taxonomy file to normalize onto (default: the shipped cardiology seed).",
+    action="append",
+    default=None,
+    help=(
+      "Taxonomy file to normalize onto; repeat once per axis, each file naming "
+      "its axis in [meta] (default: the shipped Topic, Method, Population, and "
+      "Dataset seeds)."
+    ),
   )
   aggregate.add_argument(
     "--tier",
@@ -91,7 +97,7 @@ def build_parser() -> argparse.ArgumentParser:
   )
   taxonomy = subcommands.add_parser(
     "taxonomy",
-    help="Validate a topic-taxonomy file and report any problems.",
+    help="Validate a taxonomy file (any axis) and report any problems.",
   )
   taxonomy.add_argument(
     "file",
@@ -182,11 +188,12 @@ def _run_extract(arguments: argparse.Namespace) -> int:
 
 
 def _run_aggregate(arguments: argparse.Namespace) -> int:
-  """Normalize each Paper's extracted facts onto the taxonomy Topics."""
+  """Normalize each Paper's extracted facts onto the axis taxonomies."""
+  paths = arguments.taxonomy or list(SEED_PATHS.values())
   try:
-    taxonomy = load_pipeline_taxonomy(arguments.taxonomy)
+    taxonomies = load_pipeline_taxonomies(paths)
   except TaxonomyError as error:
-    logger.error("Taxonomy '%s' is invalid:", arguments.taxonomy)
+    logger.error("Taxonomies are invalid:")
     for problem in error.problems:
       logger.error("  - %s", problem)
     return EXIT_ERROR
@@ -198,7 +205,7 @@ def _run_aggregate(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   try:
-    report = aggregate_corpus(arguments.corpus, client, taxonomy, tier=arguments.tier)
+    report = aggregate_corpus(arguments.corpus, client, taxonomies, tier=arguments.tier)
   except FileNotFoundError as error:
     logger.error("Run `extract` first: %s", error)
     return EXIT_ERROR
@@ -214,7 +221,7 @@ def _run_aggregate(arguments: argparse.Namespace) -> int:
 
 
 def _run_taxonomy(arguments: argparse.Namespace) -> int:
-  """Validate a topic-taxonomy file and report any problems."""
+  """Validate a taxonomy file (any axis) and report any problems."""
   try:
     taxonomy = load_taxonomy(arguments.file)
   except TaxonomyError as error:
@@ -224,9 +231,10 @@ def _run_taxonomy(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   logger.info(
-    "Taxonomy '%s' is valid: %d Topics for domain '%s' (source: %s).",
+    "Taxonomy '%s' is valid: %d %s categories for domain '%s' (source: %s).",
     arguments.file,
     len(taxonomy.topics),
+    taxonomy.meta.axis,
     taxonomy.meta.domain,
     taxonomy.meta.source,
   )

@@ -1,0 +1,85 @@
+# Dataset taxonomy (seed).
+#
+# The controlled vocabulary of the Coverage Matrix's dataset axis: datasets and data sources used (MeSH records, registries, databases).
+# Curated from MeSH 2025 by scripts/build_axis_taxonomies.py. This
+# is a starting point: prune categories you do not care about and add your
+# own. Every category keeps its MeSH descriptor id and tree number as
+# provenance; a hand-added category sets mesh_id = "".
+
+[meta]
+axis = "dataset"
+domain = "biomedical"
+source = "MeSH 2025"
+source_url = "https://meshb.nlm.nih.gov/"
+
+[[topics]]
+id = "registries"
+label = "Registries"
+mesh_id = "D012042"
+mesh_tree = "E05.318.308.970"
+aliases = ["Parish Registers", "Population Register"]
+
+[[topics]]
+id = "electronic-health-records"
+label = "Electronic Health Records"
+mesh_id = "D057286"
+mesh_tree = "E05.318.308.940.968.625.500"
+aliases = ["Computerized Medical Record", "Computerized Medical Records", "Electronic Health Record", "Electronic Health Record Data", "Electronic Medical Record", "Electronic Medical Records", "Medical Record, Computerized", "Medical Records, Computerized"]
+
+[[topics]]
+id = "medical-records"
+label = "Medical Records"
+mesh_id = "D008499"
+mesh_tree = "E05.318.308.940.968"
+aliases = ["Health Diaries", "Medical Transcription", "Records, Medical", "Transcription, Medical"]
+
+[[topics]]
+id = "hospital-records"
+label = "Hospital Records"
+mesh_id = "D006753"
+mesh_tree = "E05.318.308.940.425"
+aliases = ["Records, Hospital"]
+
+[[topics]]
+id = "administrative-claims-healthcare"
+label = "Administrative Claims, Healthcare"
+mesh_id = "D000067575"
+mesh_tree = "N04.452.859.564.137"
+parent = "medical-records"
+aliases = []
+
+[[topics]]
+id = "databases-factual"
+label = "Databases, Factual"
+mesh_id = "D016208"
+mesh_tree = "L01.313.500.750.300.188.400"
+aliases = ["Data Banks, Factual", "Data Bases, Factual", "Databanks, Factual"]
+
+[[topics]]
+id = "health-surveys"
+label = "Health Surveys"
+mesh_id = "D006306"
+mesh_tree = "E05.318.308.980.438"
+aliases = ["Abortion Surveys"]
+
+[[topics]]
+id = "population-surveillance"
+label = "Population Surveillance"
+mesh_id = "D011159"
+mesh_tree = "E05.318.308.980.438.700"
+parent = "health-surveys"
+aliases = []
+
+[[topics]]
+id = "biological-specimen-banks"
+label = "Biological Specimen Banks"
+mesh_id = "D018070"
+mesh_tree = "N02.278.065"
+aliases = ["Bank, Biological Specimen", "Bank, Biological Substance", "Banks, Biological Specimen", "Banks, Biological Substance", "Biobanks", "Biological Specimen Bank", "Biological Substance Bank", "Biological Substance Banks", "Biorepository", "Specimen Bank, Biological", "Specimen Banks, Biological", "Substance Bank, Biological", "Substance Banks, Biological"]
+
+[[topics]]
+id = "vital-statistics"
+label = "Vital Statistics"
+mesh_id = "D014798"
+mesh_tree = "E05.318.308.985"
+aliases = ["Registration of Vital Statistics", "Registration, Vital Statistics", "Statistics, Vital", "Vital Statistics Registration"]

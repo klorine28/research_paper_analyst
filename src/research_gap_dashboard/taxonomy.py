@@ -1,5 +1,10 @@
 """
-The topic taxonomy: the controlled vocabulary the Coverage Matrix hangs off.
+The taxonomies: the controlled vocabularies the Coverage Matrix hangs off.
+
+The Coverage Matrix has four axes (Topic, Method, Population, Dataset), each
+with its own taxonomy file in the same format; `[meta] axis` says which axis a
+file covers (Topic when omitted). Entries are `[[topics]]` on every axis, so one
+loader and one set of validation rules serve all four.
 
 A taxonomy is a human-editable TOML file (see `taxonomies/cardiology.toml`),
 seeded from MeSH so a researcher starts from a real vocabulary and prunes or
@@ -15,13 +20,25 @@ corrected in one pass rather than one error at a time.
 
 import tomllib
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-# The committed MeSH-seeded starting vocabulary, at the repository root.
-CARDIOLOGY_SEED_PATH = (
-  Path(__file__).resolve().parents[2] / "taxonomies" / "cardiology.toml"
-)
+Axis = Literal["topic", "method", "population", "dataset"]
+
+# Every axis, in the order the Coverage Matrix and the artifact present them.
+AXES: tuple[Axis, ...] = ("topic", "method", "population", "dataset")
+
+_TAXONOMIES_DIR = Path(__file__).resolve().parents[2] / "taxonomies"
+
+# The committed MeSH-seeded starting vocabularies, at the repository root.
+CARDIOLOGY_SEED_PATH = _TAXONOMIES_DIR / "cardiology.toml"
+SEED_PATHS: dict[Axis, Path] = {
+  "topic": CARDIOLOGY_SEED_PATH,
+  "method": _TAXONOMIES_DIR / "methods.toml",
+  "population": _TAXONOMIES_DIR / "populations.toml",
+  "dataset": _TAXONOMIES_DIR / "datasets.toml",
+}
 
 
 class TaxonomyError(Exception):
@@ -41,6 +58,9 @@ class TaxonomyMeta(BaseModel):
 
   model_config = ConfigDict(extra="allow")
 
+  axis: Axis = Field(
+    default="topic", description="The Coverage Matrix axis this vocabulary covers."
+  )
   domain: str = Field(description="The field this vocabulary covers, e.g. cardiology.")
   source: str = Field(description="Where the seed came from, e.g. 'MeSH 2025'.")
 
