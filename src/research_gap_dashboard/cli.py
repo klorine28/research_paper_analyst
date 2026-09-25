@@ -20,6 +20,11 @@ from research_gap_dashboard.ingest import (
 from research_gap_dashboard.llm import LlmConfigError, build_llm_client
 from research_gap_dashboard.parsing import parse_corpus
 from research_gap_dashboard.sources import OpenAlexAdapter
+from research_gap_dashboard.taxonomy import (
+  CARDIOLOGY_SEED_PATH,
+  TaxonomyError,
+  load_taxonomy,
+)
 
 LLM_CACHE_DIR = ".llm-cache"
 
@@ -66,6 +71,17 @@ def build_parser() -> argparse.ArgumentParser:
     default="default",
     help="Model tier to extract with (default: the capable model).",
   )
+  taxonomy = subcommands.add_parser(
+    "taxonomy",
+    help="Validate a topic-taxonomy file and report any problems.",
+  )
+  taxonomy.add_argument(
+    "file",
+    type=Path,
+    nargs="?",
+    default=CARDIOLOGY_SEED_PATH,
+    help="Taxonomy file to validate (default: the shipped cardiology seed).",
+  )
   return parser
 
 
@@ -78,6 +94,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     return _run_parse(arguments)
   if arguments.command == "extract":
     return _run_extract(arguments)
+  if arguments.command == "taxonomy":
+    return _run_taxonomy(arguments)
   return _run_ingest(arguments)
 
 
@@ -140,6 +158,26 @@ def _run_extract(arguments: argparse.Namespace) -> int:
   )
   for failure in report.failures:
     logger.warning("  %s: %s", failure.citation_key, failure.reason)
+  return EXIT_OK
+
+
+def _run_taxonomy(arguments: argparse.Namespace) -> int:
+  """Validate a topic-taxonomy file and report any problems."""
+  try:
+    taxonomy = load_taxonomy(arguments.file)
+  except TaxonomyError as error:
+    logger.error("Taxonomy '%s' is invalid:", arguments.file)
+    for problem in error.problems:
+      logger.error("  - %s", problem)
+    return EXIT_ERROR
+
+  logger.info(
+    "Taxonomy '%s' is valid: %d Topics for domain '%s' (source: %s).",
+    arguments.file,
+    len(taxonomy.topics),
+    taxonomy.meta.domain,
+    taxonomy.meta.source,
+  )
   return EXIT_OK
 
 

@@ -1,0 +1,362 @@
+# Cardiology topic taxonomy (seed).
+#
+# The controlled vocabulary of Topics for the Coverage Matrix. Seeded from
+# MeSH 2025 (Heart Diseases, tree C14.280) by
+# scripts/build_cardiology_taxonomy.py. This is a starting point: prune
+# Topics you do not care about and add your own. Every Topic keeps its MeSH
+# descriptor id and tree number as provenance; a hand-added Topic may set
+# mesh_id = "" and source = "manual".
+
+[meta]
+domain = "cardiology"
+source = "MeSH 2025"
+source_url = "https://meshb.nlm.nih.gov/treeView"
+mesh_tree_root = "C14.280"
+
+[[topics]]
+id = "arrhythmias-cardiac"
+label = "Arrhythmias, Cardiac"
+mesh_id = "D001145"
+mesh_tree = "C14.280.067"
+aliases = ["Arrhythmia", "Arrythmia", "Cardiac Arrhythmias", "Cardiac Arrhythmia", "Cardiac Dysrhythmia"]
+
+[[topics]]
+id = "carcinoid-heart-disease"
+label = "Carcinoid Heart Disease"
+mesh_id = "D002275"
+mesh_tree = "C14.280.104"
+aliases = []
+
+[[topics]]
+id = "cardiac-conduction-system-disease"
+label = "Cardiac Conduction System Disease"
+mesh_id = "D000075224"
+mesh_tree = "C14.280.123"
+aliases = ["Cardiac Conduction Defect", "Cardiac Conduction System Diseases"]
+
+[[topics]]
+id = "cardiac-output-high"
+label = "Cardiac Output, High"
+mesh_id = "D016534"
+mesh_tree = "C14.280.142"
+aliases = ["High Cardiac Output"]
+
+[[topics]]
+id = "cardiac-output-low"
+label = "Cardiac Output, Low"
+mesh_id = "D002303"
+mesh_tree = "C14.280.148"
+aliases = ["Low Cardiac Output"]
+
+[[topics]]
+id = "cardiac-tamponade"
+label = "Cardiac Tamponade"
+mesh_id = "D002305"
+mesh_tree = "C14.280.155"
+aliases = ["Pericardial Tamponade"]
+
+[[topics]]
+id = "cardiomegaly"
+label = "Cardiomegaly"
+mesh_id = "D006332"
+mesh_tree = "C14.280.195"
+aliases = ["Heart Hypertrophy", "Heart Enlargement", "Enlarged Heart"]
+
+[[topics]]
+id = "cardiomyopathies"
+label = "Cardiomyopathies"
+mesh_id = "D009202"
+mesh_tree = "C14.280.238"
+aliases = ["Primary Myocardial Disease", "Primary Myocardial Diseases", "Myocardial Diseases, Primary", "Secondary Myocardial Diseases", "Myocardial Diseases, Secondary", "Myocardial Disease", "Myocardial Diseases", "Myocardiopathies"]
+
+[[topics]]
+id = "arrhythmogenic-right-ventricular-dysplasia"
+label = "Arrhythmogenic Right Ventricular Dysplasia"
+mesh_id = "D019571"
+mesh_tree = "C14.280.238.028"
+parent = "cardiomyopathies"
+aliases = ["Arrhythmogenic Right Ventricular Cardiomyopathy", "Right Ventricular Dysplasia, Arrhythmogenic", "Ventricular Dysplasia, Right, Arrhythmogenic", "Arrhythmogenic Right Ventricular Cardiomyopathy-Dysplasia", "Arrhythmogenic Right Ventricular Dysplasia-Cardiomyopathy", "ARVD-C"]
+
+[[topics]]
+id = "cardiomyopathy-alcoholic"
+label = "Cardiomyopathy, Alcoholic"
+mesh_id = "D002310"
+mesh_tree = "C14.280.238.057"
+parent = "cardiomyopathies"
+aliases = ["Alcoholic Cardiomyopathy"]
+
+[[topics]]
+id = "cardiomyopathy-dilated"
+label = "Cardiomyopathy, Dilated"
+mesh_id = "D002311"
+mesh_tree = "C14.280.238.070"
+parent = "cardiomyopathies"
+aliases = ["Congestive Cardiomyopathy", "Cardiomyopathy, Congestive", "Cardiomyopathy, Dilated, with Conduction Deffect1", "Cardiomyopathy, Dilated, CMD1A", "Cardiomyopathy, Dilated, LMNA", "Cardiomyopathy, Dilated, Autosomal Recessive", "Cardiomyopathy, Dilated, 1a", "Cardiomyopathy, Dilated, With Conduction Defect 1", "Cardiomyopathy, Idiopathic Dilated", "Dilated cardiomyopathy 1A", "Dilated Cardiomyopathy"]
+
+[[topics]]
+id = "cardiomyopathy-hypertrophic"
+label = "Cardiomyopathy, Hypertrophic"
+mesh_id = "D002312"
+mesh_tree = "C14.280.238.100"
+parent = "cardiomyopathies"
+aliases = ["Cardiomyopathy, Hypertrophic Obstructive"]
+
+[[topics]]
+id = "apical-hypertrophic-cardiomyopathy"
+label = "Apical Hypertrophic Cardiomyopathy"
+mesh_id = "D000092183"
+mesh_tree = "C14.280.238.100.250"
+parent = "cardiomyopathy-hypertrophic"
+aliases = ["Apical-Variant HCM"]
+
+[[topics]]
+id = "cardiomyopathy-hypertrophic-familial"
+label = "Cardiomyopathy, Hypertrophic, Familial"
+mesh_id = "D024741"
+mesh_tree = "C14.280.238.100.500"
+parent = "cardiomyopathy-hypertrophic"
+aliases = ["Familial Hypertrophic Cardiomyopathy", "Cardiomyopathy, Familial Hypertrophic", "Ventricular Hypertrophy, Familial", "Asymmetric Septal Hypertrophy, Familial", "Hereditary Ventricular Hypertrophy", "Ventricular Hypertrophy, Hereditary"]
+
+[[topics]]
+id = "cardiomyopathy-restrictive"
+label = "Cardiomyopathy, Restrictive"
+mesh_id = "D002313"
+mesh_tree = "C14.280.238.160"
+parent = "cardiomyopathies"
+aliases = ["Familial Restrictive Cardiomyopathy"]
+
+[[topics]]
+id = "chagas-cardiomyopathy"
+label = "Chagas Cardiomyopathy"
+mesh_id = "D002598"
+mesh_tree = "C14.280.238.190"
+parent = "cardiomyopathies"
+aliases = ["Chagas' Cardiomyopathy", "Cardiomyopathy, Chagas", "Trypanosomiasis, Cardiovascular"]
+
+[[topics]]
+id = "diabetic-cardiomyopathies"
+label = "Diabetic Cardiomyopathies"
+mesh_id = "D058065"
+mesh_tree = "C14.280.238.235"
+parent = "cardiomyopathies"
+aliases = []
+
+[[topics]]
+id = "endocardial-fibroelastosis"
+label = "Endocardial Fibroelastosis"
+mesh_id = "D004695"
+mesh_tree = "C14.280.238.281"
+parent = "cardiomyopathies"
+aliases = ["Endomyocardial Fibroelastosis"]
+
+[[topics]]
+id = "isolated-noncompaction-of-the-ventricular-myocardium"
+label = "Isolated Noncompaction of the Ventricular Myocardium"
+mesh_id = "D056830"
+mesh_tree = "C14.280.238.281.500"
+parent = "endocardial-fibroelastosis"
+aliases = ["Isolated Non-compaction of the Ventricular Myocardium"]
+
+[[topics]]
+id = "endomyocardial-fibrosis"
+label = "Endomyocardial Fibrosis"
+mesh_id = "D004719"
+mesh_tree = "C14.280.238.406"
+parent = "cardiomyopathies"
+aliases = []
+
+[[topics]]
+id = "glycogen-storage-disease-type-iib"
+label = "Glycogen Storage Disease Type IIb"
+mesh_id = "D052120"
+mesh_tree = "C14.280.238.458"
+parent = "cardiomyopathies"
+aliases = ["Danon Disease", "Vacuolar Cardiomyopathy and Myopathy, X-linked", "Glycogen Storage Disease IIb", "X-Linked Vacuolar Cardiomyopathy and Myopathy", "Pseudoglycogenosis 2", "Glycogen Storage Cardiomyopathy", "Glycogen Storage Disease Type 2B", "Antopol Disease", "Glycogen Storage Disease Limited to the Heart", "Lysosomal Glycogen Storage Disease without Acid Maltase Deficiency", "Pseudoglycogenosis II", "Lysosomal Glycogen Storage Disease with Normal Acid Maltase"]
+
+[[topics]]
+id = "kearns-sayre-syndrome"
+label = "Kearns-Sayre Syndrome"
+mesh_id = "D007625"
+mesh_tree = "C14.280.238.510"
+parent = "cardiomyopathies"
+aliases = ["Kearns' Syndrome", "Kearns Syndrome", "Kearns-Sayre-Shy-Daroff Syndrome", "Kearn-Sayre Mitochondrial Cytopathy", "Kearns Sayre Syndrome", "Oculocraniosomatic Syndrome", "Ophthalmoplegia Plus Syndrome", "Ophthalmoplegia, Pigmentary Degeneration of Retina, and Cardiomyopathy", "Chronic Progressive External Ophthalmoplegia with Myopathy", "CPEO with Myopathy", "CPEO with Ragged Red Fibers", "Ophthalmoplegia, Progressive External, With Ragged-Red Fibers", "Cpeo With Ragged-Red Fibers", "Ophthalmoplegia-Plus Syndrome", "Kearns-Sayre Mitochondrial Cytopathy"]
+
+[[topics]]
+id = "myocardial-reperfusion-injury"
+label = "Myocardial Reperfusion Injury"
+mesh_id = "D015428"
+mesh_tree = "C14.280.238.615"
+parent = "cardiomyopathies"
+aliases = ["Injury, Myocardial Reperfusion", "Reperfusion Injury, Myocardial", "Myocardial Ischemic Reperfusion Injury"]
+
+[[topics]]
+id = "myocarditis"
+label = "Myocarditis"
+mesh_id = "D009205"
+mesh_tree = "C14.280.238.625"
+parent = "cardiomyopathies"
+aliases = []
+
+[[topics]]
+id = "peripartum-cardiomyopathy"
+label = "Peripartum Cardiomyopathy"
+mesh_id = "D000099088"
+mesh_tree = "C14.280.238.719"
+parent = "cardiomyopathies"
+aliases = ["Pregnancy-Associated Cardiomyopathy"]
+
+[[topics]]
+id = "sarcoglycanopathies"
+label = "Sarcoglycanopathies"
+mesh_id = "D058088"
+mesh_tree = "C14.280.238.812"
+parent = "cardiomyopathies"
+aliases = ["Adhalinopathies", "Adhalinopathy, Primary", "LGMD2D", "Muscular Dystrophy, Limb-Girdle, Type 2D", "Limb-Girdle Muscular Dystrophy, Type 2D", "Alpha-Sarcoglycanopathy", "Duchenne-Like Autosomal Recessive Muscular Dystrophy, Type 2", "Muscular Dystrophy Limb-Girdle with Alpha-Sarcoglycan Deficiency", "Sarcoglycanopathy"]
+
+[[topics]]
+id = "takotsubo-cardiomyopathy"
+label = "Takotsubo Cardiomyopathy"
+mesh_id = "D054549"
+mesh_tree = "C14.280.238.906"
+parent = "cardiomyopathies"
+aliases = ["Takotsubo Syndrome", "Tako-tsubo Cardiomyopathy", "Tako-tsubo Syndrome", "Left Ventricular Apical Ballooning Syndrome", "Stress Cardiomyopathy", "Broken Heart Syndrome", "Apical Ballooning Syndrome", "Transient Apical Ballooning Syndrome"]
+
+[[topics]]
+id = "cardiotoxicity"
+label = "Cardiotoxicity"
+mesh_id = "D066126"
+mesh_tree = "C14.280.260"
+aliases = ["Cardiac Toxicity"]
+
+[[topics]]
+id = "endocarditis"
+label = "Endocarditis"
+mesh_id = "D004696"
+mesh_tree = "C14.280.282"
+aliases = []
+
+[[topics]]
+id = "heart-aneurysm"
+label = "Heart Aneurysm"
+mesh_id = "D006322"
+mesh_tree = "C14.280.358"
+aliases = ["Cardiac Aneurysm"]
+
+[[topics]]
+id = "heart-arrest"
+label = "Heart Arrest"
+mesh_id = "D006323"
+mesh_tree = "C14.280.383"
+aliases = ["Asystole", "Cardiac Arrest"]
+
+[[topics]]
+id = "heart-defects-congenital"
+label = "Heart Defects, Congenital"
+mesh_id = "D006330"
+mesh_tree = "C14.280.400"
+aliases = ["Abnormality, Heart", "Heart Abnormalities", "Congenital Heart Defect", "Congenital Heart Defects", "Defects, Congenital Heart", "Heart Defect, Congenital", "Heart, Malformation Of", "Congenital Heart Disease"]
+
+[[topics]]
+id = "heart-failure"
+label = "Heart Failure"
+mesh_id = "D006333"
+mesh_tree = "C14.280.434"
+aliases = ["Heart Failure, Congestive", "Right-Sided Heart Failure", "Left-Sided Heart Failure", "Cardiac Failure"]
+
+[[topics]]
+id = "heart-neoplasms"
+label = "Heart Neoplasms"
+mesh_id = "D006338"
+mesh_tree = "C14.280.459"
+aliases = ["Intracavitary Tumors of the Heart", "Cardiac Cancer", "Heart Cancer", "Cardiac Neoplasms", "Neoplasms, Cardiac", "Neoplasms, Heart", "Cardiac Tumors", "Cardiac Tumor"]
+
+[[topics]]
+id = "heart-rupture"
+label = "Heart Rupture"
+mesh_id = "D006341"
+mesh_tree = "C14.280.470"
+aliases = ["Cardiac Free Wall Rupture", "Cardiac Rupture"]
+
+[[topics]]
+id = "heart-valve-diseases"
+label = "Heart Valve Diseases"
+mesh_id = "D006349"
+mesh_tree = "C14.280.484"
+aliases = ["Valvular Heart Diseases", "Heart Valvular Disease"]
+
+[[topics]]
+id = "myocardial-ischemia"
+label = "Myocardial Ischemia"
+mesh_id = "D017202"
+mesh_tree = "C14.280.647"
+aliases = ["Heart Disease, Ischemic", "Ischemic Heart Disease", "Ischemia, Myocardial"]
+
+[[topics]]
+id = "myocardial-stunning"
+label = "Myocardial Stunning"
+mesh_id = "D017682"
+mesh_tree = "C14.280.671"
+aliases = ["Myocardial Hibernation"]
+
+[[topics]]
+id = "pericardial-effusion"
+label = "Pericardial Effusion"
+mesh_id = "D010490"
+mesh_tree = "C14.280.695"
+aliases = []
+
+[[topics]]
+id = "pericarditis"
+label = "Pericarditis"
+mesh_id = "D010493"
+mesh_tree = "C14.280.720"
+aliases = []
+
+[[topics]]
+id = "pneumopericardium"
+label = "Pneumopericardium"
+mesh_id = "D011026"
+mesh_tree = "C14.280.763"
+aliases = []
+
+[[topics]]
+id = "post-cardiac-arrest-syndrome"
+label = "Post-Cardiac Arrest Syndrome"
+mesh_id = "D000080942"
+mesh_tree = "C14.280.778"
+aliases = ["Postcardiac Arrest Syndrome", "Postresuscitation Disease"]
+
+[[topics]]
+id = "postpericardiotomy-syndrome"
+label = "Postpericardiotomy Syndrome"
+mesh_id = "D011185"
+mesh_tree = "C14.280.793"
+aliases = []
+
+[[topics]]
+id = "pulmonary-heart-disease"
+label = "Pulmonary Heart Disease"
+mesh_id = "D011660"
+mesh_tree = "C14.280.832"
+aliases = ["Cor Pulmonale", "Disease, Pulmonary Heart", "Diseases, Pulmonary Heart", "Heart Disease, Pulmonary", "Heart Diseases, Pulmonary", "Pulmonary Heart Diseases"]
+
+[[topics]]
+id = "rheumatic-heart-disease"
+label = "Rheumatic Heart Disease"
+mesh_id = "D012214"
+mesh_tree = "C14.280.874"
+aliases = ["Bouillaud's Disease"]
+
+[[topics]]
+id = "ventricular-dysfunction"
+label = "Ventricular Dysfunction"
+mesh_id = "D018754"
+mesh_tree = "C14.280.945"
+aliases = []
+
+[[topics]]
+id = "ventricular-outflow-obstruction"
+label = "Ventricular Outflow Obstruction"
+mesh_id = "D014694"
+mesh_tree = "C14.280.955"
+aliases = ["Left Ventricular Outflow Obstruction", "Outflow Obstruction, Left Ventricular", "Outflow Obstruction, Right Ventricular", "Right Ventricular Outflow Obstruction"]
