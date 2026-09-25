@@ -9,6 +9,29 @@ import pytest
 FIXTURE_CORPUS_DIR = Path(__file__).parent / "fixtures" / "cardiology-corpus"
 
 
+class StubLlmClient:  # pylint: disable=too-few-public-methods
+  """A keyless LlmClient returning a fixed result and counting its calls."""
+
+  name = "stub"
+
+  def __init__(self, result: dict[str, Any]):
+    self.result = result
+    self.calls = 0
+
+  def complete(  # pylint: disable=unused-argument
+    self,
+    prompt: str,
+    schema: dict[str, Any],
+    *,
+    prompt_version: str,
+    tier: str = "default",
+    refresh: bool = False,
+  ) -> dict[str, Any]:
+    """Count the call and return the canned result."""
+    self.calls += 1
+    return self.result
+
+
 @pytest.fixture(name="cardiology_corpus")
 def cardiology_corpus_fixture() -> Path:
   """Return the root of the committed cardiology fixture Corpus."""

@@ -6,6 +6,8 @@ from typing import Any
 
 import pytest
 
+from conftest import StubLlmClient
+
 from research_gap_dashboard import cli
 from research_gap_dashboard.cli import main
 from research_gap_dashboard.extract import (
@@ -103,29 +105,6 @@ _GROUNDED_FIELDS: dict[str, Any] = {
 }
 
 
-class _StubClient:  # pylint: disable=too-few-public-methods
-  """A keyless LlmClient returning a fixed result and counting its calls."""
-
-  name = "stub"
-
-  def __init__(self, result: dict[str, Any]):
-    self.result = result
-    self.calls = 0
-
-  def complete(  # pylint: disable=unused-argument
-    self,
-    prompt: str,
-    schema: dict[str, Any],
-    *,
-    prompt_version: str,
-    tier: str = "default",
-    refresh: bool = False,
-  ) -> dict[str, Any]:
-    """Count the call and return the canned extraction."""
-    self.calls += 1
-    return self.result
-
-
 class _MisfireClient:  # pylint: disable=too-few-public-methods
   """Returns an empty object first, then the grounded extraction (a misfire+retry)."""
 
@@ -181,7 +160,7 @@ def parsed_corpus_fixture(cardiology_corpus: Path, tmp_path: Path) -> Path:
 def test_extraction_holds_all_seven_fields_with_evidence() -> None:
   """A grounded extraction carries all seven fields, each fact with a passage."""
   extraction = extract_paper(
-    "hanna2019", _parsed_sample(), _StubClient(_GROUNDED_FIELDS)
+    "hanna2019", _parsed_sample(), StubLlmClient(_GROUNDED_FIELDS)
   )
 
   assert len(ExtractionFields.model_fields) == 7
@@ -202,7 +181,7 @@ def test_evidence_passage_must_string_match_the_text() -> None:
   ]
 
   with pytest.raises(EvidenceVerificationError):
-    extract_paper("hanna2019", _parsed_sample(), _StubClient(invented))
+    extract_paper("hanna2019", _parsed_sample(), StubLlmClient(invented))
 
 
 def test_empty_passage_fails_verification() -> None:
@@ -213,7 +192,7 @@ def test_empty_passage_fails_verification() -> None:
   ]
 
   with pytest.raises(EvidenceVerificationError):
-    extract_paper("hanna2019", _parsed_sample(), _StubClient(empty))
+    extract_paper("hanna2019", _parsed_sample(), StubLlmClient(empty))
 
 
 def test_passage_matches_across_line_wrapping() -> None:
@@ -229,14 +208,14 @@ def test_passage_matches_across_line_wrapping() -> None:
     }
   ]
 
-  extraction = extract_paper("hanna2019", _parsed_sample(), _StubClient(wrapped))
+  extraction = extract_paper("hanna2019", _parsed_sample(), StubLlmClient(wrapped))
 
   assert extraction.fields.methods[0].statement == "Retrospective cohort."
 
 
 def test_extract_corpus_writes_artifact_for_every_paper(parsed_corpus: Path) -> None:
   """Each parsed Paper becomes an Extraction in the single Extractions artifact."""
-  report = extract_corpus(parsed_corpus, _StubClient(_GROUNDED_FIELDS))
+  report = extract_corpus(parsed_corpus, StubLlmClient(_GROUNDED_FIELDS))
 
   assert len(report.extractions) == 10
   assert report.failures == []
@@ -259,7 +238,7 @@ def test_a_bad_extraction_is_reported_without_aborting(parsed_corpus: Path) -> N
     }
   ]
 
-  report = extract_corpus(parsed_corpus, _StubClient(invented))
+  report = extract_corpus(parsed_corpus, StubLlmClient(invented))
 
   assert report.extractions == []
   assert len(report.failures) == 10
@@ -270,7 +249,7 @@ def test_a_paper_without_parsed_text_is_a_failure(parsed_corpus: Path) -> None:
   """A Paper that was never parsed is recorded as a failure, not skipped silently."""
   next((parsed_corpus / "paper-data").glob("*.parsed.json")).unlink()
 
-  report = extract_corpus(parsed_corpus, _StubClient(_GROUNDED_FIELDS))
+  report = extract_corpus(parsed_corpus, StubLlmClient(_GROUNDED_FIELDS))
 
   assert len(report.extractions) == 9
   assert len(report.failures) == 1
@@ -279,7 +258,7 @@ def test_a_paper_without_parsed_text_is_a_failure(parsed_corpus: Path) -> None:
 
 def test_reruns_hit_the_cache_and_make_no_new_calls(parsed_corpus: Path) -> None:
   """A second extract run serves from the disk cache without calling the LLM."""
-  inner = _StubClient(_GROUNDED_FIELDS)
+  inner = StubLlmClient(_GROUNDED_FIELDS)
   client = CachingLlmClient(inner, DiskCache(parsed_corpus / ".llm-cache"))
 
   extract_corpus(parsed_corpus, client)
