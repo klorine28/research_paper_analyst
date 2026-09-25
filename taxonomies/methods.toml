@@ -1,0 +1,142 @@
+# Method taxonomy (seed).
+#
+# The controlled vocabulary of the Coverage Matrix's method axis: study designs and research methods (MeSH study characteristics and publication types).
+# Curated from MeSH 2025 by scripts/build_axis_taxonomies.py. This
+# is a starting point: prune categories you do not care about and add your
+# own. Every category keeps its MeSH descriptor id and tree number as
+# provenance; a hand-added category sets mesh_id = "".
+
+[meta]
+axis = "method"
+domain = "biomedical"
+source = "MeSH 2025"
+source_url = "https://meshb.nlm.nih.gov/"
+
+[[topics]]
+id = "randomized-controlled-trial"
+label = "Randomized Controlled Trial"
+mesh_id = "D016449"
+mesh_tree = "V03.175.250.500.500"
+parent = "controlled-clinical-trial"
+aliases = ["RCT", "Randomised Controlled Trial", "Randomized Trial", "Randomised Trial"]
+
+[[topics]]
+id = "controlled-clinical-trial"
+label = "Controlled Clinical Trial"
+mesh_id = "D018848"
+mesh_tree = "V03.175.250.500"
+aliases = ["Non-Randomized Controlled Trial"]
+
+[[topics]]
+id = "observational-study"
+label = "Observational Study"
+mesh_id = "D064888"
+mesh_tree = "V03.175.500"
+aliases = ["Natural Experiment", "Natural Experiment Study", "Naturalistic Observation Study"]
+
+[[topics]]
+id = "cohort-studies"
+label = "Cohort Studies"
+mesh_id = "D015331"
+mesh_tree = "E05.318.372.500.750"
+aliases = ["Analysis, Cohort", "Birth Cohort Studies", "Birth Cohort Study", "Closed Cohort Studies", "Cohort Analysis", "Cohort Studies, Closed", "Cohort Studies, Historical", "Concurrent Studies", "Historical Cohort Studies", "Incidence Studies", "Studies, Closed Cohort", "Studies, Concurrent", "Studies, Historical Cohort"]
+
+[[topics]]
+id = "prospective-studies"
+label = "Prospective Studies"
+mesh_id = "D011446"
+mesh_tree = "E05.318.372.500.750.625"
+parent = "cohort-studies"
+aliases = ["Prospective Study", "Prospective Cohort"]
+
+[[topics]]
+id = "retrospective-studies"
+label = "Retrospective Studies"
+mesh_id = "D012189"
+mesh_tree = "E05.318.372.500.500.500"
+parent = "case-control-studies"
+aliases = ["Retrospective Study"]
+
+[[topics]]
+id = "case-control-studies"
+label = "Case-Control Studies"
+mesh_id = "D016022"
+mesh_tree = "E05.318.372.500.500"
+aliases = ["Case Control Studies", "Case-Base Studies", "Case-Comparison Studies", "Case-Compeer Studies", "Case-Referent Studies", "Case-Referrent Studies", "Matched Case-Control Studies", "Nested Case-Control Studies"]
+
+[[topics]]
+id = "cross-sectional-studies"
+label = "Cross-Sectional Studies"
+mesh_id = "D003430"
+mesh_tree = "E05.318.372.500.875"
+aliases = ["Analysis, Cross-Sectional", "Cross Sectional Analysis", "Cross-Sectional Survey", "Disease Frequency Surveys", "Prevalence Studies", "Surveys, Disease Frequency"]
+
+[[topics]]
+id = "case-reports"
+label = "Case Reports"
+mesh_id = "D002363"
+mesh_tree = "V03.100"
+aliases = ["Case Histories", "Case Studies", "Case Study"]
+
+[[topics]]
+id = "systematic-review"
+label = "Systematic Review"
+mesh_id = "D000078182"
+mesh_tree = "V02.912.625.509"
+aliases = ["Review, Systematic", "Systematic Literature Review", "Umbrella Review"]
+
+[[topics]]
+id = "meta-analysis"
+label = "Meta-Analysis"
+mesh_id = "D017418"
+mesh_tree = "V02.912.625.504"
+aliases = ["Meta-analyses", "Meta analysis"]
+
+[[topics]]
+id = "surveys-and-questionnaires"
+label = "Surveys and Questionnaires"
+mesh_id = "D011795"
+mesh_tree = "E05.318.308.980"
+aliases = ["Baseline Survey", "Community Survey", "Community Surveys", "Methodology, Survey", "Nonrespondent", "Nonrespondents", "Questionnaire", "Questionnaire Design", "Questionnaires", "Randomized Response Technique", "Repeated Rounds of Survey", "Respondent", "Respondents", "Survey", "Survey Method", "Survey Methodology", "Survey Methods", "Surveys"]
+
+[[topics]]
+id = "qualitative-research"
+label = "Qualitative Research"
+mesh_id = "D036301"
+mesh_tree = "H01.770.644.241.850"
+aliases = []
+
+[[topics]]
+id = "mendelian-randomization-analysis"
+label = "Mendelian Randomization Analysis"
+mesh_id = "D057182"
+mesh_tree = "E05.318.416.500"
+aliases = []
+
+[[topics]]
+id = "models-animal"
+label = "Models, Animal"
+mesh_id = "D023421"
+mesh_tree = "E05.598"
+aliases = ["Experimental Animal Models", "Laboratory Animal Models"]
+
+[[topics]]
+id = "in-vitro-techniques"
+label = "In Vitro Techniques"
+mesh_id = "D066298"
+mesh_tree = "E05.481"
+aliases = ["In Vitro", "In Vitro Test", "In Vitro Testing", "In Vitro Tests", "In Vitro as Topic"]
+
+[[topics]]
+id = "computer-simulation"
+label = "Computer Simulation"
+mesh_id = "D003198"
+mesh_tree = "L01.224.160"
+aliases = ["Computational Modeling", "Computational Modelling", "Computer Models", "Computerized Models", "In silico Modeling", "In silico Models", "In silico Simulation", "Models, Computer"]
+
+[[topics]]
+id = "machine-learning"
+label = "Machine Learning"
+mesh_id = "D000069550"
+mesh_tree = "G17.035.250.500"
+aliases = ["Transfer Learning"]

@@ -25,10 +25,12 @@ future work.
 ### Normalized Facts
 
 One Paper's free-text Extraction phrases mapped onto the shared taxonomy
-categories, produced by the Aggregate stage so Papers can be compared in the
-Coverage Matrix. Every mapping records the Paper's original term and the
-assigned category; a phrase that fits no category is surfaced as an unmapped
-term for taxonomy editing, never silently dropped.
+categories of each Coverage Matrix axis (Topic, Method, Population, Dataset),
+produced by the Aggregate stage so Papers can be compared in the Coverage
+Matrix. Every mapping records its axis, the Paper's original term, the
+assigned category, and the Evidence of the extracted fact it came from; a
+phrase that fits no category is surfaced as an unmapped term for taxonomy
+editing, never silently dropped.
 
 ### Evidence
 

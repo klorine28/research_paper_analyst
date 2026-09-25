@@ -1,0 +1,149 @@
+# Population taxonomy (seed).
+#
+# The controlled vocabulary of the Coverage Matrix's population axis: populations and samples studied (MeSH age groups, sex, species, care setting).
+# Curated from MeSH 2025 by scripts/build_axis_taxonomies.py. This
+# is a starting point: prune categories you do not care about and add your
+# own. Every category keeps its MeSH descriptor id and tree number as
+# provenance; a hand-added category sets mesh_id = "".
+
+[meta]
+axis = "population"
+domain = "biomedical"
+source = "MeSH 2025"
+source_url = "https://meshb.nlm.nih.gov/"
+
+[[topics]]
+id = "humans"
+label = "Humans"
+mesh_id = "D006801"
+mesh_tree = "B01.050.150.900.649.313.988.400.112.400.400"
+aliases = ["Homo sapiens", "Human", "Man (Taxonomy)", "Man, Modern"]
+
+[[topics]]
+id = "infant-newborn"
+label = "Infant, Newborn"
+mesh_id = "D007231"
+mesh_tree = "M01.060.703.520"
+parent = "infant"
+aliases = ["Neonate", "Newborns"]
+
+[[topics]]
+id = "infant"
+label = "Infant"
+mesh_id = "D007223"
+mesh_tree = "M01.060.703"
+aliases = ["Infants"]
+
+[[topics]]
+id = "child"
+label = "Child"
+mesh_id = "D002648"
+mesh_tree = "M01.060.406"
+aliases = ["Children"]
+
+[[topics]]
+id = "adolescent"
+label = "Adolescent"
+mesh_id = "D000293"
+mesh_tree = "M01.060.057"
+aliases = ["Adolescence", "Adolescents", "Adolescents, Female", "Adolescents, Male", "Teenagers", "Teens", "Youth"]
+
+[[topics]]
+id = "young-adult"
+label = "Young Adult"
+mesh_id = "D055815"
+mesh_tree = "M01.060.116.815"
+parent = "adult"
+aliases = []
+
+[[topics]]
+id = "adult"
+label = "Adult"
+mesh_id = "D000328"
+mesh_tree = "M01.060.116"
+aliases = ["Adults"]
+
+[[topics]]
+id = "middle-aged"
+label = "Middle Aged"
+mesh_id = "D008875"
+mesh_tree = "M01.060.116.630"
+parent = "adult"
+aliases = ["Middle Age"]
+
+[[topics]]
+id = "aged"
+label = "Aged"
+mesh_id = "D000368"
+mesh_tree = "M01.060.116.100"
+parent = "adult"
+aliases = ["Elderly"]
+
+[[topics]]
+id = "aged-80-and-over"
+label = "Aged, 80 and over"
+mesh_id = "D000369"
+mesh_tree = "M01.060.116.100.080"
+parent = "aged"
+aliases = ["Oldest Old"]
+
+[[topics]]
+id = "female"
+label = "Female"
+mesh_id = "D005260"
+aliases = ["Females"]
+
+[[topics]]
+id = "male"
+label = "Male"
+mesh_id = "D008297"
+aliases = ["Males"]
+
+[[topics]]
+id = "pregnant-people"
+label = "Pregnant People"
+mesh_id = "D037841"
+mesh_tree = "M01.975.807"
+aliases = ["Pregnant Person", "Pregnant Woman", "Women, Pregnant"]
+
+[[topics]]
+id = "inpatients"
+label = "Inpatients"
+mesh_id = "D007297"
+mesh_tree = "M01.643.470"
+aliases = []
+
+[[topics]]
+id = "outpatients"
+label = "Outpatients"
+mesh_id = "D010045"
+mesh_tree = "M01.643.630"
+aliases = ["Out-patients"]
+
+[[topics]]
+id = "animals"
+label = "Animals"
+mesh_id = "D000818"
+mesh_tree = "B01.050"
+aliases = ["Animal", "Animalia", "Metazoa"]
+
+[[topics]]
+id = "mice"
+label = "Mice"
+mesh_id = "D051379"
+mesh_tree = "B01.050.150.900.649.313.992.635.505.500"
+aliases = ["Mice, House", "Mice, Laboratory", "Mouse", "Mouse, House", "Mouse, Laboratory", "Mouse, Swiss", "Mus", "Mus domesticus", "Mus musculus", "Mus musculus domesticus", "Swiss Mice"]
+
+[[topics]]
+id = "rats"
+label = "Rats"
+mesh_id = "D051381"
+mesh_tree = "B01.050.150.900.649.313.992.635.505.700"
+aliases = ["Rats, Laboratory", "Rats, Norway", "Rattus", "Rattus norvegicus"]
+
+[[topics]]
+id = "swine"
+label = "Swine"
+mesh_id = "D013552"
+mesh_tree = "B01.050.150.900.649.313.500.880"
+aliases = ["Phacochoerus", "Pigs", "Suidae", "Wart Hogs", "Warthogs"]

@@ -6,6 +6,8 @@ import pytest
 
 from research_gap_dashboard.taxonomy import (
   CARDIOLOGY_SEED_PATH,
+  SEED_PATHS,
+  Axis,
   TaxonomyError,
   load_taxonomy,
 )
@@ -176,3 +178,39 @@ def test_shipped_cardiology_seed_is_valid():
   assert taxonomy.meta.domain == "cardiology"
   assert len(taxonomy.topics) >= 20
   assert taxonomy.resolve("Broken Heart Syndrome") is not None
+
+
+def test_axis_defaults_to_topic(tmp_path: Path):
+  """A file that names no axis is a Topic taxonomy."""
+  taxonomy = load_taxonomy(write_taxonomy(tmp_path, VALID_TAXONOMY))
+
+  assert taxonomy.meta.axis == "topic"
+
+
+def test_unknown_axis_is_reported(tmp_path: Path):
+  """An axis outside Topic, Method, Population, Dataset is a reported problem."""
+  text = VALID_TAXONOMY.replace("[meta]\n", '[meta]\naxis = "outcome"\n')
+  with pytest.raises(TaxonomyError) as caught:
+    load_taxonomy(write_taxonomy(tmp_path, text))
+
+  assert any("axis" in problem for problem in caught.value.problems)
+
+
+@pytest.mark.parametrize(
+  ("axis", "phrase", "expected"),
+  [
+    ("method", "RCT", "randomized-controlled-trial"),
+    ("method", "Retrospective Study", "retrospective-studies"),
+    ("population", "Elderly", "aged"),
+    ("dataset", "Electronic Medical Records", "electronic-health-records"),
+  ],
+)
+def test_shipped_axis_seeds_are_valid(axis: Axis, phrase: str, expected: str):
+  """Each committed MeSH-curated axis seed loads, declares its axis, and resolves."""
+  taxonomy = load_taxonomy(SEED_PATHS[axis])
+
+  assert taxonomy.meta.axis == axis
+  assert all(topic.mesh_id for topic in taxonomy.topics)
+  resolved = taxonomy.resolve(phrase)
+  assert resolved is not None
+  assert resolved.id == expected
