@@ -21,7 +21,12 @@ from research_gap_dashboard.ingest import (
 )
 from research_gap_dashboard.llm import LlmConfigError, build_llm_client
 from research_gap_dashboard.parsing import parse_corpus
-from research_gap_dashboard.sources import OpenAlexAdapter
+from research_gap_dashboard.retrieval import (
+  DEFAULT_LIMIT,
+  DEFAULT_MIN_OVERLAP,
+  detect_retrieval_gaps,
+)
+from research_gap_dashboard.sources import OpenAlexAdapter, PubMedAdapter
 from research_gap_dashboard.taxonomy import (
   CARDIOLOGY_SEED_PATH,
   SEED_PATHS,
@@ -51,7 +56,13 @@ def build_parser() -> argparse.ArgumentParser:
   ingest.add_argument(
     "--resolve",
     action="store_true",
-    help="Resolve each DOI against OpenAlex for canonical metadata (needs network).",
+    help="Resolve each DOI against a scholarly source for metadata (needs network).",
+  )
+  ingest.add_argument(
+    "--source",
+    choices=["openalex", "pubmed"],
+    default="openalex",
+    help="Scholarly source to resolve DOIs against (default: OpenAlex).",
   )
   ingest.add_argument(
     "--mailto",
@@ -107,6 +118,31 @@ def build_parser() -> argparse.ArgumentParser:
     default="default",
     help="Model tier for limitation grouping (default: the capable model).",
   )
+  retrieve = subcommands.add_parser(
+    "retrieve",
+    help="Find Retrieval Gaps: out-of-corpus papers by citation overlap.",
+  )
+  retrieve.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  retrieve.add_argument(
+    "--limit",
+    type=int,
+    default=DEFAULT_LIMIT,
+    help=f"Cap on candidates written (default: {DEFAULT_LIMIT}).",
+  )
+  retrieve.add_argument(
+    "--min-overlap",
+    type=int,
+    default=DEFAULT_MIN_OVERLAP,
+    help=(
+      "Least citation overlap (Corpus Papers citing a work) a candidate needs "
+      f"(default: {DEFAULT_MIN_OVERLAP})."
+    ),
+  )
+  retrieve.add_argument(
+    "--mailto",
+    default=None,
+    help="Contact email to join OpenAlex's polite pool when resolving.",
+  )
   taxonomy = subcommands.add_parser(
     "taxonomy",
     help="Validate a taxonomy file (any axis) and report any problems.",
@@ -126,22 +162,21 @@ def main(argv: Sequence[str] | None = None) -> int:
   logging.basicConfig(level=logging.INFO, format="%(message)s")
   arguments = build_parser().parse_args(argv)
 
-  if arguments.command == "parse":
-    return _run_parse(arguments)
-  if arguments.command == "extract":
-    return _run_extract(arguments)
-  if arguments.command == "aggregate":
-    return _run_aggregate(arguments)
-  if arguments.command == "detect":
-    return _run_detect(arguments)
-  if arguments.command == "taxonomy":
-    return _run_taxonomy(arguments)
-  return _run_ingest(arguments)
+  runners = {
+    "ingest": _run_ingest,
+    "parse": _run_parse,
+    "extract": _run_extract,
+    "aggregate": _run_aggregate,
+    "detect": _run_detect,
+    "retrieve": _run_retrieve,
+    "taxonomy": _run_taxonomy,
+  }
+  return runners[arguments.command](arguments)
 
 
 def _run_ingest(arguments: argparse.Namespace) -> int:
   """Pair the paper list with the PDFs and write the CorpusManifest."""
-  adapter = OpenAlexAdapter(mailto=arguments.mailto) if arguments.resolve else None
+  adapter = _build_source(arguments) if arguments.resolve else None
   try:
     manifest = ingest_corpus(arguments.corpus, adapter=adapter)
   except (CorpusSizeError, CorpusLayoutError) as error:
@@ -155,6 +190,36 @@ def _run_ingest(arguments: argparse.Namespace) -> int:
     len(manifest.unmatched_entries),
     len(manifest.orphan_pdfs),
     unresolved,
+  )
+  return EXIT_OK
+
+
+def _build_source(arguments: argparse.Namespace):
+  """Build the source adapter the ingest run resolves DOIs against."""
+  if arguments.source == "pubmed":
+    return PubMedAdapter()
+  return OpenAlexAdapter(mailto=arguments.mailto)
+
+
+def _run_retrieve(arguments: argparse.Namespace) -> int:
+  """Find out-of-corpus candidates by citation overlap and write the artifact."""
+  adapter = OpenAlexAdapter(mailto=arguments.mailto)
+  try:
+    report = detect_retrieval_gaps(
+      arguments.corpus,
+      adapter,
+      limit=arguments.limit,
+      min_overlap=arguments.min_overlap,
+    )
+  except FileNotFoundError as error:
+    logger.error("Run `ingest --resolve` first: %s", error)
+    return EXIT_ERROR
+
+  logger.info(
+    "Found %d out-of-corpus candidates over %d Papers (overlap at least %d).",
+    len(report.candidates),
+    report.corpus_paper_count,
+    report.min_overlap,
   )
   return EXIT_OK
 
