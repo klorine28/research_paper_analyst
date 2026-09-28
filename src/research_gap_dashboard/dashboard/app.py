@@ -14,7 +14,24 @@ from pathlib import Path
 
 import streamlit as st
 
+from research_gap_dashboard.analytics import (
+  CorpusPaper,
+  GapFact,
+  GroundedChatAnswer,
+  GroundedNarrative,
+  GroundingContext,
+  LlmClient,
+  answer_question,
+  build_analytics_client,
+  summarize_gaps,
+)
 from research_gap_dashboard.dashboard import text
+from research_gap_dashboard.dashboard.chat_history import (
+  ChatTurn,
+  append_turn,
+  clear_chat_history,
+  load_chat_history,
+)
 from research_gap_dashboard.dashboard.artifacts import (
   CorpusChoice,
   ManifestArtifact,
@@ -22,6 +39,7 @@ from research_gap_dashboard.dashboard.artifacts import (
   explained_citation_keys,
   has_candidate_gaps,
   has_extractions,
+  has_manifest,
   has_normalized_facts,
   has_paper_explanation,
   has_retrieval_gaps,
@@ -104,6 +122,7 @@ def _select_page() -> str:
       text.PAGE_RETRIEVAL,
       text.PAGE_EXPLAINER,
       text.PAGE_COMPARISON,
+      text.PAGE_ANALYTICS,
     ],
     index=0,
     label_visibility="collapsed",
@@ -497,8 +516,13 @@ _PAGE_RENDERERS: dict[str, Callable[[CorpusChoice], None]] = {
   text.PAGE_RETRIEVAL: _render_retrieval_page,
   text.PAGE_EXPLAINER: lambda chosen: _render_explainer_page(chosen.root),
   text.PAGE_COMPARISON: lambda chosen: _render_comparison_page(chosen.root),
+  text.PAGE_ANALYTICS: lambda chosen: _render_analytics_page(chosen.root),
   text.PAGE_OVERVIEW: _render_overview_page,
 }
+
+# The dashboard caches Conversational Analytics answers alongside the pipeline's
+# other LLM calls, keyed by their inputs (ADR 0001), so a repeat question is free.
+LLM_CACHE_DIR = ".llm-cache"
 
 
 def main() -> None:
@@ -650,6 +674,131 @@ def _load_explainer_view(
   paper = next(p for p in manifest.papers if p.citation_key == chosen.citation_key)
   explanation = load_paper_explanation(corpus_root, chosen.citation_key)
   return build_paper_explainer(paper, explanation)
+
+
+def _render_chat_turn(turn: ChatTurn) -> None:
+  """Render one persisted chat turn with the citations behind an answer."""
+  with st.chat_message(turn.role):
+    st.markdown(turn.content)
+    if turn.role == "assistant":
+      if turn.citations:
+        st.caption(
+          text.ANALYTICS_CITATIONS_LABEL.format(papers=", ".join(turn.citations))
+        )
+      else:
+        st.caption(text.ANALYTICS_NO_CITATIONS)
+
+
+def _render_grounding_flags(dropped: list[str]) -> None:
+  """Warn when generation cited work that does not resolve to a Corpus Paper."""
+  if dropped:
+    st.warning(
+      text.ANALYTICS_DROPPED_LABEL.format(count=len(dropped), papers=", ".join(dropped))
+    )
+
+
+def _render_analytics_page(corpus_root: Path) -> None:
+  """Render the Conversational Analytics page: grounded chat and narrative summary."""
+  st.header(text.ANALYTICS_HEADING)
+  st.info(text.ANALYTICS_INTRO)
+  if not has_manifest(corpus_root):
+    st.warning(text.ANALYTICS_NO_MANIFEST)
+    return
+
+  client = build_analytics_client(corpus_root / LLM_CACHE_DIR)
+  if client is None:
+    st.warning(text.ANALYTICS_NO_KEY)
+    return
+
+  manifest = load_manifest(corpus_root)
+  has_gaps = has_candidate_gaps(corpus_root)
+  context = _grounding_context(corpus_root, manifest, has_gaps)
+
+  _render_narrative_summary(context, client, has_gaps)
+  _render_chat(corpus_root, context, client)
+
+
+def _grounding_context(
+  corpus_root: Path, manifest: ManifestArtifact, has_gaps: bool
+) -> GroundingContext:
+  """Map this Corpus's artifact read models onto the analytics grounding context."""
+  papers = [
+    CorpusPaper(citation_key=paper.citation_key, title=paper.title, year=paper.year)
+    for paper in manifest.papers
+  ]
+  gap_facts: list[GapFact] = []
+  if has_gaps:
+    for gap in load_candidate_gaps(corpus_root).gaps:
+      gap_facts.append(
+        GapFact(
+          gap_type=gap.gap_type,
+          title=gap.title,
+          explanation=gap.explanation,
+          confidence=gap.confidence,
+          source_citation_keys=gap.source_citation_keys,
+        )
+      )
+  return GroundingContext(papers=papers, gaps=gap_facts)
+
+
+def _render_narrative_summary(
+  context: GroundingContext,
+  client: LlmClient,
+  has_gaps: bool,
+) -> None:
+  """Render the narrative-summary section, generated on demand and cached."""
+  st.subheader(text.ANALYTICS_SUMMARY_HEADING)
+  st.caption(text.ANALYTICS_SUMMARY_INTRO)
+  if not has_gaps:
+    st.info(text.ANALYTICS_SUMMARY_NEEDS_GAPS)
+    return
+  if st.button(text.ANALYTICS_GENERATE_SUMMARY_BUTTON):
+    with st.spinner(text.ANALYTICS_THINKING):
+      narrative = summarize_gaps(context, client)
+    _render_narrative(narrative)
+
+
+def _render_narrative(narrative: GroundedNarrative) -> None:
+  """Render a generated narrative summary with its grounded citations."""
+  for paragraph in narrative.paragraphs:
+    st.write(paragraph)
+  if narrative.citations:
+    st.caption(
+      text.ANALYTICS_CITATIONS_LABEL.format(papers=", ".join(narrative.citations))
+    )
+  else:
+    st.caption(text.ANALYTICS_NO_CITATIONS)
+  _render_grounding_flags(narrative.dropped_citations)
+
+
+def _render_chat(
+  corpus_root: Path, context: GroundingContext, client: LlmClient
+) -> None:
+  """Render the grounded chat: prior turns, a fresh answer, and its persistence."""
+  st.subheader(text.ANALYTICS_CHAT_HEADING)
+  history = load_chat_history(corpus_root)
+  if history.turns and st.button(text.ANALYTICS_CLEAR_CHAT_BUTTON):
+    clear_chat_history(corpus_root)
+    st.rerun()
+
+  for turn in history.turns:
+    _render_chat_turn(turn)
+
+  question = st.chat_input(text.ANALYTICS_CHAT_INPUT_LABEL)
+  if not question:
+    return
+  transcript = [f"{turn.role}: {turn.content}" for turn in history.turns]
+  append_turn(corpus_root, "user", question)
+  with st.spinner(text.ANALYTICS_THINKING):
+    answer = answer_question(question, context, client, history=transcript)
+  append_turn(corpus_root, "assistant", answer.answer, answer.citations)
+  _render_answer_flags(answer)
+  st.rerun()
+
+
+def _render_answer_flags(answer: GroundedChatAnswer) -> None:
+  """Surface any dropped, ungrounded citations before the chat reruns."""
+  _render_grounding_flags(answer.dropped_citations)
 
 
 if __name__ == "__main__":
