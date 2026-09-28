@@ -144,6 +144,7 @@ _PIPELINE_MODULES = {
   "ingest",
   "parsing",
   "extract",
+  "explain",
   "aggregate",
   "detect",
   "limitations",

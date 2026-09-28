@@ -9,6 +9,7 @@ corpus directories with the RESEARCH_GAP_CORPORA_DIR environment variable.
 """
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 
 import streamlit as st
@@ -16,13 +17,17 @@ import streamlit as st
 from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard.artifacts import (
   CorpusChoice,
+  ManifestArtifact,
   discover_corpora,
+  explained_citation_keys,
   has_candidate_gaps,
   has_normalized_facts,
+  has_paper_explanation,
   has_retrieval_gaps,
   load_candidate_gaps,
   load_manifest,
   load_normalized_facts,
+  load_paper_explanation,
   load_retrieval_gaps,
 )
 from research_gap_dashboard.dashboard.coverage import (
@@ -43,6 +48,13 @@ from research_gap_dashboard.dashboard.limitations import (
   LimitationGroupView,
   LimitationsData,
   build_limitations,
+)
+from research_gap_dashboard.dashboard.explainer import (
+  PaperExplainerView,
+  PaperMenuData,
+  PaperMenuEntry,
+  build_paper_explainer,
+  build_paper_menu,
 )
 from research_gap_dashboard.dashboard.overview import OverviewData, build_overview
 from research_gap_dashboard.dashboard.retrieval import (
@@ -80,6 +92,7 @@ def _select_page() -> str:
       text.PAGE_GAP_CARDS,
       text.PAGE_LIMITATIONS,
       text.PAGE_RETRIEVAL,
+      text.PAGE_EXPLAINER,
     ],
     index=0,
     label_visibility="collapsed",
@@ -361,6 +374,43 @@ def render_retrieval_gaps(data: RetrievalGapsData) -> None:
     _render_retrieval_candidate(candidate)
 
 
+def render_paper_explainer(
+  menu: PaperMenuData, view: PaperExplainerView | None
+) -> None:
+  """Render the Paper Explainer page: pick a Paper, show both registers."""
+  st.header(text.EXPLAINER_HEADING)
+  st.info(text.EXPLAINER_INTRO)
+  st.caption(
+    text.EXPLAINER_SUMMARY.format(
+      explained=menu.explained_count, total=menu.paper_count
+    )
+  )
+  if view is None:
+    st.warning(text.NO_EXPLANATION_FOR_PAPER)
+    return
+
+  st.subheader(view.title or view.citation_key)
+  st.caption(
+    text.EXPLAINER_METADATA_VENUE.format(
+      journal=view.journal,
+      year=(
+        text.EXPLAINER_METADATA_YEAR_PART.format(year=view.year)
+        if view.year is not None
+        else ""
+      ),
+    )
+  )
+  if view.doi:
+    st.markdown(
+      f"[{text.EXPLAINER_DOI_LABEL.format(doi=view.doi)}](https://doi.org/{view.doi})"
+    )
+
+  st.markdown(f"**{text.EXPLAINER_DOMAIN_HEADING}**")
+  st.write(view.domain_explanation)
+  st.markdown(f"**{text.EXPLAINER_LAY_HEADING}**")
+  st.write(view.lay_explanation)
+
+
 def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
   """Render the Gap Cards page: one card per Candidate Gap, with persistence."""
   st.header(text.GAP_CARDS_HEADING)
@@ -380,6 +430,65 @@ def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
     _render_gap_card(card, corpus_root)
 
 
+def _render_coverage_page(chosen: CorpusChoice) -> None:
+  """Render the Coverage & Trends page for the chosen Corpus."""
+  st.header(text.COVERAGE_HEADING)
+  if not has_candidate_gaps(chosen.root):
+    st.warning(text.NO_CANDIDATE_GAPS_ARTIFACT_COVERAGE)
+    return
+  if not has_normalized_facts(chosen.root):
+    st.warning(text.NO_NORMALIZED_FACTS_ARTIFACT)
+    return
+  matrices = build_coverage_matrices(load_candidate_gaps(chosen.root))
+  trends = build_trends(load_normalized_facts(chosen.root), load_manifest(chosen.root))
+  render_coverage(matrices, trends)
+
+
+def _render_gap_cards_page(chosen: CorpusChoice) -> None:
+  """Render the Gap Cards page for the chosen Corpus."""
+  if not has_candidate_gaps(chosen.root):
+    st.header(text.GAP_CARDS_HEADING)
+    st.warning(text.NO_CANDIDATE_GAPS_ARTIFACT)
+    return
+  data = build_gap_cards(load_candidate_gaps(chosen.root), load_judgments(chosen.root))
+  render_gap_cards(data, chosen.root)
+
+
+def _render_limitations_page(chosen: CorpusChoice) -> None:
+  """Render the Unanswered Limitations page for the chosen Corpus."""
+  if not has_candidate_gaps(chosen.root):
+    st.header(text.LIMITATIONS_HEADING)
+    st.warning(text.NO_CANDIDATE_GAPS_ARTIFACT_LIMITATIONS)
+    return
+  render_limitations(build_limitations(load_candidate_gaps(chosen.root)))
+
+
+def _render_retrieval_page(chosen: CorpusChoice) -> None:
+  """Render the Retrieval Gaps page for the chosen Corpus."""
+  if not has_retrieval_gaps(chosen.root):
+    st.header(text.RETRIEVAL_HEADING)
+    st.warning(text.NO_RETRIEVAL_GAPS_ARTIFACT)
+    return
+  render_retrieval_gaps(build_retrieval_gaps(load_retrieval_gaps(chosen.root)))
+
+
+def _render_overview_page(chosen: CorpusChoice) -> None:
+  """Render the Corpus Overview page for the chosen Corpus."""
+  render_overview(build_overview(load_manifest(chosen.root)))
+
+
+# Each dashboard page maps to the function that renders it for a chosen Corpus,
+# so `main` just dispatches instead of growing a return per page.
+_PAGE_RENDERERS: dict[str, Callable[[CorpusChoice], None]] = {
+  text.PAGE_COVERAGE: _render_coverage_page,
+  text.PAGE_GAP_CARDS: _render_gap_cards_page,
+  text.PAGE_LIMITATIONS: _render_limitations_page,
+  text.PAGE_RETRIEVAL: _render_retrieval_page,
+  text.PAGE_EXPLAINER: lambda chosen: _render_explainer_page(chosen.root),
+  text.PAGE_OVERVIEW: _render_overview_page,
+}
+
+
 def main() -> None:
   """Run the dashboard: pick a corpus and page, then render it."""
   st.set_page_config(page_title=text.APP_TITLE, layout="wide")
@@ -392,51 +501,36 @@ def main() -> None:
 
   chosen = _select_corpus(choices)
   page = _select_page()
+  _PAGE_RENDERERS.get(page, _render_overview_page)(chosen)
 
-  if page == text.PAGE_COVERAGE:
-    st.header(text.COVERAGE_HEADING)
-    if not has_candidate_gaps(chosen.root):
-      st.warning(text.NO_CANDIDATE_GAPS_ARTIFACT_COVERAGE)
-      return
-    if not has_normalized_facts(chosen.root):
-      st.warning(text.NO_NORMALIZED_FACTS_ARTIFACT)
-      return
-    matrices = build_coverage_matrices(load_candidate_gaps(chosen.root))
-    trends = build_trends(
-      load_normalized_facts(chosen.root), load_manifest(chosen.root)
-    )
-    render_coverage(matrices, trends)
+
+def _render_explainer_page(corpus_root: Path) -> None:
+  """Assemble the Paper Explainer page's data and render it."""
+  manifest = load_manifest(corpus_root)
+  menu = build_paper_menu(manifest, explained_citation_keys(corpus_root))
+  if not menu.entries:
+    st.header(text.EXPLAINER_HEADING)
+    st.warning(text.EXPLAINER_NO_PAPERS)
     return
 
-  if page == text.PAGE_GAP_CARDS:
-    if not has_candidate_gaps(chosen.root):
-      st.header(text.GAP_CARDS_HEADING)
-      st.warning(text.NO_CANDIDATE_GAPS_ARTIFACT)
-      return
-    data = build_gap_cards(
-      load_candidate_gaps(chosen.root), load_judgments(chosen.root)
-    )
-    render_gap_cards(data, chosen.root)
-    return
+  chosen_paper = st.selectbox(
+    text.EXPLAINER_PAPER_PICKER_LABEL,
+    menu.entries,
+    format_func=lambda entry: entry.label,
+  )
+  view = _load_explainer_view(corpus_root, manifest, chosen_paper)
+  render_paper_explainer(menu, view)
 
-  if page == text.PAGE_LIMITATIONS:
-    if not has_candidate_gaps(chosen.root):
-      st.header(text.LIMITATIONS_HEADING)
-      st.warning(text.NO_CANDIDATE_GAPS_ARTIFACT_LIMITATIONS)
-      return
-    render_limitations(build_limitations(load_candidate_gaps(chosen.root)))
-    return
 
-  if page == text.PAGE_RETRIEVAL:
-    if not has_retrieval_gaps(chosen.root):
-      st.header(text.RETRIEVAL_HEADING)
-      st.warning(text.NO_RETRIEVAL_GAPS_ARTIFACT)
-      return
-    render_retrieval_gaps(build_retrieval_gaps(load_retrieval_gaps(chosen.root)))
-    return
-
-  overview = build_overview(load_manifest(chosen.root))
-  render_overview(overview)
+def _load_explainer_view(
+  corpus_root: Path, manifest: ManifestArtifact, chosen: PaperMenuEntry
+) -> PaperExplainerView | None:
+  """Load the chosen Paper's explanation view, or None when it has none yet."""
+  if not has_paper_explanation(corpus_root, chosen.citation_key):
+    return None
+  paper = next(p for p in manifest.papers if p.citation_key == chosen.citation_key)
+  explanation = load_paper_explanation(corpus_root, chosen.citation_key)
+  return build_paper_explainer(paper, explanation)
 
 
 if __name__ == "__main__":

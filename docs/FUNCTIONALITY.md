@@ -20,7 +20,9 @@ inputs, so reruns over the same Corpus are free and reproducible
 
 ```
 ingest ─▶ parse ─▶ extract ─▶ aggregate ─▶ detect ─▶ (dashboard review)
-                                    │
+                     │              │
+                     ▼              │
+                  explain           │
    ingest --resolve ────────────────┴─▶ retrieve (out-of-corpus candidates)
 ```
 
@@ -39,7 +41,7 @@ A Corpus is one directory (see `docs/corpus-layout.md` and
 | --- | --- |
 | `papers/` | the Papers' PDF files |
 | `<name>.bib` or `dois.txt` | the paper list (BibTeX or one DOI per line) |
-| `paper-data/` | per-Paper derived data (parsed sections, per-Paper Extractions) |
+| `paper-data/` | per-Paper derived data (parsed sections, per-Paper explanations) |
 | `artifacts/` | stage output artifacts (below) |
 | `judgments/` | accept/reject judgments and (future) chat history |
 | `.llm-cache/` | on-disk LLM response cache |
@@ -53,6 +55,7 @@ A Corpus is one directory (see `docs/corpus-layout.md` and
 | Ingest | `ingest <corpus> [--resolve] [--source openalex\|pubmed] [--mailto EMAIL]` | paper list + `papers/*.pdf` | `corpus-manifest.json` | no | only with `--resolve` |
 | Parse | `parse <corpus>` | manifest + PDFs | per-Paper sectioned text in `paper-data/` | no | no |
 | Extract | `extract <corpus> [--tier default\|cheap]` | manifest + parsed text | `extractions.json` | yes | yes (uncached) |
+| Explain | `explain <corpus> [--tier default\|cheap]` | manifest + parsed text | per-Paper `*.explanation.json` in `paper-data/` | yes | yes (uncached) |
 | Aggregate | `aggregate <corpus> [--taxonomy FILE ...] [--tier ...]` | extractions + taxonomies | `normalized_facts.json` | yes | yes (uncached) |
 | Detect | `detect <corpus> [--tier ...]` | manifest + extractions + normalized facts | `candidate_gaps.json` | yes (limitations only) | yes (uncached) |
 | Retrieve | `retrieve <corpus> [--limit N] [--min-overlap N] [--mailto EMAIL]` | manifest (needs `ingest --resolve`) | `retrieval_gaps.json` | no | yes (OpenAlex) |
@@ -80,6 +83,16 @@ datasets, key findings, stated limitations, future work) with **verified
 Evidence** — each quoted passage is checked against the parsed text. Writes
 `extractions.json`. Reader: `read_extractions(root)`. (Verification is currently
 strict on real PDFs — see `docs/HANDOFF.md`.)
+
+### Explain — `explain.py`
+LLM-writes a plain-language explanation of each Paper's experiment in two
+registers — a **domain** explanation for a researcher in the field and a **lay**
+explanation for a non-specialist — grounded only in that Paper's parsed text
+(the prompt sees the text alone and is told to describe only what the Paper
+says). Stores one `<citation_key>.explanation.json` per Paper under
+`paper-data/`, with the prompt version and model tier behind each one. Reports
+per-Paper failures rather than aborting. Reader:
+`read_paper_explanation(root, citation_key)`.
 
 ### Aggregate — `aggregate.py`
 Maps each Paper's free-text facts onto the shared axis taxonomies (Topic,
@@ -149,13 +162,14 @@ a page.
 | Gap Cards | `gaps.py`, `judgments.py` | `candidate_gaps.json` | one card per Candidate Gap with type, confidence + reasoning, denominator, Evidence passages, and **accept/reject/clear** buttons that persist to `judgments/` |
 | Unanswered Limitations | `limitations.py` | `candidate_gaps.json` | every limitation group (addressed or not) with its follow-up count, source Papers, and verbatim source passages; unanswered groups called out from addressed ones |
 | Retrieval Gaps | `retrieval.py` | `retrieval_gaps.json` | out-of-corpus candidates ranked by citation overlap, kept visually and verbally separate (warning banner) as candidates for improving the search, not evidence-linked gaps |
+| Paper Explainer | `explainer.py` | `corpus-manifest.json` + per-Paper `*.explanation.json` | a Paper picker, then that Paper's experiment explained in **domain** and **lay** language, next to a link back to the Paper's metadata (title, venue, DOI) |
 
 Supporting modules: `artifacts.py` (discover corpora, load/guard each
 artifact), `text.py` (all user-facing strings, kept in one place for future
 translation), `app.py` (shell, navigation, rendering).
 
 ### Not yet built (dashboard)
-- **Paper Explainer** and **Conversational Analytics** sections (`CONTEXT.md`).
+- **Conversational Analytics** section (`CONTEXT.md`).
 - Driving pipeline commands from the app (proposed in `docs/HANDOFF.md`; needs
   an ADR because it touches ADR 0002's read-only boundary).
 
