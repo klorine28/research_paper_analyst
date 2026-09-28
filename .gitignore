@@ -71,5 +71,6 @@ tmp/
 # ==========================================
 # Corpora (often copyrighted PDFs), pipeline artifacts and API/LLM caches
 # stay local. Small test corpora live under tests/fixtures/ and are committed.
+corpora/
 data/
 outputs/
