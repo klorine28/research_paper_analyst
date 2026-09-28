@@ -33,6 +33,7 @@ PAGE_LIMITATIONS = "Unanswered Limitations"
 PAGE_RETRIEVAL = "Retrieval Gaps"
 PAGE_EXPLAINER = "Paper Explainer"
 PAGE_COMPARISON = "Paper Comparison"
+PAGE_ANALYTICS = "Conversational Analytics"
 
 # Corpus Overview page.
 OVERVIEW_HEADING = "Corpus Overview"
@@ -299,3 +300,41 @@ COMPARISON_NO_BLIND_SPOTS = (
   "The selection covers every category this Corpus studies on these axes."
 )
 COMPARISON_BLIND_SPOT_AXIS = "{axis}: {labels}"
+
+# Conversational Analytics page. A chat and a narrative summary, both grounded in
+# the Corpus and citing only its Papers (CONTEXT.md > Conversational Analytics;
+# CODING_STANDARDS.md > Research integrity). History persists under judgments/.
+ANALYTICS_HEADING = "Conversational Analytics"
+ANALYTICS_INTRO = (
+  "Discuss this Corpus's Papers, Candidate Gaps, and data in a chat grounded "
+  "only in the Corpus. Answers cite only Papers in the Corpus, and the "
+  "conversation persists so it can carry over months."
+)
+ANALYTICS_NO_MANIFEST = (
+  "This Corpus has not been ingested yet. Run the pipeline (`ingest`) against "
+  "a corpus directory first."
+)
+ANALYTICS_NO_KEY = (
+  "Conversational Analytics needs an Anthropic API key to answer. Set "
+  "ANTHROPIC_API_KEY in your environment (see .env.example), then reload."
+)
+ANALYTICS_CHAT_HEADING = "Chat"
+ANALYTICS_CHAT_INPUT_LABEL = "Ask about the Papers, gaps, or data"
+ANALYTICS_CLEAR_CHAT_BUTTON = "Clear conversation"
+ANALYTICS_THINKING = "Grounding an answer in the Corpus\u2026"
+ANALYTICS_CITATIONS_LABEL = "Grounded in: {papers}"
+ANALYTICS_NO_CITATIONS = "This answer cites no Corpus Paper."
+ANALYTICS_DROPPED_LABEL = (
+  "\u26a0\ufe0f Dropped {count} citation(s) that do not resolve to a Corpus "
+  "Paper: {papers}."
+)
+ANALYTICS_SUMMARY_HEADING = "Narrative summary"
+ANALYTICS_SUMMARY_INTRO = (
+  "A few paragraphs for a 'gaps in the literature' section, drawn from this "
+  "Corpus's Candidate Gaps and citing only its Papers."
+)
+ANALYTICS_SUMMARY_NEEDS_GAPS = (
+  "No Candidate Gaps found for this Corpus yet. Run the pipeline through "
+  "`detect` to generate a narrative summary."
+)
+ANALYTICS_GENERATE_SUMMARY_BUTTON = "Generate narrative summary"

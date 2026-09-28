@@ -164,13 +164,20 @@ a page.
 | Retrieval Gaps | `retrieval.py` | `retrieval_gaps.json` | out-of-corpus candidates ranked by citation overlap, kept visually and verbally separate (warning banner) as candidates for improving the search, not evidence-linked gaps |
 | Paper Explainer | `explainer.py` | `corpus-manifest.json` + per-Paper `*.explanation.json` | a Paper picker, then that Paper's experiment explained in **domain** and **lay** language, next to a link back to the Paper's metadata (title, venue, DOI) |
 | Paper Comparison | `comparison.py` | `corpus-manifest.json` + `extractions.json` + `normalized_facts.json` | pick 2–15 Papers; compares them field by field (research question, methods, population, datasets, findings, limitations), highlights **agreements/differences** and a **mini coverage matrix** of blind spots (grounded in shared normalized categories), and splits 6–15 Papers into summarized sets of ≤5 before comparing |
+| Conversational Analytics | `analytics.py`, `chat_history.py` | `corpus-manifest.json` (+ `candidate_gaps.json` for the summary) | a chat grounded in the Corpus and a **narrative summary** for a "gaps in the literature" section; both cite **only Corpus Papers** (every generated citation checked against the Corpus, ungrounded ones dropped and flagged), and the conversation persists to `judgments/chat_history.json` |
 
 Supporting modules: `artifacts.py` (discover corpora, load/guard each
 artifact), `text.py` (all user-facing strings, kept in one place for future
 translation), `app.py` (shell, navigation, rendering).
 
+Conversational Analytics is the one page that generates at view time rather than
+reading a finished artifact. To keep the dashboard package free of the LLM seam
+(ADR 0002), the grounded-generation machinery lives in the top-level
+`analytics.py` (grounding context, prompts, citation enforcement, and the cached
+client); `app.py` maps the artifact read models onto it and invokes it. A
+missing `ANTHROPIC_API_KEY` degrades the page to a clear message, not a crash.
+
 ### Not yet built (dashboard)
-- **Conversational Analytics** section (`CONTEXT.md`).
 - Driving pipeline commands from the app (proposed in `docs/HANDOFF.md`; needs
   an ADR because it touches ADR 0002's read-only boundary).
 
