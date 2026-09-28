@@ -1,8 +1,9 @@
 """
-The detect stage: find Candidate Gaps in the Corpus's Coverage Matrices.
+The detect stage: find Candidate Gaps and write the CandidateGaps artifact.
 
-This first slice builds Coverage Matrices from the NormalizedFacts artifact and
-turns empty or sparse cells into Knowledge Gap and Coverage Gap cards:
+It builds Coverage Matrices from the NormalizedFacts artifact and turns empty
+or sparse cells into Knowledge Gap and Coverage Gap cards, and it groups the
+Corpus's limitation statements into Unanswered Limitation cards:
 
 - **Knowledge Gaps** come from the Topic × Topic matrix: two Topics the Corpus
   studies that no Paper (or only one) studies together (`CONTEXT.md` > Gap Type,
@@ -10,6 +11,11 @@ turns empty or sparse cells into Knowledge Gap and Coverage Gap cards:
 - **Coverage Gaps** come from Topic × Method, Topic × Population, and
   Topic × Dataset: a Topic the Corpus studies, but never (or once) with a
   design, population, or data source the Corpus does use.
+- **Unanswered Limitations** come from the Extractions: limitation and
+  future-work statements grouped by meaning across Papers (see
+  `limitations`), carded only when no later Paper in the Corpus addressed
+  the group. Every group, addressed or not, is kept in the artifact so the
+  grouping and follow-up decisions are inspectable.
 
 Only categories observed in at least one Paper become matrix rows and columns.
 A cell is a gap signal only when both of its categories occur in the Corpus, so
@@ -22,16 +28,18 @@ The sparse-cell threshold is provisional (`docs/BRIEF.md`): only empty cells
 count for Corpora under 25 Papers; empty or single-Paper cells at 25 and above.
 Every card states its cell count and the denominator it was computed over.
 
-Detection is deterministic: no LLM or network call, and categories, cells, and
-gaps are sorted, so the same NormalizedFacts artifact always yields the same
-CandidateGaps artifact. Every card links to Evidence from Papers in the
-Corpus manifest only (CODING_STANDARDS > Research integrity).
+Matrix detection is deterministic and makes no LLM call; categories, cells,
+and gaps are sorted, so the same NormalizedFacts artifact always yields the
+same cards. Limitation grouping needs the LLM, through the cached client
+(ADR 0001), so a rerun over the same Extractions yields the same groups. Every
+card links to Evidence from Papers in the Corpus manifest only
+(CODING_STANDARDS > Research integrity).
 """
 
 import logging
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -41,8 +49,15 @@ from research_gap_dashboard.aggregate import (
   read_normalized_facts,
 )
 from research_gap_dashboard.corpus_layout import inspect_corpus_layout
-from research_gap_dashboard.extract import Evidence
+from research_gap_dashboard.extract import Evidence, read_extractions
 from research_gap_dashboard.ingest import read_manifest
+from research_gap_dashboard.limitations import (
+  FOLLOW_UP_PROMPT_VERSION,
+  GROUP_PROMPT_VERSION,
+  LimitationGroup,
+  group_limitations,
+)
+from research_gap_dashboard.llm import LlmClient, ModelTier
 from research_gap_dashboard.taxonomy import Axis
 
 logger = logging.getLogger(__name__)
@@ -53,12 +68,13 @@ CANDIDATE_GAPS_NAME = "candidate_gaps.json"
 # many Papers only empty cells are gaps; at or above it, single-Paper cells too.
 SPARSE_CORPUS_SIZE = 25
 
-GapType = Literal["knowledge_gap", "coverage_gap"]
+CellGapType = Literal["knowledge_gap", "coverage_gap"]
+GapType = Literal["knowledge_gap", "coverage_gap", "unanswered_limitation"]
 Confidence = Literal["low", "medium", "high"]
 EvidenceRole = Literal["row", "column", "cell"]
 
 # The matrices this slice detects over: (row axis, column axis, Gap Type).
-MATRIX_SPECS: tuple[tuple[Axis, Axis, GapType], ...] = (
+MATRIX_SPECS: tuple[tuple[Axis, Axis, CellGapType], ...] = (
   ("topic", "topic", "knowledge_gap"),
   ("topic", "method", "coverage_gap"),
   ("topic", "population", "coverage_gap"),
@@ -70,6 +86,7 @@ MATRIX_SPECS: tuple[tuple[Axis, Axis, GapType], ...] = (
 _GAP_TYPE_NAMES: dict[GapType, str] = {
   "knowledge_gap": "Knowledge Gap",
   "coverage_gap": "Coverage Gap",
+  "unanswered_limitation": "Unanswered Limitation",
 }
 _AXIS_NAMES: dict[Axis, str] = {
   "topic": "topic",
@@ -98,6 +115,21 @@ _TEXT: dict[str, str] = {
     "{expected:.1f} Papers would combine them; {count} do."
   ),
   "confidence_single": " Downgraded one level because 1 Paper does combine them.",
+  "limitation": (
+    "Candidate Unanswered Limitation: {source_count} Paper(s) in the Corpus "
+    "({papers}) state this limitation or open question, and none of the "
+    "{later_count} later Paper(s) in the Corpus addressed it."
+  ),
+  "limitation_caveat": (
+    " This is a signal for human judgment, not a verdict: it may be addressed "
+    "outside the Corpus, or in a passage the extraction did not capture."
+  ),
+  "limitation_confidence": (
+    "{later_count} later Paper(s) in the Corpus were checked for a follow-up."
+  ),
+  "limitation_no_year": (
+    "No later Paper could be checked: the source Papers' publication years are unknown."
+  ),
 }
 
 
@@ -143,11 +175,11 @@ class EvidenceLink(BaseModel):
   evidence: Evidence
 
 
-class CandidateGap(BaseModel):
+class CellGap(BaseModel):
   """One Knowledge or Coverage Gap card: a sparse cell and why it matters."""
 
   gap_id: str = Field(description="Stable id: '<row axis>x<column axis>:<row>:<col>'.")
-  gap_type: GapType
+  gap_type: CellGapType
   title: str
   explanation: str
   confidence: Confidence
@@ -166,19 +198,53 @@ class CandidateGap(BaseModel):
   evidence: list[EvidenceLink] = Field(min_length=1)
 
 
+class StatementEvidence(BaseModel):
+  """One source statement behind an Unanswered Limitation card."""
+
+  citation_key: str
+  statement_id: str
+  statement: str
+  evidence: Evidence
+
+
+class UnansweredLimitationGap(BaseModel):
+  """One Unanswered Limitation card: a limitation group no later Paper addressed."""
+
+  gap_id: str = Field(description="Stable id: 'limitation:<group id>'.")
+  gap_type: Literal["unanswered_limitation"]
+  title: str
+  explanation: str
+  confidence: Confidence
+  confidence_reason: str
+  group_id: str
+  source_citation_keys: list[str]
+  later_paper_count: int = Field(description="Later Papers checked for a follow-up.")
+  corpus_paper_count: int = Field(description="The denominator: Papers extracted.")
+  evidence: list[StatementEvidence] = Field(min_length=1)
+
+
+CandidateGap = Annotated[
+  CellGap | UnansweredLimitationGap, Field(discriminator="gap_type")
+]
+
+
 class CandidateGapsReport(BaseModel):
-  """What the detect stage produced: matrices, gap cards, and their provenance."""
+  """What the detect stage produced: matrices, groups, gap cards, provenance."""
 
   corpus_root: Path
-  corpus_paper_count: int
+  corpus_paper_count: int = Field(description="Papers in the Coverage Matrices.")
+  extracted_paper_count: int = Field(description="Papers checked for limitations.")
   sparse_max_count: int = Field(
     description="Cells with at most this many Papers are gap signals."
   )
   normalized_prompt_version: str
+  limitation_prompt_versions: list[str]
+  tier: ModelTier
   excluded_citation_keys: list[str] = Field(
-    description="NormalizedFacts Papers absent from the manifest, never cited."
+    description="Papers in upstream artifacts but absent from the manifest."
   )
   matrices: list[CoverageMatrix]
+  limitation_groups: list[LimitationGroup]
   gaps: list[CandidateGap]
 
 
@@ -187,44 +253,57 @@ def sparse_max_count(corpus_paper_count: int) -> int:
   return 0 if corpus_paper_count < SPARSE_CORPUS_SIZE else 1
 
 
-def detect_corpus(root: Path) -> CandidateGapsReport:
+def detect_corpus(
+  root: Path, client: LlmClient, *, tier: ModelTier = "default"
+) -> CandidateGapsReport:
   """
-  Detect Knowledge and Coverage Gaps and write the CandidateGaps artifact.
+  Detect every v1 in-Corpus Gap Type and write the CandidateGaps artifact.
 
-  Reads the manifest and the NormalizedFacts artifact; a NormalizedFacts entry
-  for a Paper not in the manifest is excluded (and listed) so no card cites a
-  Paper outside the Corpus.
+  Reads the manifest, the Extractions, and the NormalizedFacts artifact; an
+  entry for a Paper not in the manifest is excluded (and listed) so no card
+  cites a Paper outside the Corpus.
   """
-  corpus_keys = {paper.citation_key for paper in read_manifest(root).papers}
+  manifest = read_manifest(root)
+  corpus_keys = {paper.citation_key for paper in manifest.papers}
   normalized = read_normalized_facts(root)
+  extracted = read_extractions(root).extractions
+
+  excluded = sorted(
+    {facts.citation_key for facts in normalized.normalized}.union(
+      e.citation_key for e in extracted
+    ).difference(corpus_keys)
+  )
+  for key in excluded:
+    logger.warning("Ignoring %s: in an upstream artifact but not the manifest.", key)
 
   papers = sorted(
     (facts for facts in normalized.normalized if facts.citation_key in corpus_keys),
     key=lambda facts: facts.citation_key,
   )
-  excluded = sorted(
-    facts.citation_key
-    for facts in normalized.normalized
-    if facts.citation_key not in corpus_keys
-  )
-  for key in excluded:
-    logger.warning("Ignoring NormalizedFacts for %s: not in the manifest.", key)
+  extractions = [e for e in extracted if e.citation_key in corpus_keys]
+  matrices, gaps = _matrix_gaps(papers)
 
-  threshold = sparse_max_count(len(papers))
-  matrices: list[CoverageMatrix] = []
-  gaps: list[CandidateGap] = []
-  for row_axis, column_axis, gap_type in MATRIX_SPECS:
-    matrix = build_matrix(papers, row_axis, column_axis)
-    matrices.append(matrix)
-    gaps.extend(_gaps_from_matrix(matrix, papers, gap_type, threshold))
+  groups = group_limitations(
+    extractions,
+    {paper.citation_key: paper.year for paper in manifest.papers},
+    client,
+    tier=tier,
+  )
+  gaps.extend(
+    _limitation_gap(group, len(extractions)) for group in groups if not group.addressed
+  )
 
   report = CandidateGapsReport(
     corpus_root=root,
     corpus_paper_count=len(papers),
-    sparse_max_count=threshold,
+    extracted_paper_count=len(extractions),
+    sparse_max_count=sparse_max_count(len(papers)),
     normalized_prompt_version=normalized.prompt_version,
+    limitation_prompt_versions=[GROUP_PROMPT_VERSION, FOLLOW_UP_PROMPT_VERSION],
+    tier=tier,
     excluded_citation_keys=excluded,
     matrices=matrices,
+    limitation_groups=groups,
     gaps=gaps,
   )
   _write_report(root, report)
@@ -235,6 +314,20 @@ def detect_corpus(root: Path) -> CandidateGapsReport:
     len(papers),
   )
   return report
+
+
+def _matrix_gaps(
+  papers: list[NormalizedFacts],
+) -> tuple[list[CoverageMatrix], list[CandidateGap]]:
+  """Build every Coverage Matrix and card each cell at or under the threshold."""
+  threshold = sparse_max_count(len(papers))
+  matrices: list[CoverageMatrix] = []
+  gaps: list[CandidateGap] = []
+  for row_axis, column_axis, gap_type in MATRIX_SPECS:
+    matrix = build_matrix(papers, row_axis, column_axis)
+    matrices.append(matrix)
+    gaps.extend(_gaps_from_matrix(matrix, papers, gap_type, threshold))
+  return matrices, gaps
 
 
 def build_matrix(
@@ -311,13 +404,13 @@ def _observed_categories(
 def _gaps_from_matrix(
   matrix: CoverageMatrix,
   papers: list[NormalizedFacts],
-  gap_type: GapType,
+  gap_type: CellGapType,
   threshold: int,
-) -> list[CandidateGap]:
+) -> list[CellGap]:
   """Turn every cell at or under the sparse threshold into a gap card."""
   rows = {row.category_id: row for row in matrix.rows}
   columns = {column.category_id: column for column in matrix.columns}
-  gaps: list[CandidateGap] = []
+  gaps: list[CellGap] = []
   for cell in matrix.cells:
     if cell.paper_count > threshold:
       continue
@@ -335,8 +428,8 @@ def _build_gap(  # pylint: disable=too-many-arguments,too-many-positional-argume
   column: MatrixCategory,
   cell: MatrixCell,
   papers: list[NormalizedFacts],
-  gap_type: GapType,
-) -> CandidateGap:
+  gap_type: CellGapType,
+) -> CellGap:
   """Assemble one gap card with its explanation, confidence, and Evidence."""
   total = matrix.corpus_paper_count
   confidence, confidence_reason = _confidence(row, column, cell, total)
@@ -352,7 +445,7 @@ def _build_gap(  # pylint: disable=too-many-arguments,too-many-positional-argume
     total=total,
     papers=", ".join(cell.citation_keys),
   )
-  return CandidateGap(
+  return CellGap(
     gap_id=f"{matrix.row_axis}x{matrix.column_axis}:{row.category_id}:{column.category_id}",
     gap_type=gap_type,
     title=_TEXT["title"].format(row=row.label, column=column.label),
@@ -455,6 +548,47 @@ def _link(
     original_term=assignment.original_term,
     fact_ref=assignment.fact_ref,
     evidence=assignment.evidence,
+  )
+
+
+def _limitation_gap(group: LimitationGroup, total: int) -> UnansweredLimitationGap:
+  """
+  Assemble one Unanswered Limitation card from a group nobody followed up.
+
+  Confidence grows with how many later Papers could have addressed the group
+  and did not: none checked is low, 1 to 4 medium, 5 or more high. This is a
+  v1 heuristic, not a statistical test.
+  """
+  later = len(group.later_citation_keys)
+  confidence: Confidence = "high" if later >= 5 else "medium" if later >= 1 else "low"
+  if group.earliest_year is None:
+    reason = _TEXT["limitation_no_year"]
+  else:
+    reason = _TEXT["limitation_confidence"].format(later_count=later)
+  sources = group.source_citation_keys
+  explanation = _TEXT["limitation"].format(
+    source_count=len(sources), papers=", ".join(sources), later_count=later
+  )
+  return UnansweredLimitationGap(
+    gap_id=f"limitation:{group.group_id}",
+    gap_type="unanswered_limitation",
+    title=group.label,
+    explanation=explanation + _TEXT["limitation_caveat"],
+    confidence=confidence,
+    confidence_reason=reason,
+    group_id=group.group_id,
+    source_citation_keys=sources,
+    later_paper_count=later,
+    corpus_paper_count=total,
+    evidence=[
+      StatementEvidence(
+        citation_key=statement.citation_key,
+        statement_id=statement.statement_id,
+        statement=statement.statement,
+        evidence=statement.evidence,
+      )
+      for statement in group.statements
+    ],
   )
 
 
