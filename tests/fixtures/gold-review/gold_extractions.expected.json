@@ -1,0 +1,65 @@
+{
+  "corpus_root": "tests/fixtures/gold-review",
+  "extractions": [
+    {
+      "citation_key": "paper-a",
+      "fields": {
+        "research_question": [
+          {
+            "statement": "Outcomes in older heart-failure patients.",
+            "evidence": {
+              "passage": "We studied outcomes in older patients with heart failure.",
+              "section": "abstract"
+            }
+          }
+        ],
+        "methods": [
+          {
+            "statement": "Retrospective cohort study.",
+            "evidence": {
+              "passage": "A retrospective cohort of 200 patients was analysed.",
+              "section": "methods"
+            }
+          }
+        ],
+        "populations": [],
+        "datasets": [
+          {
+            "statement": "A single national registry.",
+            "evidence": {
+              "passage": "Data came from a single national registry.",
+              "section": "methods"
+            }
+          }
+        ],
+        "key_findings": [
+          {
+            "statement": "Mortality was 12%.",
+            "evidence": {
+              "passage": "Mortality was 12% over the follow-up period.",
+              "section": "results"
+            }
+          }
+        ],
+        "limitations": [
+          {
+            "statement": "Single-center and observational.",
+            "evidence": {
+              "passage": "The cohort was single-center and observational.",
+              "section": "limitations"
+            }
+          }
+        ],
+        "future_work": [
+          {
+            "statement": "A multi-center study is warranted.",
+            "evidence": {
+              "passage": "The cohort was single-center and observational.",
+              "section": "limitations"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

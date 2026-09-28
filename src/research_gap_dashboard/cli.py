@@ -12,6 +12,9 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from research_gap_dashboard.aggregate import aggregate_corpus, load_pipeline_taxonomies
+from research_gap_dashboard.dashboard.extraction_review import (
+  FIELD_NAMES as _GOLD_FIELD_NAMES,
+)
 from research_gap_dashboard.detect import detect_corpus
 from research_gap_dashboard.explain import explain_corpus
 from research_gap_dashboard.extract import extract_corpus
@@ -22,6 +25,11 @@ from research_gap_dashboard.ingest import (
 )
 from research_gap_dashboard.llm import LlmConfigError, build_llm_client
 from research_gap_dashboard.parsing import parse_corpus
+from research_gap_dashboard.promote_gold import (
+  default_gold_path,
+  promote_gold,
+  write_gold,
+)
 from research_gap_dashboard.retrieval import (
   DEFAULT_LIMIT,
   DEFAULT_MIN_OVERLAP,
@@ -155,6 +163,20 @@ def build_parser() -> argparse.ArgumentParser:
     default=None,
     help="Contact email to join OpenAlex's polite pool when resolving.",
   )
+  promote = subcommands.add_parser(
+    "promote-gold",
+    help="Turn a reviewed Extraction plus its overlay into a Gold Extraction fixture.",
+  )
+  promote.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  promote.add_argument(
+    "--out",
+    type=Path,
+    default=None,
+    help=(
+      "Where to write the Gold Extraction fixture "
+      "(default: the corpus's artifacts/gold_extractions.json)."
+    ),
+  )
   taxonomy = subcommands.add_parser(
     "taxonomy",
     help="Validate a taxonomy file (any axis) and report any problems.",
@@ -182,6 +204,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     "aggregate": _run_aggregate,
     "detect": _run_detect,
     "retrieve": _run_retrieve,
+    "promote-gold": _run_promote_gold,
     "taxonomy": _run_taxonomy,
   }
   return runners[arguments.command](arguments)
@@ -355,6 +378,30 @@ def _run_detect(arguments: argparse.Namespace) -> int:
     len(report.gaps),
     report.corpus_paper_count,
     report.sparse_max_count,
+  )
+  return EXIT_OK
+
+
+def _run_promote_gold(arguments: argparse.Namespace) -> int:
+  """Build the Gold Extraction from the Extraction plus its review overlay."""
+  try:
+    gold = promote_gold(arguments.corpus)
+  except FileNotFoundError as error:
+    logger.error("Run `extract` and review the Extraction first: %s", error)
+    return EXIT_ERROR
+
+  output_path = arguments.out or default_gold_path(arguments.corpus)
+  write_gold(gold, output_path)
+  fact_count = sum(
+    len(getattr(extraction.fields, name))
+    for extraction in gold.extractions
+    for name in _GOLD_FIELD_NAMES
+  )
+  logger.info(
+    "Promoted %d Papers to a Gold Extraction (%d facts) at %s.",
+    len(gold.extractions),
+    fact_count,
+    output_path,
   )
   return EXIT_OK
 

@@ -37,6 +37,18 @@ editing, never silently dropped.
 A specific passage or data point in a Paper that supports a claim the
 dashboard makes. Every Candidate Gap links to its Evidence.
 
+### Extraction Review
+
+The researcher's per-field verdicts on a Paper's Extraction — approve, edit,
+flag as wrong, remove a hallucinated fact, or add a missing fact — recorded as
+an annotation that never changes the pipeline's Extraction. Any edited or added
+Evidence must quote the Paper's text verbatim.
+
+### Gold Extraction
+
+A human-verified Extraction kept as a committed regression fixture, so later
+pipeline changes are checked against what a person confirmed the Paper says.
+
 ### Candidate Gap
 
 Something the tool proposes as a research gap, before a human confirms it.

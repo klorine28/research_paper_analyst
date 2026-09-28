@@ -1,0 +1,55 @@
+{
+  "reviews": [
+    {
+      "citation_key": "paper-a",
+      "verdicts": [
+        {
+          "field": "research_question",
+          "fact_index": 0,
+          "verdict": "approved",
+          "edited_statement": null,
+          "edited_passage": null,
+          "edited_section": null,
+          "decided_at": "2024-01-01T00:00:00Z"
+        },
+        {
+          "field": "methods",
+          "fact_index": 0,
+          "verdict": "approved",
+          "edited_statement": null,
+          "edited_passage": null,
+          "edited_section": null,
+          "decided_at": "2024-01-01T00:00:00Z"
+        },
+        {
+          "field": "methods",
+          "fact_index": 1,
+          "verdict": "flagged",
+          "edited_statement": null,
+          "edited_passage": null,
+          "edited_section": null,
+          "decided_at": "2024-01-01T00:00:00Z"
+        },
+        {
+          "field": "datasets",
+          "fact_index": 0,
+          "verdict": "edited",
+          "edited_statement": "A single national registry.",
+          "edited_passage": "Data came from a single national registry.",
+          "edited_section": "methods",
+          "decided_at": "2024-01-01T00:00:00Z"
+        }
+      ],
+      "added_facts": [
+        {
+          "fact_id": "0000000000000000000000000000000a",
+          "field": "future_work",
+          "statement": "A multi-center study is warranted.",
+          "passage": "The cohort was single-center and observational.",
+          "section": "limitations",
+          "added_at": "2024-01-01T00:00:00Z"
+        }
+      ]
+    }
+  ]
+}

@@ -131,3 +131,17 @@ Candidate Gap: its Gap Type, explanation, confidence, cell count, and the
 verbatim Evidence passages with their source Papers. Accept or reject each
 card; judgments persist to JSON under the corpus's `judgments/` directory and
 are restored when you reopen the corpus, so a review can span months.
+
+The Verify Extractions page (available once `extract` and `parse` have run) lets
+a researcher check each Paper's Extraction against its own text, one field at a
+time, and leave per-field verdicts: approve, edit, flag wrong, remove a
+hallucinated fact, or add a missing one. Verdicts are annotation-only (see
+`docs/adr/0003-...`): they persist to a review overlay under `judgments/` and
+never change `extractions.json`, so `aggregate`/`detect` stay deterministic. Any
+edited or added Evidence must be a verbatim quote from the Paper's parsed text,
+re-verified before it is saved. Promote a reviewed Extraction to a committed
+Gold Extraction regression fixture with the command-line step (not the browser):
+
+```shell
+uv run research-gap-dashboard promote-gold path/to/corpus
+```
