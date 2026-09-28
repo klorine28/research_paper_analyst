@@ -32,6 +32,7 @@ PAGE_COVERAGE = "Coverage & Trends"
 PAGE_LIMITATIONS = "Unanswered Limitations"
 PAGE_RETRIEVAL = "Retrieval Gaps"
 PAGE_EXPLAINER = "Paper Explainer"
+PAGE_COMPARISON = "Paper Comparison"
 
 # Corpus Overview page.
 OVERVIEW_HEADING = "Corpus Overview"
@@ -258,3 +259,43 @@ EXPLAINER_METADATA_YEAR_PART = " \u00b7 {year}"
 EXPLAINER_DOI_LABEL = "DOI: {doi}"
 EXPLAINER_DOMAIN_HEADING = "In domain language"
 EXPLAINER_LAY_HEADING = "In plain language"
+
+# Paper Comparison page. The researcher picks 2-15 Papers and sees them side by
+# side, field by field, with agreements and blind spots grounded in the shared
+# Normalized Facts categories (docs/BRIEF.md, decision 8).
+COMPARISON_HEADING = "Paper Comparison"
+COMPARISON_INTRO = (
+  "Pick 2 to 15 Papers and compare them field by field. Agreements and blind "
+  "spots are grounded in the shared normalized categories, so two Papers only "
+  "agree when the pipeline placed them on the same category."
+)
+COMPARISON_NO_ARTIFACTS = (
+  "This Corpus has not been extracted and aggregated yet. Run the pipeline "
+  "through `extract` and `aggregate` against this corpus directory first."
+)
+COMPARISON_PICKER_LABEL = "Papers to compare (2\u201315)"
+COMPARISON_TOO_FEW = "Pick at least 2 Papers to see a comparison."
+COMPARISON_CHUNK_NOTICE = (
+  "{count} Papers selected. Papers are split into {sets} sets of at most "
+  "5, each set summarized, and the summaries compared."
+)
+COMPARISON_FIELDS_HEADING = "Field by field"
+COMPARISON_NO_STATEMENTS = "\u2014"
+COMPARISON_AXES_HEADING = "Agreements and differences"
+COMPARISON_AGREEMENTS_LABEL = "All agree on:"
+COMPARISON_DIFFERENCES_LABEL = "Differ on:"
+COMPARISON_DIFFERENCE_ITEM = "{label} (only {keys})"
+COMPARISON_NO_AXIS_SIGNAL = (
+  "No shared or differing normalized categories for this selection."
+)
+COMPARISON_BLIND_SPOTS_HEADING = (
+  "Mini coverage matrix: what none of the selection covers"
+)
+COMPARISON_BLIND_SPOTS_DENOMINATOR = (
+  "Categories this Corpus of {total} Papers studies that none of the selected "
+  "Papers cover."
+)
+COMPARISON_NO_BLIND_SPOTS = (
+  "The selection covers every category this Corpus studies on these axes."
+)
+COMPARISON_BLIND_SPOT_AXIS = "{axis}: {labels}"

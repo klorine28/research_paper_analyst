@@ -21,14 +21,24 @@ from research_gap_dashboard.dashboard.artifacts import (
   discover_corpora,
   explained_citation_keys,
   has_candidate_gaps,
+  has_extractions,
   has_normalized_facts,
   has_paper_explanation,
   has_retrieval_gaps,
   load_candidate_gaps,
+  load_extractions,
   load_manifest,
   load_normalized_facts,
   load_paper_explanation,
   load_retrieval_gaps,
+)
+from research_gap_dashboard.dashboard.comparison import (
+  MAX_SELECTION,
+  AxisComparison,
+  ComparisonResult,
+  FieldComparison,
+  build_comparison,
+  selection_error,
 )
 from research_gap_dashboard.dashboard.coverage import (
   CoverageMatrixView,
@@ -93,6 +103,7 @@ def _select_page() -> str:
       text.PAGE_LIMITATIONS,
       text.PAGE_RETRIEVAL,
       text.PAGE_EXPLAINER,
+      text.PAGE_COMPARISON,
     ],
     index=0,
     label_visibility="collapsed",
@@ -485,6 +496,7 @@ _PAGE_RENDERERS: dict[str, Callable[[CorpusChoice], None]] = {
   text.PAGE_LIMITATIONS: _render_limitations_page,
   text.PAGE_RETRIEVAL: _render_retrieval_page,
   text.PAGE_EXPLAINER: lambda chosen: _render_explainer_page(chosen.root),
+  text.PAGE_COMPARISON: lambda chosen: _render_comparison_page(chosen.root),
   text.PAGE_OVERVIEW: _render_overview_page,
 }
 
@@ -520,6 +532,113 @@ def _render_explainer_page(corpus_root: Path) -> None:
   )
   view = _load_explainer_view(corpus_root, manifest, chosen_paper)
   render_paper_explainer(menu, view)
+
+
+def _render_comparison_page(corpus_root: Path) -> None:
+  """Assemble the Paper Comparison page's data and render it."""
+  st.header(text.COMPARISON_HEADING)
+  st.info(text.COMPARISON_INTRO)
+  if not has_extractions(corpus_root) or not has_normalized_facts(corpus_root):
+    st.warning(text.COMPARISON_NO_ARTIFACTS)
+    return
+
+  manifest = load_manifest(corpus_root)
+  entries = manifest.papers
+  selection_keys = st.multiselect(
+    text.COMPARISON_PICKER_LABEL,
+    [paper.citation_key for paper in entries],
+    format_func=lambda key: _paper_label(manifest, key),
+    max_selections=MAX_SELECTION,
+  )
+  if selection_error(selection_keys, manifest) is not None:
+    st.info(text.COMPARISON_TOO_FEW)
+    return
+
+  result = build_comparison(
+    selection_keys,
+    load_extractions(corpus_root),
+    load_normalized_facts(corpus_root),
+    manifest,
+  )
+  render_comparison(result)
+
+
+def _paper_label(manifest: ManifestArtifact, citation_key: str) -> str:
+  """Return a human label for a Paper in the comparison picker."""
+  paper = next(p for p in manifest.papers if p.citation_key == citation_key)
+  name = paper.title or paper.citation_key
+  return f"{name} ({paper.year})" if paper.year is not None else name
+
+
+def _render_axis_comparison(axis: AxisComparison) -> None:
+  """Render one axis's agreements and differences from finished data."""
+  if not (axis.agreements or axis.differences):
+    return
+  st.markdown(f"**{axis.axis_label}**")
+  if axis.agreements:
+    st.caption(
+      text.COMPARISON_AGREEMENTS_LABEL
+      + " "
+      + ", ".join(item.label for item in axis.agreements)
+    )
+  if axis.differences:
+    st.caption(text.COMPARISON_DIFFERENCES_LABEL)
+    for item in axis.differences:
+      st.caption(
+        "\u00b7 "
+        + text.COMPARISON_DIFFERENCE_ITEM.format(
+          label=item.label, keys=", ".join(item.covering_keys)
+        )
+      )
+
+
+def _render_field_comparison(field: FieldComparison) -> None:
+  """Render one field's statements, one column per compared unit."""
+  st.markdown(f"**{field.label}**")
+  columns = st.columns(len(field.units))
+  for column, unit in zip(columns, field.units, strict=True):
+    column.caption(unit.label)
+    if not unit.statements:
+      column.markdown(text.COMPARISON_NO_STATEMENTS)
+      continue
+    for statement in unit.statements:
+      column.markdown(f"- {statement}")
+
+
+def render_comparison(result: ComparisonResult) -> None:
+  """Render the Paper Comparison page from already-computed data."""
+  if result.is_chunked:
+    st.warning(
+      text.COMPARISON_CHUNK_NOTICE.format(
+        count=len(result.citation_keys), sets=len(result.chunks)
+      )
+    )
+
+  st.subheader(text.COMPARISON_FIELDS_HEADING)
+  for field in result.fields:
+    _render_field_comparison(field)
+
+  st.subheader(text.COMPARISON_AXES_HEADING)
+  if not any(axis.agreements or axis.differences for axis in result.axes):
+    st.caption(text.COMPARISON_NO_AXIS_SIGNAL)
+  for axis in result.axes:
+    _render_axis_comparison(axis)
+
+  st.subheader(text.COMPARISON_BLIND_SPOTS_HEADING)
+  st.caption(
+    text.COMPARISON_BLIND_SPOTS_DENOMINATOR.format(total=result.corpus_paper_count)
+  )
+  blind = [axis for axis in result.axes if axis.blind_spots]
+  if not blind:
+    st.success(text.COMPARISON_NO_BLIND_SPOTS)
+    return
+  for axis in blind:
+    st.markdown(
+      text.COMPARISON_BLIND_SPOT_AXIS.format(
+        axis=axis.axis_label,
+        labels=", ".join(item.label for item in axis.blind_spots),
+      )
+    )
 
 
 def _load_explainer_view(

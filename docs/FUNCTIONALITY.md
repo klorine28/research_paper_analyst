@@ -163,6 +163,7 @@ a page.
 | Unanswered Limitations | `limitations.py` | `candidate_gaps.json` | every limitation group (addressed or not) with its follow-up count, source Papers, and verbatim source passages; unanswered groups called out from addressed ones |
 | Retrieval Gaps | `retrieval.py` | `retrieval_gaps.json` | out-of-corpus candidates ranked by citation overlap, kept visually and verbally separate (warning banner) as candidates for improving the search, not evidence-linked gaps |
 | Paper Explainer | `explainer.py` | `corpus-manifest.json` + per-Paper `*.explanation.json` | a Paper picker, then that Paper's experiment explained in **domain** and **lay** language, next to a link back to the Paper's metadata (title, venue, DOI) |
+| Paper Comparison | `comparison.py` | `corpus-manifest.json` + `extractions.json` + `normalized_facts.json` | pick 2–15 Papers; compares them field by field (research question, methods, population, datasets, findings, limitations), highlights **agreements/differences** and a **mini coverage matrix** of blind spots (grounded in shared normalized categories), and splits 6–15 Papers into summarized sets of ≤5 before comparing |
 
 Supporting modules: `artifacts.py` (discover corpora, load/guard each
 artifact), `text.py` (all user-facing strings, kept in one place for future

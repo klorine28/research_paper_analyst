@@ -19,6 +19,7 @@ MANIFEST_NAME = "corpus-manifest.json"
 CANDIDATE_GAPS_NAME = "candidate_gaps.json"
 NORMALIZED_FACTS_NAME = "normalized_facts.json"
 RETRIEVAL_GAPS_NAME = "retrieval_gaps.json"
+EXTRACTIONS_NAME = "extractions.json"
 
 
 class ArtifactNotFoundError(FileNotFoundError):
@@ -304,6 +305,60 @@ def load_normalized_facts(corpus_root: Path) -> NormalizedFactsArtifact:
     )
   raw = json.loads(path.read_text(encoding="utf-8"))
   return NormalizedFactsArtifact.model_validate(raw)
+
+
+class ExtractedFactRecord(_ReadModel):
+  """One extracted fact and its Evidence, as the dashboard reads it."""
+
+  statement: str = ""
+  evidence: EvidenceRecord = EvidenceRecord()
+
+
+class ExtractionFieldsRecord(_ReadModel):
+  """One Paper's seven Extraction fields, projected onto what a view reads."""
+
+  research_question: list[ExtractedFactRecord] = []
+  methods: list[ExtractedFactRecord] = []
+  populations: list[ExtractedFactRecord] = []
+  datasets: list[ExtractedFactRecord] = []
+  key_findings: list[ExtractedFactRecord] = []
+  limitations: list[ExtractedFactRecord] = []
+  future_work: list[ExtractedFactRecord] = []
+
+
+class ExtractionRecord(_ReadModel):
+  """One Paper's structured facts, keyed to the Paper in the manifest."""
+
+  citation_key: str
+  fields: ExtractionFieldsRecord = ExtractionFieldsRecord()
+
+
+class ExtractionsArtifact(_ReadModel):
+  """The Extractions artifact, projected onto what the Comparison view shows."""
+
+  corpus_root: Path
+  extractions: list[ExtractionRecord] = []
+
+
+def _extractions_path(corpus_root: Path) -> Path:
+  """Return where a corpus directory keeps its Extractions artifact."""
+  return corpus_root / ARTIFACTS_DIR / EXTRACTIONS_NAME
+
+
+def has_extractions(corpus_root: Path) -> bool:
+  """Report whether a corpus directory has an Extractions artifact to read."""
+  return _extractions_path(corpus_root).is_file()
+
+
+def load_extractions(corpus_root: Path) -> ExtractionsArtifact:
+  """Read the Extractions artifact the extract stage left on disk."""
+  path = _extractions_path(corpus_root)
+  if not path.is_file():
+    raise ArtifactNotFoundError(
+      f"No Extractions at '{path}'. Run `extract` on '{corpus_root}' first."
+    )
+  raw = json.loads(path.read_text(encoding="utf-8"))
+  return ExtractionsArtifact.model_validate(raw)
 
 
 class PaperExplanationRegistersRecord(_ReadModel):
