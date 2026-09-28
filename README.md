@@ -107,3 +107,21 @@ doing>`. Ending a session mid-task? `/skill:handoff`. Pi sessions are trees:
 | `just lint` | Ruff + pylint |
 | `just format` / `just format-check` | Format / check formatting |
 | `just type-check` | Pyright + ty |
+| `just dashboard` | Launch the Streamlit dashboard over ingested corpora |
+
+## Dashboard
+
+The dashboard is a Streamlit app that only reads the on-disk artifacts the
+pipeline writes; it never runs pipeline logic (see `docs/adr/0002-...`). Ingest
+a corpus first, then launch the app:
+
+```shell
+uv run research-gap-dashboard ingest path/to/corpus
+just dashboard
+```
+
+Set `RESEARCH_GAP_CORPORA_DIR` to the folder that holds your corpus directories
+(defaults to `./corpora`); the sidebar lists every corpus under it that has a
+manifest. The Corpus Overview page shows the paper count, papers per year,
+venues, and what was left out, alongside a prominent reminder that detected
+gaps are candidates for human judgment, not verdicts.

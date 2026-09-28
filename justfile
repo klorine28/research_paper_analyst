@@ -61,8 +61,8 @@ upgrade:
 
 # -- Dashboard -- #
 #
-# Placeholder until the dashboard framework is chosen (see docs/BRIEF.md,
-# open decision 4). Replace with the real entrypoint, e.g.:
-#   uv run streamlit run src/research_gap_dashboard/app.py
-# dashboard:
-#   uv run <dashboard-entrypoint>
+# Streamlit shell that reads the on-disk artifacts (ADR 0002). Set
+# RESEARCH_GAP_CORPORA_DIR to the folder holding your ingested corpus
+# directories (defaults to ./corpora).
+dashboard:
+  uv run streamlit run src/research_gap_dashboard/dashboard/app.py
