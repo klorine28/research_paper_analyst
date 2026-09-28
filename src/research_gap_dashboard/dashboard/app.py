@@ -18,8 +18,18 @@ from research_gap_dashboard.dashboard.artifacts import (
   CorpusChoice,
   discover_corpora,
   has_candidate_gaps,
+  has_normalized_facts,
   load_candidate_gaps,
   load_manifest,
+  load_normalized_facts,
+)
+from research_gap_dashboard.dashboard.coverage import (
+  CoverageMatrixView,
+  TrendsData,
+  build_coverage_matrices,
+  build_heatmap_figure,
+  build_trends,
+  build_trends_figure,
 )
 from research_gap_dashboard.dashboard.gaps import GapCard, GapCardsData, build_gap_cards
 from research_gap_dashboard.dashboard.judgments import (
@@ -52,7 +62,7 @@ def _select_page() -> str:
   """Render the sidebar page picker and return the chosen page."""
   return st.sidebar.radio(
     text.NAV_LABEL,
-    [text.PAGE_OVERVIEW, text.PAGE_GAP_CARDS],
+    [text.PAGE_OVERVIEW, text.PAGE_COVERAGE, text.PAGE_GAP_CARDS],
     index=0,
     label_visibility="collapsed",
   )
@@ -100,6 +110,60 @@ def render_overview(overview: OverviewData) -> None:
   if overview.orphan_pdfs:
     st.caption(text.ORPHAN_PDFS_LABEL)
     st.table([{text.COLUMN_FILE: name} for name in overview.orphan_pdfs])
+
+
+def render_coverage(matrices: list[CoverageMatrixView], trends: TrendsData) -> None:
+  """Render the Coverage Matrix heatmap and the Trends chart from finished data."""
+  st.header(text.COVERAGE_HEADING)
+  st.info(text.COVERAGE_INTRO)
+
+  st.subheader(text.HEATMAP_HEADING)
+  if not matrices:
+    st.warning(text.HEATMAP_NO_MATRICES)
+  else:
+    chosen = st.selectbox(
+      text.HEATMAP_AXIS_LABEL,
+      matrices,
+      format_func=lambda view: view.option_label,
+    )
+    st.caption(text.HEATMAP_DENOMINATOR.format(total=chosen.corpus_paper_count))
+    st.plotly_chart(build_heatmap_figure(chosen), use_container_width=True)
+
+  st.subheader(text.TRENDS_HEADING)
+  _render_trends(trends)
+
+
+def _render_trends(trends: TrendsData) -> None:
+  """Render the Trends chart with its denominator and emerging/abandoned lines."""
+  if not trends.has_data:
+    st.info(text.TRENDS_NO_DATA)
+    return
+  st.caption(
+    text.TRENDS_DENOMINATOR.format(
+      with_year=trends.papers_with_year, total=trends.corpus_paper_count
+    )
+  )
+  if trends.papers_without_year:
+    st.caption(text.TRENDS_MISSING_YEAR.format(without_year=trends.papers_without_year))
+  st.plotly_chart(build_trends_figure(trends), use_container_width=True)
+
+  emerging = trends.emerging
+  abandoned = trends.abandoned
+  if not emerging and not abandoned:
+    st.caption(text.TRENDS_NO_HIGHLIGHTS)
+    return
+  if emerging:
+    st.caption(
+      text.TRENDS_EMERGING_LABEL.format(
+        topics=", ".join(topic.label for topic in emerging)
+      )
+    )
+  if abandoned:
+    st.caption(
+      text.TRENDS_ABANDONED_LABEL.format(
+        topics=", ".join(topic.label for topic in abandoned)
+      )
+    )
 
 
 def _card_status_label(card: GapCard) -> str:
@@ -194,6 +258,21 @@ def main() -> None:
 
   chosen = _select_corpus(choices)
   page = _select_page()
+
+  if page == text.PAGE_COVERAGE:
+    st.header(text.COVERAGE_HEADING)
+    if not has_candidate_gaps(chosen.root):
+      st.warning(text.NO_CANDIDATE_GAPS_ARTIFACT_COVERAGE)
+      return
+    if not has_normalized_facts(chosen.root):
+      st.warning(text.NO_NORMALIZED_FACTS_ARTIFACT)
+      return
+    matrices = build_coverage_matrices(load_candidate_gaps(chosen.root))
+    trends = build_trends(
+      load_normalized_facts(chosen.root), load_manifest(chosen.root)
+    )
+    render_coverage(matrices, trends)
+    return
 
   if page == text.PAGE_GAP_CARDS:
     if not has_candidate_gaps(chosen.root):

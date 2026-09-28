@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict
 ARTIFACTS_DIR = "artifacts"
 MANIFEST_NAME = "corpus-manifest.json"
 CANDIDATE_GAPS_NAME = "candidate_gaps.json"
+NORMALIZED_FACTS_NAME = "normalized_facts.json"
 
 
 class ArtifactNotFoundError(FileNotFoundError):
@@ -92,12 +93,63 @@ class CandidateGapRecord(_ReadModel):
   evidence: list[GapEvidenceRecord] = []
 
 
+class MatrixCategoryRecord(_ReadModel):
+  """One row or column of a Coverage Matrix: its category and Paper count."""
+
+  category_id: str
+  label: str = ""
+  paper_count: int = 0
+
+
+class MatrixCellRecord(_ReadModel):
+  """One Coverage Matrix cell: how many Papers cover both its categories."""
+
+  row_id: str
+  column_id: str
+  paper_count: int = 0
+  citation_keys: list[str] = []
+
+
+class CoverageMatrixRecord(_ReadModel):
+  """One Coverage Matrix, as the dashboard reads it from the CandidateGaps artifact."""
+
+  row_axis: str
+  column_axis: str
+  corpus_paper_count: int = 0
+  rows: list[MatrixCategoryRecord] = []
+  columns: list[MatrixCategoryRecord] = []
+  cells: list[MatrixCellRecord] = []
+
+
 class CandidateGapsArtifact(_ReadModel):
   """The CandidateGaps artifact, projected onto what the Gap Cards view shows."""
 
   corpus_root: Path
   corpus_paper_count: int = 0
+  matrices: list[CoverageMatrixRecord] = []
   gaps: list[CandidateGapRecord] = []
+
+
+class AssignmentRecord(_ReadModel):
+  """One Paper phrase placed onto a category of one axis, as the dashboard reads it."""
+
+  axis: str
+  category_id: str
+  category_label: str = ""
+
+
+class NormalizedFactsRecord(_ReadModel):
+  """One Paper's category placements, projected onto what the Trends view needs."""
+
+  citation_key: str
+  assignments: list[AssignmentRecord] = []
+
+
+class NormalizedFactsArtifact(_ReadModel):
+  """The NormalizedFacts artifact, projected onto what the Trends view shows."""
+
+  corpus_root: Path
+  normalized: list[NormalizedFactsRecord] = []
 
 
 class CorpusChoice(BaseModel):
@@ -147,6 +199,27 @@ def load_candidate_gaps(corpus_root: Path) -> CandidateGapsArtifact:
     )
   raw = json.loads(path.read_text(encoding="utf-8"))
   return CandidateGapsArtifact.model_validate(raw)
+
+
+def _normalized_facts_path(corpus_root: Path) -> Path:
+  """Return where a corpus directory keeps its NormalizedFacts artifact."""
+  return corpus_root / ARTIFACTS_DIR / NORMALIZED_FACTS_NAME
+
+
+def has_normalized_facts(corpus_root: Path) -> bool:
+  """Report whether a corpus directory has a NormalizedFacts artifact to read."""
+  return _normalized_facts_path(corpus_root).is_file()
+
+
+def load_normalized_facts(corpus_root: Path) -> NormalizedFactsArtifact:
+  """Read the NormalizedFacts artifact the aggregate stage left on disk."""
+  path = _normalized_facts_path(corpus_root)
+  if not path.is_file():
+    raise ArtifactNotFoundError(
+      f"No NormalizedFacts at '{path}'. Run `aggregate` on '{corpus_root}' first."
+    )
+  raw = json.loads(path.read_text(encoding="utf-8"))
+  return NormalizedFactsArtifact.model_validate(raw)
 
 
 def discover_corpora(corpora_root: Path) -> list[CorpusChoice]:

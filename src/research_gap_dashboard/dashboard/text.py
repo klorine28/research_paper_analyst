@@ -28,6 +28,7 @@ NO_CORPORA = (
 NAV_LABEL = "Page"
 PAGE_OVERVIEW = "Corpus Overview"
 PAGE_GAP_CARDS = "Gap Cards"
+PAGE_COVERAGE = "Coverage & Trends"
 
 # Corpus Overview page.
 OVERVIEW_HEADING = "Corpus Overview"
@@ -104,3 +105,59 @@ EVIDENCE_ROLE_LABELS: dict[str, str] = {
   "cell": "combines",
 }
 EVIDENCE_TERM_DETAIL = "{role} \u201c{term}\u201d"
+
+# Coverage & Trends page. The Coverage Matrix heatmap and the publication-volume
+# Trends chart both read the artifacts the pipeline wrote (ADR 0002). An empty
+# cell is a fact about the Corpus ("no Paper combines these"), never a measured
+# zero (CODING_STANDARDS.md > Research integrity).
+COVERAGE_HEADING = "Coverage & Trends"
+COVERAGE_INTRO = (
+  "Where the Corpus looks thin or silent \u2014 a **signal for human judgment, "
+  "not a verdict**. An empty heatmap cell means no Paper in this Corpus combines "
+  "those two categories; it is not a measured value of zero."
+)
+NO_CANDIDATE_GAPS_ARTIFACT_COVERAGE = (
+  "No Coverage Matrices found for this Corpus. Run the pipeline through `detect` "
+  "against this corpus directory first."
+)
+NO_NORMALIZED_FACTS_ARTIFACT = (
+  "No normalized facts found for this Corpus. Run the pipeline through "
+  "`aggregate` against this corpus directory first."
+)
+
+# Coverage Matrix heatmap.
+HEATMAP_HEADING = "Coverage Matrix"
+HEATMAP_AXIS_LABEL = "Compare Topics against"
+HEATMAP_TOPIC_PAIR_OPTION = "Topic (co-occurrence)"
+HEATMAP_NO_PAPERS = "no papers"
+HEATMAP_NO_PAPERS_COLOR = "#e6e6e6"
+HEATMAP_COLORBAR_TITLE = "Papers"
+HEATMAP_DENOMINATOR = "Counts are over the {total} Papers in the Corpus."
+HEATMAP_NO_MATRICES = (
+  "No Coverage Matrix has both rows and columns to show for this Corpus."
+)
+
+# Trends chart.
+TRENDS_HEADING = "Publication volume per Topic over time"
+TRENDS_X_TITLE = "Year"
+TRENDS_Y_TITLE = "Papers"
+TRENDS_LEGEND_TITLE = "Topic"
+TRENDS_STATUS_SUFFIX = {
+  "emerging": " (emerging)",
+  "abandoned": " (abandoned)",
+  "steady": "",
+}
+TRENDS_DENOMINATOR = (
+  "Lines are built from the {with_year} of {total} Papers in the Corpus that "
+  "carry a publication year."
+)
+TRENDS_MISSING_YEAR = (
+  "{without_year} Paper(s) carry no publication year and are not on the timeline."
+)
+TRENDS_EMERGING_LABEL = "Emerging lines (first appear in the recent half): {topics}"
+TRENDS_ABANDONED_LABEL = "Abandoned lines (no Paper since the recent half): {topics}"
+TRENDS_NO_HIGHLIGHTS = "No Topic reads as clearly emerging or abandoned in this span."
+TRENDS_NO_DATA = (
+  "No Topic could be placed on a timeline: the Corpus's Papers carry no known "
+  "publication years."
+)
