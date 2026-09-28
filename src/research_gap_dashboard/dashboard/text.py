@@ -34,6 +34,53 @@ PAGE_RETRIEVAL = "Retrieval Gaps"
 PAGE_EXPLAINER = "Paper Explainer"
 PAGE_COMPARISON = "Paper Comparison"
 PAGE_ANALYTICS = "Conversational Analytics"
+PAGE_VERIFY = "Verify Extractions"
+
+# Verify Extractions page. The reviewer checks a Paper's Extraction against its
+# text and leaves per-field verdicts; verdicts are annotation-only and never
+# change the pipeline's Extraction (ADR 0003).
+VERIFY_HEADING = "Verify Extractions"
+VERIFY_INTRO = (
+  "Check each extracted fact against the Paper's own text. Your verdicts are "
+  "saved as a review overlay and never change the pipeline's Extraction; "
+  "promoting them to a Gold Extraction fixture is a separate command-line step."
+)
+VERIFY_NO_EXTRACTIONS = "No Extractions to review. Run `extract` on this Corpus first."
+VERIFY_NO_PARSED_TEXT = (
+  "This Paper has no parsed text, so edits and added facts cannot be grounded. "
+  "Run `parse` on this Corpus first."
+)
+VERIFY_PAPER_PICKER_LABEL = "Paper to verify"
+VERIFY_SUMMARY = (
+  "{reviewed} of {extracted} extracted facts reviewed; {added} facts added."
+)
+VERIFY_PDF_LINK = "Open the PDF"
+VERIFY_NO_FACTS = "No facts extracted for this field."
+VERIFY_ADDED_BADGE = "added by reviewer"
+VERIFY_SECTION_LABEL = "Section: {section}"
+VERIFY_VERDICT_APPROVED = "Approved"
+VERIFY_VERDICT_EDITED = "Edited"
+VERIFY_VERDICT_FLAGGED = "Flagged wrong"
+VERIFY_VERDICT_REMOVED = "Removed (hallucinated)"
+VERIFY_VERDICT_UNREVIEWED = "Unreviewed"
+VERIFY_APPROVE_BUTTON = "Approve"
+VERIFY_FLAG_BUTTON = "Flag wrong"
+VERIFY_REMOVE_BUTTON = "Remove"
+VERIFY_EDIT_BUTTON = "Save edit"
+VERIFY_CLEAR_BUTTON = "Clear verdict"
+VERIFY_DELETE_ADDED_BUTTON = "Delete added fact"
+VERIFY_EDIT_STATEMENT_LABEL = "Fact text"
+VERIFY_EDIT_PASSAGE_LABEL = "Evidence passage (verbatim from the Paper)"
+VERIFY_EDIT_SECTION_LABEL = "Section"
+VERIFY_ADD_FACT_HEADING = "Add a missing fact"
+VERIFY_ADD_STATEMENT_LABEL = "Fact text"
+VERIFY_ADD_PASSAGE_LABEL = "Evidence passage (verbatim from the Paper)"
+VERIFY_ADD_SECTION_LABEL = "Section"
+VERIFY_ADD_BUTTON = "Add fact"
+VERIFY_UNGROUNDED_ERROR = (
+  "That Evidence is not a verbatim quote from the Paper's text, so it was "
+  "refused. Copy the passage exactly as it appears in the Paper."
+)
 
 # Corpus Overview page.
 OVERVIEW_HEADING = "Corpus Overview"

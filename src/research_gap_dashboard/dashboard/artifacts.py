@@ -40,6 +40,7 @@ class PaperRecord(_ReadModel):
   title: str = ""
   year: int | None = None
   journal: str = ""
+  pdf_path: Path | None = None
 
 
 class UnmatchedEntryRecord(_ReadModel):

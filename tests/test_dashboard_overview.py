@@ -151,6 +151,7 @@ _PIPELINE_MODULES = {
   "taxonomy",
   "sources",
   "llm",
+  "promote_gold",
 }
 
 

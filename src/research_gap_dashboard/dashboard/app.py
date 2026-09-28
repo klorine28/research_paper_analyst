@@ -85,6 +85,25 @@ from research_gap_dashboard.dashboard.explainer import (
   build_paper_menu,
 )
 from research_gap_dashboard.dashboard.overview import OverviewData, build_overview
+from research_gap_dashboard.dashboard.extraction_review import (
+  UnknownFieldError,
+  add_fact,
+  clear_fact_verdict,
+  load_extraction_review,
+  record_fact_verdict,
+  remove_added_fact,
+)
+from research_gap_dashboard.dashboard.grounding import (
+  UngroundedEvidenceError,
+  has_parsed_paper,
+  read_parsed_paper,
+)
+from research_gap_dashboard.dashboard.verify import (
+  PaperReviewView,
+  ReviewFactView,
+  ReviewFieldView,
+  build_extraction_review,
+)
 from research_gap_dashboard.dashboard.retrieval import (
   RetrievalCandidateView,
   RetrievalGapsData,
@@ -123,6 +142,7 @@ def _select_page() -> str:
       text.PAGE_EXPLAINER,
       text.PAGE_COMPARISON,
       text.PAGE_ANALYTICS,
+      text.PAGE_VERIFY,
     ],
     index=0,
     label_visibility="collapsed",
@@ -517,6 +537,7 @@ _PAGE_RENDERERS: dict[str, Callable[[CorpusChoice], None]] = {
   text.PAGE_EXPLAINER: lambda chosen: _render_explainer_page(chosen.root),
   text.PAGE_COMPARISON: lambda chosen: _render_comparison_page(chosen.root),
   text.PAGE_ANALYTICS: lambda chosen: _render_analytics_page(chosen.root),
+  text.PAGE_VERIFY: lambda chosen: _render_verify_page(chosen.root),
   text.PAGE_OVERVIEW: _render_overview_page,
 }
 
@@ -799,6 +820,219 @@ def _render_chat(
 def _render_answer_flags(answer: GroundedChatAnswer) -> None:
   """Surface any dropped, ungrounded citations before the chat reruns."""
   _render_grounding_flags(answer.dropped_citations)
+
+
+def _verdict_label(verdict: str | None) -> str:
+  """Return the human label for a fact's current review verdict."""
+  return {
+    "approved": text.VERIFY_VERDICT_APPROVED,
+    "edited": text.VERIFY_VERDICT_EDITED,
+    "flagged": text.VERIFY_VERDICT_FLAGGED,
+    "removed": text.VERIFY_VERDICT_REMOVED,
+  }.get(verdict or "", text.VERIFY_VERDICT_UNREVIEWED)
+
+
+def _render_pdf_link(view: PaperReviewView) -> None:
+  """Render a link back to the Paper's PDF when its path is known."""
+  if view.pdf_path is None:
+    return
+  # Manifest PDF paths may be relative to the corpus; resolve so the link is a
+  # valid file URI, and fall back to showing the path when it cannot be a URI.
+  try:
+    uri = view.pdf_path.resolve().as_uri()
+  except ValueError:
+    st.caption(f"{text.VERIFY_PDF_LINK}: {view.pdf_path}")
+    return
+  st.markdown(f"[{text.VERIFY_PDF_LINK}]({uri})")
+
+
+def _render_extracted_fact(
+  fact: ReviewFactView, corpus_root: Path, citation_key: str, sections: list[str]
+) -> None:
+  """Render one extracted fact with its Evidence and the five review verbs."""
+  key = f"{citation_key}-{fact.field}-{fact.fact_index}"
+  st.markdown(f"- {fact.effective_statement}")
+  st.caption(text.VERIFY_SECTION_LABEL.format(section=fact.effective_section))
+  st.markdown(f"> {fact.effective_passage}")
+  st.caption(_verdict_label(fact.verdict))
+
+  approve_col, flag_col, remove_col, clear_col = st.columns(4)
+  if approve_col.button(text.VERIFY_APPROVE_BUTTON, key=f"approve-{key}"):
+    record_fact_verdict(
+      corpus_root, citation_key, fact.field, fact.fact_index, "approved"
+    )
+    st.rerun()
+  if flag_col.button(text.VERIFY_FLAG_BUTTON, key=f"flag-{key}"):
+    record_fact_verdict(
+      corpus_root, citation_key, fact.field, fact.fact_index, "flagged"
+    )
+    st.rerun()
+  if remove_col.button(text.VERIFY_REMOVE_BUTTON, key=f"remove-{key}"):
+    record_fact_verdict(
+      corpus_root, citation_key, fact.field, fact.fact_index, "removed"
+    )
+    st.rerun()
+  if clear_col.button(text.VERIFY_CLEAR_BUTTON, key=f"clear-{key}"):
+    clear_fact_verdict(corpus_root, citation_key, fact.field, fact.fact_index)
+    st.rerun()
+
+  _render_edit_fact(fact, corpus_root, citation_key, sections, key)
+
+
+def _render_edit_fact(
+  fact: ReviewFactView,
+  corpus_root: Path,
+  citation_key: str,
+  sections: list[str],
+  key: str,
+) -> None:
+  """Render the edit form for one extracted fact, refusing ungrounded Evidence."""
+  with st.expander(text.VERIFY_EDIT_BUTTON):
+    statement = st.text_area(
+      text.VERIFY_EDIT_STATEMENT_LABEL,
+      value=fact.effective_statement,
+      key=f"edit-statement-{key}",
+    )
+    passage = st.text_area(
+      text.VERIFY_EDIT_PASSAGE_LABEL,
+      value=fact.effective_passage,
+      key=f"edit-passage-{key}",
+    )
+    section = _section_picker(
+      text.VERIFY_EDIT_SECTION_LABEL, sections, fact.effective_section, f"edit-{key}"
+    )
+    if st.button(text.VERIFY_EDIT_BUTTON, key=f"save-edit-{key}"):
+      try:
+        record_fact_verdict(
+          corpus_root,
+          citation_key,
+          fact.field,
+          fact.fact_index,
+          "edited",
+          edited_statement=statement,
+          edited_passage=passage,
+          edited_section=section,
+        )
+      except UngroundedEvidenceError:
+        st.error(text.VERIFY_UNGROUNDED_ERROR)
+        return
+      st.rerun()
+
+
+def _render_added_fact(
+  fact: ReviewFactView, corpus_root: Path, citation_key: str
+) -> None:
+  """Render one reviewer-added fact, with a control to delete it again."""
+  st.markdown(f"- {fact.effective_statement} *({text.VERIFY_ADDED_BADGE})*")
+  st.caption(text.VERIFY_SECTION_LABEL.format(section=fact.effective_section))
+  st.markdown(f"> {fact.effective_passage}")
+  if st.button(text.VERIFY_DELETE_ADDED_BUTTON, key=f"delete-{fact.fact_id}"):
+    remove_added_fact(corpus_root, citation_key, fact.fact_id)
+    st.rerun()
+
+
+def _section_picker(label: str, sections: list[str], current: str, key: str) -> str:
+  """Render a section picker seeded with the current section, falling back to text."""
+  options = sections or [current]
+  index = options.index(current) if current in options else 0
+  return st.selectbox(label, options, index=index, key=key)
+
+
+def _render_add_fact(
+  field: ReviewFieldView, corpus_root: Path, citation_key: str, sections: list[str]
+) -> None:
+  """Render the add-a-missing-fact form for one field, refusing ungrounded Evidence."""
+  with st.expander(text.VERIFY_ADD_FACT_HEADING):
+    key = f"add-{citation_key}-{field.field}"
+    statement = st.text_area(text.VERIFY_ADD_STATEMENT_LABEL, key=f"{key}-statement")
+    passage = st.text_area(text.VERIFY_ADD_PASSAGE_LABEL, key=f"{key}-passage")
+    section = _section_picker(
+      text.VERIFY_ADD_SECTION_LABEL,
+      sections,
+      sections[0] if sections else "other",
+      f"{key}-section",
+    )
+    if st.button(text.VERIFY_ADD_BUTTON, key=f"{key}-button"):
+      try:
+        add_fact(corpus_root, citation_key, field.field, statement, passage, section)
+      except UngroundedEvidenceError:
+        st.error(text.VERIFY_UNGROUNDED_ERROR)
+        return
+      except UnknownFieldError:
+        return
+      st.rerun()
+
+
+def _render_verify_field(
+  field: ReviewFieldView, corpus_root: Path, citation_key: str, sections: list[str]
+) -> None:
+  """Render one Extraction field: its facts, their verdicts, and an add-fact form."""
+  st.subheader(field.label)
+  if not field.facts:
+    st.caption(text.VERIFY_NO_FACTS)
+  for fact in field.facts:
+    with st.container(border=True):
+      if fact.is_added:
+        _render_added_fact(fact, corpus_root, citation_key)
+      else:
+        _render_extracted_fact(fact, corpus_root, citation_key, sections)
+  _render_add_fact(field, corpus_root, citation_key, sections)
+
+
+def render_verify(
+  view: PaperReviewView, corpus_root: Path, sections: list[str]
+) -> None:
+  """Render the Verify Extractions page for one Paper from already-assembled data."""
+  st.header(text.VERIFY_HEADING)
+  st.info(text.VERIFY_INTRO)
+  st.subheader(view.title or view.citation_key)
+  _render_pdf_link(view)
+  st.caption(
+    text.VERIFY_SUMMARY.format(
+      reviewed=view.reviewed_count,
+      extracted=view.extracted_count,
+      added=view.added_count,
+    )
+  )
+  for field in view.fields:
+    _render_verify_field(field, corpus_root, view.citation_key, sections)
+
+
+def _render_verify_page(corpus_root: Path) -> None:
+  """Assemble the Verify Extractions page's data for a chosen Paper and render it."""
+  if not has_extractions(corpus_root):
+    st.header(text.VERIFY_HEADING)
+    st.warning(text.VERIFY_NO_EXTRACTIONS)
+    return
+
+  extractions = load_extractions(corpus_root)
+  manifest = load_manifest(corpus_root)
+  by_key = {paper.citation_key: paper for paper in manifest.papers}
+  choices = [
+    extraction
+    for extraction in extractions.extractions
+    if extraction.citation_key in by_key
+  ]
+  if not choices:
+    st.header(text.VERIFY_HEADING)
+    st.warning(text.VERIFY_NO_EXTRACTIONS)
+    return
+
+  chosen = st.selectbox(
+    text.VERIFY_PAPER_PICKER_LABEL,
+    choices,
+    format_func=lambda extraction: _paper_label(manifest, extraction.citation_key),
+  )
+  citation_key = chosen.citation_key
+  if not has_parsed_paper(corpus_root, citation_key):
+    st.header(text.VERIFY_HEADING)
+    st.warning(text.VERIFY_NO_PARSED_TEXT)
+    return
+
+  review = load_extraction_review(corpus_root).review_for(citation_key)
+  view = build_extraction_review(chosen, review, by_key[citation_key])
+  sections = read_parsed_paper(corpus_root, citation_key).section_labels
+  render_verify(view, corpus_root, sections)
 
 
 if __name__ == "__main__":

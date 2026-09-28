@@ -1,0 +1,25 @@
+{
+  "source_pdf": "paper-a.pdf",
+  "sections": [
+    {
+      "label": "abstract",
+      "heading": "Abstract",
+      "text": "We studied outcomes in older patients with heart failure."
+    },
+    {
+      "label": "methods",
+      "heading": "Methods",
+      "text": "A retrospective cohort of 200 patients was analysed. Data came from a single national registry."
+    },
+    {
+      "label": "results",
+      "heading": "Results",
+      "text": "Mortality was 12% over the follow-up period."
+    },
+    {
+      "label": "limitations",
+      "heading": "Limitations",
+      "text": "The cohort was single-center and observational."
+    }
+  ]
+}
