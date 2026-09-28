@@ -147,14 +147,14 @@ a page.
 | Corpus Overview | `overview.py` | `corpus-manifest.json` | scope statement, paper/venue/year metrics, papers-per-year bar, venue table, exclusions (unmatched entries, orphan PDFs) |
 | Coverage | `coverage.py` | `candidate_gaps.json` + `normalized_facts.json` | Coverage Matrix heatmap (axis picker, denominator) and Trends chart (emerging/abandoned topics) |
 | Gap Cards | `gaps.py`, `judgments.py` | `candidate_gaps.json` | one card per Candidate Gap with type, confidence + reasoning, denominator, Evidence passages, and **accept/reject/clear** buttons that persist to `judgments/` |
+| Unanswered Limitations | `limitations.py` | `candidate_gaps.json` | every limitation group (addressed or not) with its follow-up count, source Papers, and verbatim source passages; unanswered groups called out from addressed ones |
+| Retrieval Gaps | `retrieval.py` | `retrieval_gaps.json` | out-of-corpus candidates ranked by citation overlap, kept visually and verbally separate (warning banner) as candidates for improving the search, not evidence-linked gaps |
 
 Supporting modules: `artifacts.py` (discover corpora, load/guard each
 artifact), `text.py` (all user-facing strings, kept in one place for future
 translation), `app.py` (shell, navigation, rendering).
 
 ### Not yet built (dashboard)
-- A **Retrieval Gaps** page rendering `retrieval_gaps.json` (out-of-corpus
-  candidates). The artifact exists after `retrieve`; no page reads it yet.
 - **Paper Explainer** and **Conversational Analytics** sections (`CONTEXT.md`).
 - Driving pipeline commands from the app (proposed in `docs/HANDOFF.md`; needs
   an ADR because it touches ADR 0002's read-only boundary).
