@@ -125,3 +125,9 @@ Set `RESEARCH_GAP_CORPORA_DIR` to the folder that holds your corpus directories
 manifest. The Corpus Overview page shows the paper count, papers per year,
 venues, and what was left out, alongside a prominent reminder that detected
 gaps are candidates for human judgment, not verdicts.
+
+The Gap Cards page (available once `detect` has run) shows one card per
+Candidate Gap: its Gap Type, explanation, confidence, cell count, and the
+verbatim Evidence passages with their source Papers. Accept or reject each
+card; judgments persist to JSON under the corpus's `judgments/` directory and
+are restored when you reopen the corpus, so a review can span months.
