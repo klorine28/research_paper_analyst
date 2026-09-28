@@ -98,9 +98,15 @@ def build_parser() -> argparse.ArgumentParser:
   )
   detect = subcommands.add_parser(
     "detect",
-    help="Find Knowledge and Coverage Gaps in the Coverage Matrices.",
+    help="Find Knowledge, Coverage, and Unanswered Limitation gaps.",
   )
   detect.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  detect.add_argument(
+    "--tier",
+    choices=["default", "cheap"],
+    default="default",
+    help="Model tier for limitation grouping (default: the capable model).",
+  )
   taxonomy = subcommands.add_parser(
     "taxonomy",
     help="Validate a taxonomy file (any axis) and report any problems.",
@@ -229,11 +235,17 @@ def _run_aggregate(arguments: argparse.Namespace) -> int:
 
 
 def _run_detect(arguments: argparse.Namespace) -> int:
-  """Find Knowledge and Coverage Gaps and write the CandidateGaps artifact."""
+  """Find the Corpus's Candidate Gaps and write the CandidateGaps artifact."""
   try:
-    report = detect_corpus(arguments.corpus)
+    client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
+  except LlmConfigError as error:
+    logger.error("%s", error)
+    return EXIT_ERROR
+
+  try:
+    report = detect_corpus(arguments.corpus, client, tier=arguments.tier)
   except FileNotFoundError as error:
-    logger.error("Run `ingest` and `aggregate` first: %s", error)
+    logger.error("Run `ingest`, `extract`, and `aggregate` first: %s", error)
     return EXIT_ERROR
 
   logger.info(

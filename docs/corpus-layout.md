@@ -34,13 +34,16 @@ it knows where everything lives.
 | `artifacts/corpus-manifest.json` | `ingest` | One record per Paper (citation key, DOI, title, authors, year, journal, PDF path), plus the paper-list entries with no PDF and the PDFs with no entry |
 | `artifacts/extractions.json` | `extract` | Each Paper's seven Extraction fields, every fact with its verified Evidence passage, plus rejected Papers |
 | `artifacts/normalized_facts.json` | `aggregate` | Each Paper's phrases mapped onto the Topic, Method, Population, and Dataset taxonomies (axis, original term, category, source fact, Evidence), plus unmapped terms (see `docs/taxonomy.md`) |
-| `artifacts/candidate_gaps.json` | `detect` | The Coverage Matrices (Topic × Topic, × Method, × Population, × Dataset) and one card per Knowledge or Coverage Gap (see below) |
+| `artifacts/candidate_gaps.json` | `detect` | The Coverage Matrices (Topic × Topic, × Method, × Population, × Dataset), every limitation group with its follow-ups, and one card per Knowledge Gap, Coverage Gap, or Unanswered Limitation (see below) |
 
 ### Candidate Gaps
 
-`detect` needs no API key and no network: it only reads the manifest and
-`normalized_facts.json`, and the same inputs always give a byte-identical
-`candidate_gaps.json`.
+`detect` reads the manifest, `extractions.json`, and `normalized_facts.json`.
+Matrix detection makes no LLM call and is fully deterministic; limitation
+grouping needs the Anthropic API key and goes through the disk cache, so a
+rerun over the same artifacts gives the same `candidate_gaps.json`.
+
+#### Knowledge and Coverage Gaps
 
 - **Matrices** use only the categories that at least one Paper was placed on,
   so an empty cell means "both exist in the Corpus, never together".
@@ -90,3 +93,24 @@ if not report.is_valid:
 never creates, moves, or deletes anything. `report.paper_list_path` and
 `report.pdf_paths` give later stages the inputs they need, and
 `report.layout` exposes the four directory paths.
+
+#### Unanswered Limitations
+
+- **Grouping:** one LLM call groups every limitation and future-work statement
+  in the Corpus by shared meaning. The model proposes only statement ids;
+  unknown ids are dropped, and a statement the model leaves out is kept in a
+  group of its own, so none silently vanishes. Each correction is written in
+  the group's `notes`.
+- **Follow-up:** for each group, the *later* Papers are those published in a
+  later year than the group's earliest source Paper (a Paper of unknown year
+  is never later). One LLM call per group asks which of their facts (research
+  question, methods, populations, datasets, key findings) directly address the
+  group; every match must cite a real fact and carries that fact's Evidence and
+  the model's reason. A group with no later Paper makes no call.
+- **Cards:** only groups with no follow-up become Unanswered Limitation cards,
+  each citing its source statements' Evidence. All groups, addressed or not,
+  stay in `limitation_groups` so the decisions are inspectable.
+- **Confidence** reflects how many later Papers could have addressed the
+  group: none is low, 1 to 4 medium, 5 or more high. An empty follow-up answer
+  cannot be told apart from a model misfire, so a card is a prompt to check,
+  not proof that nobody followed up.
