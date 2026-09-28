@@ -47,9 +47,10 @@ Gaps are candidates for human judgment, not verdicts.
 The kind of gap a Candidate Gap is. v1 detects four Gap Types:
 
 - **Knowledge Gap:** a topic combination no Paper in the Corpus has studied
-  (an empty or sparse Coverage Matrix cell).
-- **Coverage Gap:** a method or population combination missing from the
-  Corpus (e.g. no RCTs in patients over 75). Descriptive only: v1 never
+  (an empty or sparse Topic × Topic Coverage Matrix cell).
+- **Coverage Gap:** a method, population, or dataset combination missing
+  from the Corpus (e.g. no RCTs on Takotsubo): an empty or sparse Topic ×
+  Method, Topic × Population, or Topic × Dataset Coverage Matrix cell. Descriptive only: v1 never
   appraises the quality of an individual Paper's methodology.
 - **Unanswered Limitation:** a limitation or future-work statement in a Paper
   that no later Paper in the Corpus addressed.

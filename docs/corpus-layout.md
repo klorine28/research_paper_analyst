@@ -32,6 +32,32 @@ it knows where everything lives.
 | File | Written by | Holds |
 | --- | --- | --- |
 | `artifacts/corpus-manifest.json` | `ingest` | One record per Paper (citation key, DOI, title, authors, year, journal, PDF path), plus the paper-list entries with no PDF and the PDFs with no entry |
+| `artifacts/extractions.json` | `extract` | Each Paper's seven Extraction fields, every fact with its verified Evidence passage, plus rejected Papers |
+| `artifacts/normalized_facts.json` | `aggregate` | Each Paper's phrases mapped onto the Topic, Method, Population, and Dataset taxonomies (axis, original term, category, source fact, Evidence), plus unmapped terms (see `docs/taxonomy.md`) |
+| `artifacts/candidate_gaps.json` | `detect` | The Coverage Matrices (Topic × Topic, × Method, × Population, × Dataset) and one card per Knowledge or Coverage Gap (see below) |
+
+### Candidate Gaps
+
+`detect` needs no API key and no network: it only reads the manifest and
+`normalized_facts.json`, and the same inputs always give a byte-identical
+`candidate_gaps.json`.
+
+- **Matrices** use only the categories that at least one Paper was placed on,
+  so an empty cell means "both exist in the Corpus, never together".
+- **Knowledge Gaps** are empty or sparse Topic × Topic cells; **Coverage Gaps**
+  are empty or sparse Topic × Method, Topic × Population, and Topic × Dataset
+  cells.
+- **Sparse** is provisional (`docs/BRIEF.md`): only empty cells for Corpora
+  under 25 Papers; empty or single-Paper cells at 25 and above.
+- **Every card** states its cell count and denominator, a confidence level
+  with its reasoning, and Evidence links to the passages that put Papers on
+  the cell's two categories. An empty cell has no Papers of its own, so it
+  cites the Papers behind its row and its column. Only Papers in the manifest
+  are ever cited.
+- **Confidence** is a v1 heuristic, not a statistical test. It compares the
+  cell with the number of Papers expected if its two categories were
+  independent: high when 2 or more were expected, medium from 1, low below 1.
+  A single-Paper cell drops one level.
 
 ## Per-Paper derived data
 
