@@ -13,6 +13,7 @@ from pathlib import Path
 
 from research_gap_dashboard.aggregate import aggregate_corpus, load_pipeline_taxonomies
 from research_gap_dashboard.detect import detect_corpus
+from research_gap_dashboard.explain import explain_corpus
 from research_gap_dashboard.extract import extract_corpus
 from research_gap_dashboard.ingest import (
   CorpusLayoutError,
@@ -84,6 +85,17 @@ def build_parser() -> argparse.ArgumentParser:
     choices=["default", "cheap"],
     default="default",
     help="Model tier to extract with (default: the capable model).",
+  )
+  explain = subcommands.add_parser(
+    "explain",
+    help="LLM-explain each Paper's experiment in domain and lay language.",
+  )
+  explain.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  explain.add_argument(
+    "--tier",
+    choices=["default", "cheap"],
+    default="default",
+    help="Model tier to explain with (default: the capable model).",
   )
   aggregate = subcommands.add_parser(
     "aggregate",
@@ -166,6 +178,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     "ingest": _run_ingest,
     "parse": _run_parse,
     "extract": _run_extract,
+    "explain": _run_explain,
     "aggregate": _run_aggregate,
     "detect": _run_detect,
     "retrieve": _run_retrieve,
@@ -259,6 +272,30 @@ def _run_extract(arguments: argparse.Namespace) -> int:
   logger.info(
     "Extracted %d Papers (%d failed).",
     len(report.extractions),
+    len(report.failures),
+  )
+  for failure in report.failures:
+    logger.warning("  %s: %s", failure.citation_key, failure.reason)
+  return EXIT_OK
+
+
+def _run_explain(arguments: argparse.Namespace) -> int:
+  """LLM-explain each Paper's experiment in domain and lay language."""
+  try:
+    client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
+  except LlmConfigError as error:
+    logger.error("%s", error)
+    return EXIT_ERROR
+
+  try:
+    report = explain_corpus(arguments.corpus, client, tier=arguments.tier)
+  except FileNotFoundError as error:
+    logger.error("Run `ingest` and `parse` first: %s", error)
+    return EXIT_ERROR
+
+  logger.info(
+    "Explained %d Papers (%d failed).",
+    len(report.explanation_paths),
     len(report.failures),
   )
   for failure in report.failures:

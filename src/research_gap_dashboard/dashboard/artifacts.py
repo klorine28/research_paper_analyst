@@ -13,6 +13,8 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict
 
 ARTIFACTS_DIR = "artifacts"
+PAPER_DATA_DIR = "paper-data"
+EXPLANATION_SUFFIX = ".explanation.json"
 MANIFEST_NAME = "corpus-manifest.json"
 CANDIDATE_GAPS_NAME = "candidate_gaps.json"
 NORMALIZED_FACTS_NAME = "normalized_facts.json"
@@ -302,6 +304,54 @@ def load_normalized_facts(corpus_root: Path) -> NormalizedFactsArtifact:
     )
   raw = json.loads(path.read_text(encoding="utf-8"))
   return NormalizedFactsArtifact.model_validate(raw)
+
+
+class PaperExplanationRegistersRecord(_ReadModel):
+  """One Paper's two register explanations, as the dashboard reads them."""
+
+  domain_explanation: str = ""
+  lay_explanation: str = ""
+
+
+class PaperExplanationArtifact(_ReadModel):
+  """One Paper's explanation file, projected onto what the Explainer view shows."""
+
+  citation_key: str
+  registers: PaperExplanationRegistersRecord = PaperExplanationRegistersRecord()
+
+
+def _paper_explanation_path(corpus_root: Path, citation_key: str) -> Path:
+  """Return where a corpus directory keeps a Paper's explanation file."""
+  return corpus_root / PAPER_DATA_DIR / f"{citation_key}{EXPLANATION_SUFFIX}"
+
+
+def has_paper_explanation(corpus_root: Path, citation_key: str) -> bool:
+  """Report whether a Paper has an explanation file the explain stage wrote."""
+  return _paper_explanation_path(corpus_root, citation_key).is_file()
+
+
+def load_paper_explanation(
+  corpus_root: Path, citation_key: str
+) -> PaperExplanationArtifact:
+  """Read one Paper's two-register explanation the explain stage left on disk."""
+  path = _paper_explanation_path(corpus_root, citation_key)
+  if not path.is_file():
+    raise ArtifactNotFoundError(
+      f"No explanation at '{path}'. Run `explain` on '{corpus_root}' first."
+    )
+  raw = json.loads(path.read_text(encoding="utf-8"))
+  return PaperExplanationArtifact.model_validate(raw)
+
+
+def explained_citation_keys(corpus_root: Path) -> set[str]:
+  """Return the citation keys of Papers that have an explanation file."""
+  paper_data = corpus_root / PAPER_DATA_DIR
+  if not paper_data.is_dir():
+    return set()
+  return {
+    path.name[: -len(EXPLANATION_SUFFIX)]
+    for path in paper_data.glob(f"*{EXPLANATION_SUFFIX}")
+  }
 
 
 def discover_corpora(corpora_root: Path) -> list[CorpusChoice]:

@@ -31,6 +31,7 @@ PAGE_GAP_CARDS = "Gap Cards"
 PAGE_COVERAGE = "Coverage & Trends"
 PAGE_LIMITATIONS = "Unanswered Limitations"
 PAGE_RETRIEVAL = "Retrieval Gaps"
+PAGE_EXPLAINER = "Paper Explainer"
 
 # Corpus Overview page.
 OVERVIEW_HEADING = "Corpus Overview"
@@ -232,3 +233,28 @@ RETRIEVAL_YEAR_PART = " \u00b7 {year}"
 RETRIEVAL_CITED_BY_PART = " \u00b7 cited by {count} works"
 RETRIEVAL_AUTHORS_LABEL = "{authors}"
 RETRIEVAL_DOI_LABEL = "DOI: {doi}"
+
+# Paper Explainer page. Each Paper's experiment explained in two registers,
+# grounded in the Paper's own text (see `explain`).
+EXPLAINER_HEADING = "Paper Explainer"
+EXPLAINER_INTRO = (
+  "Each Paper's experiment explained twice \u2014 once in the field's own "
+  "language, once in plain language \u2014 grounded only in that Paper's text."
+)
+EXPLAINER_NO_PAPERS = (
+  "This Corpus has no Papers to explain. Run the pipeline (`ingest`) against a "
+  "corpus directory first."
+)
+EXPLAINER_PAPER_PICKER_LABEL = "Paper"
+EXPLAINER_SUMMARY = "{explained} of {total} Papers have an explanation."
+NO_EXPLANATION_FOR_PAPER = (
+  "No explanation for this Paper yet. Run the pipeline through `explain` against "
+  "this corpus directory first."
+)
+EXPLAINER_METADATA_HEADING = "Paper"
+EXPLAINER_METADATA_LABEL = "{title}"
+EXPLAINER_METADATA_VENUE = "{journal}{year}"
+EXPLAINER_METADATA_YEAR_PART = " \u00b7 {year}"
+EXPLAINER_DOI_LABEL = "DOI: {doi}"
+EXPLAINER_DOMAIN_HEADING = "In domain language"
+EXPLAINER_LAY_HEADING = "In plain language"
