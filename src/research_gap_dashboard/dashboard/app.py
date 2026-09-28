@@ -19,9 +19,11 @@ from research_gap_dashboard.dashboard.artifacts import (
   discover_corpora,
   has_candidate_gaps,
   has_normalized_facts,
+  has_retrieval_gaps,
   load_candidate_gaps,
   load_manifest,
   load_normalized_facts,
+  load_retrieval_gaps,
 )
 from research_gap_dashboard.dashboard.coverage import (
   CoverageMatrixView,
@@ -37,7 +39,17 @@ from research_gap_dashboard.dashboard.judgments import (
   load_judgments,
   record_judgment,
 )
+from research_gap_dashboard.dashboard.limitations import (
+  LimitationGroupView,
+  LimitationsData,
+  build_limitations,
+)
 from research_gap_dashboard.dashboard.overview import OverviewData, build_overview
+from research_gap_dashboard.dashboard.retrieval import (
+  RetrievalCandidateView,
+  RetrievalGapsData,
+  build_retrieval_gaps,
+)
 
 CORPORA_DIR_ENV = "RESEARCH_GAP_CORPORA_DIR"
 DEFAULT_CORPORA_DIR = "corpora"
@@ -62,7 +74,13 @@ def _select_page() -> str:
   """Render the sidebar page picker and return the chosen page."""
   return st.sidebar.radio(
     text.NAV_LABEL,
-    [text.PAGE_OVERVIEW, text.PAGE_COVERAGE, text.PAGE_GAP_CARDS],
+    [
+      text.PAGE_OVERVIEW,
+      text.PAGE_COVERAGE,
+      text.PAGE_GAP_CARDS,
+      text.PAGE_LIMITATIONS,
+      text.PAGE_RETRIEVAL,
+    ],
     index=0,
     label_visibility="collapsed",
   )
@@ -227,6 +245,122 @@ def _render_gap_card(card: GapCard, corpus_root: Path) -> None:
       st.rerun()
 
 
+def _render_limitation_group(group: LimitationGroupView) -> None:
+  """Render one limitation group with its counts and source passages."""
+  status = (
+    text.LIMITATION_STATUS_ADDRESSED
+    if group.addressed
+    else text.LIMITATION_STATUS_UNANSWERED
+  )
+  with st.container(border=True):
+    st.markdown(f"**{group.label}** \u2014 {status}")
+    st.caption(
+      text.LIMITATION_SOURCE_LABEL.format(
+        count=group.source_paper_count,
+        papers=", ".join(group.source_citation_keys),
+      )
+    )
+    st.caption(
+      text.LIMITATION_FOLLOW_UP_LABEL.format(
+        follow_up_count=group.follow_up_count,
+        later_count=group.later_paper_count,
+      )
+    )
+
+    st.markdown(f"**{text.LIMITATION_STATEMENTS_HEADING}**")
+    for statement in group.statements:
+      st.markdown(
+        text.LIMITATION_SOURCE_PASSAGE.format(
+          citation_key=statement.citation_key, section=statement.section
+        )
+      )
+      st.markdown(f"> {statement.passage}")
+
+    if group.follow_ups:
+      st.markdown(f"**{text.LIMITATION_FOLLOW_UPS_HEADING}**")
+      for follow_up in group.follow_ups:
+        st.markdown(
+          text.LIMITATION_FOLLOW_UP_PASSAGE.format(
+            citation_key=follow_up.citation_key, section=follow_up.section
+          )
+        )
+        if follow_up.reason:
+          st.caption(follow_up.reason)
+        st.markdown(f"> {follow_up.passage}")
+
+
+def render_limitations(data: LimitationsData) -> None:
+  """Render the Unanswered Limitations page from already-computed data."""
+  st.header(text.LIMITATIONS_HEADING)
+  st.info(text.LIMITATIONS_INTRO)
+  if not data.groups:
+    st.success(text.NO_LIMITATION_GROUPS)
+    return
+  st.caption(
+    text.LIMITATIONS_SUMMARY.format(
+      total=data.group_count,
+      extracted=data.extracted_paper_count,
+      unanswered=data.unanswered_count,
+      addressed=data.addressed_count,
+    )
+  )
+  for group in data.groups:
+    _render_limitation_group(group)
+
+
+def _render_retrieval_candidate(candidate: RetrievalCandidateView) -> None:
+  """Render one out-of-corpus candidate with its citation overlap."""
+  with st.container(border=True):
+    st.markdown(f"**{candidate.title or candidate.openalex_id}**")
+    if candidate.authors:
+      st.caption(
+        text.RETRIEVAL_AUTHORS_LABEL.format(authors=", ".join(candidate.authors))
+      )
+    st.caption(
+      text.RETRIEVAL_META_LABEL.format(
+        venue=candidate.venue,
+        year=(
+          text.RETRIEVAL_YEAR_PART.format(year=candidate.year)
+          if candidate.year is not None
+          else ""
+        ),
+        cited_by=(
+          text.RETRIEVAL_CITED_BY_PART.format(count=candidate.cited_by_count)
+          if candidate.cited_by_count
+          else ""
+        ),
+      )
+    )
+    st.caption(
+      text.RETRIEVAL_OVERLAP_LABEL.format(
+        overlap=candidate.citation_overlap,
+        papers=", ".join(candidate.citing_citation_keys),
+      )
+    )
+    if candidate.doi:
+      st.caption(text.RETRIEVAL_DOI_LABEL.format(doi=candidate.doi))
+
+
+def render_retrieval_gaps(data: RetrievalGapsData) -> None:
+  """Render the Retrieval Gaps page, kept clearly separate from gap cards."""
+  st.header(text.RETRIEVAL_HEADING)
+  st.warning(text.RETRIEVAL_SEPARATION_NOTICE)
+  if not data.candidates:
+    st.success(text.NO_RETRIEVAL_CANDIDATES)
+    return
+  st.caption(
+    text.RETRIEVAL_SUMMARY.format(
+      total=data.candidate_count,
+      coupled=data.coupled_paper_count,
+      corpus=data.corpus_paper_count,
+      min_overlap=data.min_overlap,
+    )
+  )
+  st.caption(text.RETRIEVAL_SOURCE_LABEL.format(source=data.source))
+  for candidate in data.candidates:
+    _render_retrieval_candidate(candidate)
+
+
 def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
   """Render the Gap Cards page: one card per Candidate Gap, with persistence."""
   st.header(text.GAP_CARDS_HEADING)
@@ -283,6 +417,22 @@ def main() -> None:
       load_candidate_gaps(chosen.root), load_judgments(chosen.root)
     )
     render_gap_cards(data, chosen.root)
+    return
+
+  if page == text.PAGE_LIMITATIONS:
+    if not has_candidate_gaps(chosen.root):
+      st.header(text.LIMITATIONS_HEADING)
+      st.warning(text.NO_CANDIDATE_GAPS_ARTIFACT_LIMITATIONS)
+      return
+    render_limitations(build_limitations(load_candidate_gaps(chosen.root)))
+    return
+
+  if page == text.PAGE_RETRIEVAL:
+    if not has_retrieval_gaps(chosen.root):
+      st.header(text.RETRIEVAL_HEADING)
+      st.warning(text.NO_RETRIEVAL_GAPS_ARTIFACT)
+      return
+    render_retrieval_gaps(build_retrieval_gaps(load_retrieval_gaps(chosen.root)))
     return
 
   overview = build_overview(load_manifest(chosen.root))

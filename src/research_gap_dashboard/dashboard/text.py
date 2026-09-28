@@ -29,6 +29,8 @@ NAV_LABEL = "Page"
 PAGE_OVERVIEW = "Corpus Overview"
 PAGE_GAP_CARDS = "Gap Cards"
 PAGE_COVERAGE = "Coverage & Trends"
+PAGE_LIMITATIONS = "Unanswered Limitations"
+PAGE_RETRIEVAL = "Retrieval Gaps"
 
 # Corpus Overview page.
 OVERVIEW_HEADING = "Corpus Overview"
@@ -161,3 +163,72 @@ TRENDS_NO_DATA = (
   "No Topic could be placed on a timeline: the Corpus's Papers carry no known "
   "publication years."
 )
+
+# Unanswered Limitations page. Each group gathers limitation and future-work
+# statements that mean the same thing across Papers; a group is "unanswered"
+# when no later Paper in the Corpus addressed it. Every group, addressed or not,
+# is shown so the grouping and follow-up decisions stay inspectable.
+LIMITATIONS_HEADING = "Unanswered Limitations"
+LIMITATIONS_INTRO = (
+  "Limitation and future-work statements grouped by meaning across Papers \u2014 "
+  "a **signal for human judgment, not a verdict**. A group is *unanswered* when "
+  "no later Paper in this Corpus addressed it; it may still be addressed outside "
+  "the Corpus, or in a passage the extraction did not capture."
+)
+NO_CANDIDATE_GAPS_ARTIFACT_LIMITATIONS = (
+  "No limitation groups found for this Corpus. Run the pipeline through "
+  "`detect` against this corpus directory first."
+)
+NO_LIMITATION_GROUPS = (
+  "The detect stage grouped no limitation or future-work statements in this "
+  "Corpus. That is a result about this Corpus, not a claim that its Papers "
+  "state no limitations."
+)
+LIMITATIONS_SUMMARY = (
+  "{total} limitation groups over {extracted} Papers: {unanswered} unanswered, "
+  "{addressed} addressed by a later Paper."
+)
+LIMITATION_STATUS_UNANSWERED = "Unanswered"
+LIMITATION_STATUS_ADDRESSED = "Addressed by a later Paper"
+LIMITATION_SOURCE_LABEL = "Stated by {count} Paper(s): {papers}."
+LIMITATION_FOLLOW_UP_LABEL = (
+  "{follow_up_count} of {later_count} later Paper(s) in the Corpus addressed it."
+)
+LIMITATION_STATEMENTS_HEADING = "Source statements"
+LIMITATION_FOLLOW_UPS_HEADING = "Follow-ups in later Papers"
+LIMITATION_SOURCE_PASSAGE = "{citation_key} \u2014 {section}"
+LIMITATION_FOLLOW_UP_PASSAGE = "{citation_key} \u2014 {section}"
+
+# Retrieval Gaps page. This is the one Gap Type that looks *outside* the Corpus
+# (CONTEXT.md > Gap Type): out-of-corpus candidate papers found by citation
+# overlap. They carry no in-Corpus Evidence, so the page is kept clearly
+# separate, verbally and visually, from the evidence-linked gap cards
+# (CODING_STANDARDS.md > Research integrity).
+RETRIEVAL_HEADING = "Retrieval Gaps (out-of-corpus)"
+RETRIEVAL_SEPARATION_NOTICE = (
+  "\u26a0\ufe0f These are **not evidence-linked gaps**. They are out-of-corpus "
+  "candidates for improving the search \u2014 papers the wider literature cites "
+  "alongside this Corpus but that the Corpus itself does not include. Unlike the "
+  "gap cards, they carry no in-Corpus Evidence and are candidates for expanding "
+  "the Corpus, not gaps the tool has confirmed."
+)
+NO_RETRIEVAL_GAPS_ARTIFACT = (
+  "No out-of-corpus candidates found for this Corpus. Run the pipeline through "
+  "`retrieve` against this corpus directory first."
+)
+NO_RETRIEVAL_CANDIDATES = (
+  "The retrieve stage found no out-of-corpus candidates for this Corpus. That "
+  "is a result about this Corpus, not a claim that none exist."
+)
+RETRIEVAL_SUMMARY = (
+  "{total} out-of-corpus candidates, ranked by citation overlap, from the "
+  "{coupled} of {corpus} Papers that carry a resolved citation list. Each "
+  "appears in at least {min_overlap} Corpus Papers' references."
+)
+RETRIEVAL_SOURCE_LABEL = "Ranking read from: {source}."
+RETRIEVAL_OVERLAP_LABEL = "Cited by {overlap} Corpus Paper(s): {papers}."
+RETRIEVAL_META_LABEL = "{venue}{year}{cited_by}"
+RETRIEVAL_YEAR_PART = " \u00b7 {year}"
+RETRIEVAL_CITED_BY_PART = " \u00b7 cited by {count} works"
+RETRIEVAL_AUTHORS_LABEL = "{authors}"
+RETRIEVAL_DOI_LABEL = "DOI: {doi}"

@@ -16,6 +16,7 @@ ARTIFACTS_DIR = "artifacts"
 MANIFEST_NAME = "corpus-manifest.json"
 CANDIDATE_GAPS_NAME = "candidate_gaps.json"
 NORMALIZED_FACTS_NAME = "normalized_facts.json"
+RETRIEVAL_GAPS_NAME = "retrieval_gaps.json"
 
 
 class ArtifactNotFoundError(FileNotFoundError):
@@ -121,12 +122,45 @@ class CoverageMatrixRecord(_ReadModel):
   cells: list[MatrixCellRecord] = []
 
 
+class LimitationStatementRecord(_ReadModel):
+  """One source statement in a limitation group, as the dashboard reads it."""
+
+  statement_id: str = ""
+  citation_key: str
+  kind: str = ""
+  statement: str = ""
+  evidence: EvidenceRecord = EvidenceRecord()
+
+
+class FollowUpRecord(_ReadModel):
+  """One later Paper's fact that addressed a limitation group, as read."""
+
+  citation_key: str
+  statement: str = ""
+  evidence: EvidenceRecord = EvidenceRecord()
+  reason: str = ""
+
+
+class LimitationGroupRecord(_ReadModel):
+  """One limitation group, projected onto what the Limitations view shows."""
+
+  group_id: str
+  label: str = ""
+  statements: list[LimitationStatementRecord] = []
+  earliest_year: int | None = None
+  later_citation_keys: list[str] = []
+  follow_ups: list[FollowUpRecord] = []
+  notes: list[str] = []
+
+
 class CandidateGapsArtifact(_ReadModel):
   """The CandidateGaps artifact, projected onto what the Gap Cards view shows."""
 
   corpus_root: Path
   corpus_paper_count: int = 0
+  extracted_paper_count: int = 0
   matrices: list[CoverageMatrixRecord] = []
+  limitation_groups: list[LimitationGroupRecord] = []
   gaps: list[CandidateGapRecord] = []
 
 
@@ -199,6 +233,54 @@ def load_candidate_gaps(corpus_root: Path) -> CandidateGapsArtifact:
     )
   raw = json.loads(path.read_text(encoding="utf-8"))
   return CandidateGapsArtifact.model_validate(raw)
+
+
+class RetrievalCandidateRecord(_ReadModel):
+  """One out-of-corpus candidate, as the dashboard reads it from the artifact."""
+
+  openalex_id: str
+  doi: str = ""
+  title: str = ""
+  year: int | None = None
+  venue: str = ""
+  authors: list[str] = []
+  cited_by_count: int = 0
+  citation_overlap: int = 0
+  citing_citation_keys: list[str] = []
+
+
+class RetrievalGapsArtifact(_ReadModel):
+  """The RetrievalGaps artifact, projected onto what the Retrieval view shows."""
+
+  corpus_root: Path
+  source: str = ""
+  label: str = ""
+  corpus_paper_count: int = 0
+  coupled_paper_count: int = 0
+  min_overlap: int = 0
+  limit: int = 0
+  candidates: list[RetrievalCandidateRecord] = []
+
+
+def _retrieval_gaps_path(corpus_root: Path) -> Path:
+  """Return where a corpus directory keeps its RetrievalGaps artifact."""
+  return corpus_root / ARTIFACTS_DIR / RETRIEVAL_GAPS_NAME
+
+
+def has_retrieval_gaps(corpus_root: Path) -> bool:
+  """Report whether a corpus directory has a RetrievalGaps artifact to read."""
+  return _retrieval_gaps_path(corpus_root).is_file()
+
+
+def load_retrieval_gaps(corpus_root: Path) -> RetrievalGapsArtifact:
+  """Read the RetrievalGaps artifact the retrieve stage left on disk."""
+  path = _retrieval_gaps_path(corpus_root)
+  if not path.is_file():
+    raise ArtifactNotFoundError(
+      f"No RetrievalGaps at '{path}'. Run `retrieve` on '{corpus_root}' first."
+    )
+  raw = json.loads(path.read_text(encoding="utf-8"))
+  return RetrievalGapsArtifact.model_validate(raw)
 
 
 def _normalized_facts_path(corpus_root: Path) -> Path:

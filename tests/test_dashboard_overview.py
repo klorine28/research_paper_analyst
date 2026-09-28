@@ -192,6 +192,11 @@ def test_app_warns_when_no_corpus_is_analysed(tmp_path: Path):
 
 def test_dashboard_imports_no_pipeline_logic():
   """No module in the dashboard package imports a pipeline stage."""
+  # Pipeline stages are the top-level `research_gap_dashboard.<name>` modules; the
+  # dashboard's own modules live under `research_gap_dashboard.dashboard.<name>`
+  # and may reuse a stage's name (e.g. the Limitations view), so match the full
+  # dotted path, not just the leaf.
+  pipeline_paths = {f"research_gap_dashboard.{name}" for name in _PIPELINE_MODULES}
   package_dir = Path(dashboard_pkg.__file__).parent
   offenders: list[str] = []
   for source in package_dir.glob("*.py"):
@@ -203,7 +208,6 @@ def test_dashboard_imports_no_pipeline_logic():
       elif isinstance(node, ast.Import):
         names.extend(alias.name for alias in node.names)
       for name in names:
-        leaf = name.split(".")[-1]
-        if name.startswith("research_gap_dashboard") and leaf in _PIPELINE_MODULES:
+        if name in pipeline_paths:
           offenders.append(f"{source.name} imports {name}")
   assert not offenders
