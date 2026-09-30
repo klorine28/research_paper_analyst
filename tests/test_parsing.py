@@ -8,10 +8,16 @@ import pytest
 from research_gap_dashboard import parsing
 from research_gap_dashboard.cli import main
 from research_gap_dashboard.ingest import ingest_corpus
+from research_gap_dashboard.cli import EXIT_INCOMPLETE
 from research_gap_dashboard.parsing import (
+  MIN_USABLE_CHARS,
   DoclingParser,
+  FallbackParser,
   ParsedPaper,
+  ParserChainError,
+  default_parser,
   parse_corpus,
+  read_parse_report,
   read_parsed_paper,
 )
 
@@ -149,9 +155,104 @@ def test_a_failing_pdf_is_reported_without_aborting_the_corpus(corpus: Path):
   assert "docling choked" in report.failures[0].error
 
 
+class _FixedParser:  # pylint: disable=too-few-public-methods
+  """A parser returning fixed Markdown under a given name, or raising."""
+
+  def __init__(self, name: str, markdown: str = "", *, boom: bool = False):
+    self.name = name
+    self._markdown = markdown
+    self._boom = boom
+
+  def parse(self, pdf: Path) -> ParsedPaper:
+    """Return the canned sections, or raise when configured to."""
+    if self._boom:
+      raise RuntimeError(f"{self.name} crashed")
+    return DoclingParser(convert=lambda _: self._markdown, name=self.name).parse(pdf)
+
+
+def test_fallback_returns_the_first_usable_parser():
+  """An empty first parser is skipped; the next usable one wins and is recorded."""
+  chain = FallbackParser(
+    [_FixedParser("empty", ""), _FixedParser("docling-ocr", _SAMPLE_MARKDOWN)]
+  )
+
+  parsed = chain.parse(Path("scan.pdf"))
+
+  assert parsed.section("methods") is not None
+  assert parsed.parser == "docling-ocr"
+
+
+def test_fallback_skips_a_parser_that_raises():
+  """A parser that crashes does not abort the chain; the next one is tried."""
+  chain = FallbackParser(
+    [_FixedParser("docling", boom=True), _FixedParser("pdfplumber", _SAMPLE_MARKDOWN)]
+  )
+
+  parsed = chain.parse(Path("weird.pdf"))
+
+  assert parsed.parser == "pdfplumber"
+
+
+def test_fallback_treats_near_empty_output_as_unusable():
+  """A parser that yields only a stray title line is skipped as near-empty."""
+  chain = FallbackParser(
+    [_FixedParser("docling", "Scan"), _FixedParser("docling-ocr", _SAMPLE_MARKDOWN)]
+  )
+
+  parsed = chain.parse(Path("scan.pdf"))
+
+  assert len(_SAMPLE_MARKDOWN) > MIN_USABLE_CHARS  # guards the fixture
+  assert parsed.parser == "docling-ocr"
+
+
+def test_fallback_raises_when_every_parser_fails():
+  """When no parser yields usable text, the chain fails loudly, naming each try."""
+  chain = FallbackParser(
+    [_FixedParser("docling", ""), _FixedParser("docling-ocr", boom=True)]
+  )
+
+  with pytest.raises(ParserChainError) as excinfo:
+    chain.parse(Path("imageonly.pdf"))
+
+  assert "docling" in str(excinfo.value)
+  assert "docling-ocr" in str(excinfo.value)
+
+
+def test_default_parser_chains_docling_then_ocr_then_pdfplumber():
+  """The shipped chain tries plain docling, then docling+OCR, then pdfplumber."""
+  chain = default_parser()
+
+  assert isinstance(chain, FallbackParser)
+  assert [p.name for p in chain.parsers] == ["docling", "docling-ocr", "pdfplumber"]
+
+
+def test_parse_persists_an_inspectable_report_with_failures(corpus: Path):
+  """The parse stage writes its failures to disk for the dashboard to surface."""
+  doomed = sorted((corpus / "papers").glob("*.pdf"))[0]
+
+  parse_corpus(corpus, parser=_StubParser(fail={doomed.name}))
+  report = read_parse_report(corpus)
+
+  assert len(report.parsed_paths) == 9
+  assert [f.pdf_path.name for f in report.failures] == [doomed.name]
+
+
 def test_cli_parse_writes_sectioned_text(corpus: Path, monkeypatch):
   """`parse <corpus>` runs the default parser and leaves paper-data/ files."""
   monkeypatch.setattr(parsing, "_docling_to_markdown", lambda _: _SAMPLE_MARKDOWN)
 
   assert main(["parse", str(corpus)]) == 0
   assert sorted((corpus / "paper-data").glob("*.parsed.json"))
+
+
+def test_cli_parse_signals_incompleteness_without_aborting(corpus: Path, monkeypatch):
+  """A bad PDF still lets the rest parse, but the CLI exits with the incomplete code."""
+  doomed = sorted((corpus / "papers").glob("*.pdf"))[0]
+  monkeypatch.setattr(
+    parsing, "default_parser", lambda: _StubParser(fail={doomed.name})
+  )
+
+  exit_code = main(["parse", str(corpus)])
+
+  assert exit_code == EXIT_INCOMPLETE
+  assert len(sorted((corpus / "paper-data").glob("*.parsed.json"))) == 9

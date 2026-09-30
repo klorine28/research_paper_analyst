@@ -23,6 +23,7 @@ repeatable.
 """
 
 import logging
+import re
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 
@@ -318,6 +319,25 @@ def _axis_facts(fields: ExtractionFields, axis: Axis) -> dict[str, ExtractedFact
   return facts
 
 
+def _lookup_fact(
+  facts: dict[str, ExtractedFact], fact_ref: str
+) -> ExtractedFact | None:
+  """
+  Resolve a model-cited fact reference to a fact.
+
+  Facts are keyed `field[index]` (e.g. `research_question[0]`), but the prompt
+  renders each behind `[field[index]]`, so a model told to copy the reference
+  "exactly as shown" emits the outer-bracketed form. Accept either, so a correct
+  citation is never mistaken for a hallucinated fact.
+  """
+  ref = fact_ref.strip()
+  fact = facts.get(ref)
+  if fact is not None:
+    return fact
+  outer = re.fullmatch(r"\[(.+)\]", ref)
+  return facts.get(outer.group(1)) if outer else None
+
+
 def _has_any_decision(proposal: _ProposedNormalization) -> bool:
   """Report whether a proposal placed or explicitly surfaced at least one phrase."""
   return bool(proposal.assignments or proposal.unmapped)
@@ -337,7 +357,7 @@ def _validate_proposal(
   ]
 
   for proposed in proposal.assignments:
-    fact = facts.get(proposed.fact_ref)
+    fact = _lookup_fact(facts, proposed.fact_ref)
     category = taxonomy.topic_by_id(proposed.category_id) or taxonomy.resolve(
       proposed.category_id
     )

@@ -7,19 +7,22 @@ limitations, stated future work) out of the parsed text. Every extracted fact
 carries Evidence: a verbatim passage and the section it came from.
 
 The stage then mechanically verifies each quoted passage against the parsed
-text and rejects the whole Paper's extraction loudly on any mismatch, so no
-invented quote ever reaches the artifact (CODING_STANDARDS > Research
-integrity). Verification is a per-Paper failure: one bad extraction is recorded
-and the run carries on with the rest of the Corpus.
+text. Verification is *per fact*: a fact whose Evidence is not a verbatim match
+is dropped and recorded as an `UnverifiedFact`, and the Paper keeps its verified
+facts (ADR 0004). No unverified quote ever reaches the artifact as Evidence
+(CODING_STANDARDS > Research integrity), but one bad quote no longer discards a
+Paper's other good facts. A Paper is only a failure when it was never parsed or
+when *none* of its facts verify.
 
 The stage writes one inspectable artifact, `artifacts/extractions.json`, holding
-every Paper's Extraction plus the failures, and records the prompt version and
-model tier behind the run. LLM calls go through the cached client (ADR 0001), so
-reruns are free and repeatable.
+every Paper's Extraction, the dropped `unverified` facts, and the failures, and
+records the prompt version and model tier behind the run. LLM calls go through
+the cached client (ADR 0001), so reruns are free and repeatable.
 """
 
 import logging
 import re
+import unicodedata
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -54,6 +57,18 @@ _FIELD_NAMES: tuple[str, ...] = (
 )
 
 _WHITESPACE = re.compile(r"\s+")
+
+# The Unicode replacement character docling emits where a PDF glyph could not be
+# decoded (e.g. `\u2264`/`\u2265` collapsing to `\ufffd`). The source character is
+# genuinely lost, so a faithful LLM quote reproduces the intended glyph and can
+# never match verbatim. During verification each `\ufffd` in the parsed text is
+# therefore treated as a wildcard for exactly one character.
+_REPLACEMENT_CHAR = "\ufffd"
+
+# Markdown table cell delimiters docling injects between columns. A paper that
+# quotes a table row copies the cell text without the `|` separators, so the
+# pipes are dropped (to whitespace) on both sides before matching.
+_TABLE_PIPE = re.compile(r"\s*\|\s*")
 
 
 class EvidenceVerificationError(Exception):
@@ -114,6 +129,24 @@ class ExtractionFailure(BaseModel):
   reason: str
 
 
+class UnverifiedFact(BaseModel):
+  """A fact dropped because its Evidence did not verify against the parsed text."""
+
+  citation_key: str
+  field: str
+  statement: str
+  passage: str
+  section: SectionLabel
+  reason: str
+
+
+class PaperExtraction(BaseModel):
+  """One Paper's verified Extraction plus the facts dropped for bad Evidence."""
+
+  extraction: Extraction
+  unverified: list[UnverifiedFact]
+
+
 class ExtractReport(BaseModel):
   """What the extract stage produced: the Extractions, the failures, and provenance."""
 
@@ -122,6 +155,7 @@ class ExtractReport(BaseModel):
   tier: ModelTier
   extractions: list[Extraction]
   failures: list[ExtractionFailure]
+  unverified: list[UnverifiedFact] = Field(default_factory=list)
 
 
 def extract_corpus(
@@ -141,6 +175,7 @@ def extract_corpus(
   manifest = read_manifest(root)
   extractions: list[Extraction] = []
   failures: list[ExtractionFailure] = []
+  unverified: list[UnverifiedFact] = []
 
   for paper in manifest.papers:
     try:
@@ -156,7 +191,7 @@ def extract_corpus(
       continue
 
     try:
-      extraction = extract_paper(
+      result = extract_paper(
         paper.citation_key, parsed, client, prompt_version=prompt_version, tier=tier
       )
     except EvidenceVerificationError as error:
@@ -166,7 +201,14 @@ def extract_corpus(
       )
       continue
 
-    extractions.append(extraction)
+    extractions.append(result.extraction)
+    unverified.extend(result.unverified)
+    if result.unverified:
+      logger.warning(
+        "Dropped %d unverifiable fact(s) from %s.",
+        len(result.unverified),
+        paper.citation_key,
+      )
 
   report = ExtractReport(
     corpus_root=root,
@@ -174,13 +216,15 @@ def extract_corpus(
     tier=tier,
     extractions=extractions,
     failures=failures,
+    unverified=unverified,
   )
   _write_report(root, report)
   logger.info(
-    "Extracted %d of %d Papers (%d failed).",
+    "Extracted %d of %d Papers (%d failed, %d facts dropped).",
     len(extractions),
     len(manifest.papers),
     len(failures),
+    len(unverified),
   )
   return report
 
@@ -192,8 +236,15 @@ def extract_paper(
   *,
   prompt_version: str = PROMPT_VERSION,
   tier: ModelTier = "default",
-) -> Extraction:
-  """Extract one Paper's facts and verify every Evidence passage against its text."""
+) -> PaperExtraction:
+  """
+  Extract one Paper's facts, keeping only those whose Evidence verifies.
+
+  Each fact's quoted passage is checked against the parsed text; a fact that
+  does not verify is dropped and returned as an `UnverifiedFact` rather than
+  discarding the whole Paper (ADR 0004). A Paper whose facts *all* fail to
+  verify raises `EvidenceVerificationError`, since it has nothing to show.
+  """
   fields = complete_model(
     client,
     _build_prompt(parsed),
@@ -203,8 +254,16 @@ def extract_paper(
     attempts=EXTRACT_ATTEMPTS,
     accept=_has_any_fact,
   )
-  _verify_evidence(parsed, fields)
-  return Extraction(citation_key=citation_key, fields=fields)
+  verified, unverified = _verify_fields(citation_key, parsed, fields)
+  if not _has_any_fact(verified):
+    raise EvidenceVerificationError(
+      f"no fact's Evidence verified against the paper text "
+      f"({len(unverified)} unverifiable)"
+    )
+  return PaperExtraction(
+    extraction=Extraction(citation_key=citation_key, fields=verified),
+    unverified=unverified,
+  )
 
 
 def _has_any_fact(fields: ExtractionFields) -> bool:
@@ -218,18 +277,58 @@ def read_extractions(root: Path) -> ExtractReport:
   return ExtractReport.model_validate_json(path.read_text(encoding="utf-8"))
 
 
+def _verify_fields(
+  citation_key: str, parsed: ParsedPaper, fields: ExtractionFields
+) -> tuple[ExtractionFields, list[UnverifiedFact]]:
+  """Partition a Paper's facts into those whose Evidence verifies and those dropped."""
+  haystack = _normalize(parsed.full_text)
+  kept: dict[str, list[ExtractedFact]] = {}
+  unverified: list[UnverifiedFact] = []
+  for name in _FIELD_NAMES:
+    keep: list[ExtractedFact] = []
+    for fact in getattr(fields, name):
+      reason = _evidence_problem(fact.evidence.passage, haystack)
+      if reason is None:
+        keep.append(fact)
+      else:
+        unverified.append(
+          UnverifiedFact(
+            citation_key=citation_key,
+            field=name,
+            statement=fact.statement,
+            passage=fact.evidence.passage,
+            section=fact.evidence.section,
+            reason=reason,
+          )
+        )
+    kept[name] = keep
+  return ExtractionFields(**kept), unverified
+
+
 def _verify_evidence(parsed: ParsedPaper, fields: ExtractionFields) -> None:
-  """Fail loudly if any quoted passage is absent from the parsed text."""
+  """
+  Raise on the first unverifiable Evidence passage (strict, all-or-nothing).
+
+  The extract stage drops unverifiable facts per-fact (ADR 0004), but promoting
+  a human-reviewed Extraction to a Gold regression fixture demands every quote
+  be verbatim, so gold promotion (promote_gold) verifies strictly through here.
+  """
   haystack = _normalize(parsed.full_text)
   for name in _FIELD_NAMES:
     for fact in getattr(fields, name):
-      passage = fact.evidence.passage.strip()
-      if not passage:
-        raise EvidenceVerificationError(f"empty Evidence passage in '{name}'")
-      if _normalize(passage) not in haystack:
-        raise EvidenceVerificationError(
-          f"Evidence passage in '{name}' not found in the paper text: {passage[:80]!r}"
-        )
+      problem = _evidence_problem(fact.evidence.passage, haystack)
+      if problem is not None:
+        raise EvidenceVerificationError(f"Evidence in '{name}': {problem}")
+
+
+def _evidence_problem(passage: str, haystack: str) -> str | None:
+  """Return why a quoted passage fails verification, or None when it verifies."""
+  stripped = passage.strip()
+  if not stripped:
+    return "empty Evidence passage"
+  if not _passage_found(_normalize(stripped), haystack):
+    return f"passage not found in the paper text: {stripped[:80]!r}"
+  return None
 
 
 def _build_prompt(parsed: ParsedPaper) -> str:
@@ -254,5 +353,34 @@ def _write_report(root: Path, report: ExtractReport) -> None:
 
 
 def _normalize(text: str) -> str:
-  """Collapse whitespace so quotes match across a PDF's line wrapping."""
+  """
+  Canonicalize text so a faithful quote matches across benign parser artifacts.
+
+  This only undoes transformations the *parser* introduced (compatibility
+  glyphs, table pipes, wrapped whitespace); it never edits words, so a genuine
+  LLM misquote (a typo or stitched span) still fails verification.
+  """
+  text = unicodedata.normalize("NFKC", text)
+  text = _TABLE_PIPE.sub(" ", text)
   return _WHITESPACE.sub(" ", text).strip()
+
+
+def _passage_found(passage: str, haystack: str) -> bool:
+  """
+  Report whether a normalized passage occurs in the normalized paper text.
+
+  A plain substring check is tried first. When the paper text carries the
+  replacement character (a glyph the parser could not decode), each such
+  position is allowed to stand for any one character of the passage, so a quote
+  faithful to the paper's intent still verifies. No other character may differ.
+  """
+  if passage in haystack:
+    return True
+  if _REPLACEMENT_CHAR not in haystack:
+    return False
+  span = len(passage)
+  for start in range(len(haystack) - span + 1):
+    window = haystack[start : start + span]
+    if all(h in (c, _REPLACEMENT_CHAR) for h, c in zip(window, passage)):
+      return True
+  return False

@@ -15,7 +15,9 @@ from research_gap_dashboard.aggregate import aggregate_corpus, load_pipeline_tax
 from research_gap_dashboard.dashboard.extraction_review import (
   FIELD_NAMES as _GOLD_FIELD_NAMES,
 )
+from research_gap_dashboard.apply_corrections import apply_parse_corrections
 from research_gap_dashboard.detect import detect_corpus
+from research_gap_dashboard.diagnose import diagnose_corpus, render_funnel
 from research_gap_dashboard.explain import explain_corpus
 from research_gap_dashboard.extract import extract_corpus
 from research_gap_dashboard.ingest import (
@@ -49,6 +51,10 @@ logger = logging.getLogger("research_gap_dashboard")
 
 EXIT_OK = 0
 EXIT_ERROR = 1
+# The run completed but some Papers did not make it through (a bad PDF, a
+# rejected extraction): the pipeline never hard-blocks on one Paper, but it
+# signals the incompleteness so a caller or CI can notice (issue #46 Step 3).
+EXIT_INCOMPLETE = 2
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -83,6 +89,27 @@ def build_parser() -> argparse.ArgumentParser:
     help="Parse each Paper's PDF into sectioned text under paper-data/.",
   )
   parse.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  diagnose = subcommands.add_parser(
+    "diagnose",
+    help="Report the parse/extract funnel and where Papers fall out of it.",
+  )
+  diagnose.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  diagnose.add_argument(
+    "--min-rate",
+    type=float,
+    default=None,
+    help=(
+      "Exit non-zero when the end-to-end rate falls below this fraction "
+      "(e.g. 0.9 to gate on the >=90%% target); default: report only."
+    ),
+  )
+  apply_corrections = subcommands.add_parser(
+    "apply-parse-corrections",
+    help="Write the dashboard's manual parse corrections into paper-data/.",
+  )
+  apply_corrections.add_argument(
+    "corpus", type=Path, help="Path to the corpus directory."
+  )
   extract = subcommands.add_parser(
     "extract",
     help="LLM-extract structured facts with verified Evidence into the artifact.",
@@ -199,6 +226,8 @@ def main(argv: Sequence[str] | None = None) -> int:
   runners = {
     "ingest": _run_ingest,
     "parse": _run_parse,
+    "diagnose": _run_diagnose,
+    "apply-parse-corrections": _run_apply_parse_corrections,
     "extract": _run_extract,
     "explain": _run_explain,
     "aggregate": _run_aggregate,
@@ -275,6 +304,52 @@ def _run_parse(arguments: argparse.Namespace) -> int:
   )
   for failure in report.failures:
     logger.warning("  %s: %s", failure.citation_key, failure.error)
+  if report.failures:
+    logger.warning(
+      "%d Paper(s) did not parse; see the dashboard's needs-attention queue.",
+      len(report.failures),
+    )
+    return EXIT_INCOMPLETE
+  return EXIT_OK
+
+
+def _run_diagnose(arguments: argparse.Namespace) -> int:
+  """Report the parse/extract funnel and where Papers fall out of it."""
+  try:
+    report = diagnose_corpus(arguments.corpus)
+  except FileNotFoundError as error:
+    logger.error("Run `ingest` first: %s", error)
+    return EXIT_ERROR
+
+  logger.info("%s", render_funnel(report))
+
+  if arguments.min_rate is not None and report.end_to_end_rate < arguments.min_rate:
+    logger.error(
+      "End-to-end rate %.0f%% is below the %.0f%% target.",
+      report.end_to_end_rate * 100,
+      arguments.min_rate * 100,
+    )
+    return EXIT_ERROR
+  return EXIT_OK
+
+
+def _run_apply_parse_corrections(arguments: argparse.Namespace) -> int:
+  """Write the dashboard's manual parse corrections into paper-data/."""
+  try:
+    applied = apply_parse_corrections(arguments.corpus)
+  except FileNotFoundError as error:
+    logger.error("Run `ingest` first: %s", error)
+    return EXIT_ERROR
+
+  if not applied:
+    logger.info("No manual parse corrections to apply.")
+    return EXIT_OK
+  logger.info(
+    "Applied %d manual parse correction(s); rerun `extract` to pick them up.",
+    len(applied),
+  )
+  for key in applied:
+    logger.info("  %s", key)
   return EXIT_OK
 
 
@@ -293,12 +368,20 @@ def _run_extract(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   logger.info(
-    "Extracted %d Papers (%d failed).",
+    "Extracted %d Papers (%d failed, %d facts dropped).",
     len(report.extractions),
     len(report.failures),
+    len(report.unverified),
   )
   for failure in report.failures:
     logger.warning("  %s: %s", failure.citation_key, failure.reason)
+  if report.failures or report.unverified:
+    logger.warning(
+      "%d Paper(s) rejected, %d fact(s) dropped; see the needs-attention queue.",
+      len(report.failures),
+      len(report.unverified),
+    )
+    return EXIT_INCOMPLETE
   return EXIT_OK
 
 

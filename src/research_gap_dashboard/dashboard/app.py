@@ -84,6 +84,14 @@ from research_gap_dashboard.dashboard.explainer import (
   build_paper_explainer,
   build_paper_menu,
 )
+from research_gap_dashboard.dashboard.attention import (
+  AttentionReport,
+  build_attention,
+)
+from research_gap_dashboard.dashboard.parse_corrections import (
+  EmptyCorrectionError,
+  record_parse_correction,
+)
 from research_gap_dashboard.dashboard.overview import OverviewData, build_overview
 from research_gap_dashboard.dashboard.extraction_review import (
   UnknownFieldError,
@@ -93,6 +101,7 @@ from research_gap_dashboard.dashboard.extraction_review import (
   record_fact_verdict,
   remove_added_fact,
 )
+from research_gap_dashboard.dashboard.evidence_context import ExpandedEvidence
 from research_gap_dashboard.dashboard.grounding import (
   UngroundedEvidenceError,
   has_parsed_paper,
@@ -143,10 +152,85 @@ def _select_page() -> str:
       text.PAGE_COMPARISON,
       text.PAGE_ANALYTICS,
       text.PAGE_VERIFY,
+      text.PAGE_ATTENTION,
     ],
     index=0,
     label_visibility="collapsed",
   )
+
+
+def render_attention(report: AttentionReport, corpus_root: Path) -> None:
+  """Render the needs-manual-attention queue and per-Paper correction boxes."""
+  st.header(text.ATTENTION_HEADING)
+  banner = report.banner
+  if banner.total_papers == 0:
+    st.info(text.ATTENTION_NO_PIPELINE)
+    return
+  if banner.is_complete:
+    st.success(text.ATTENTION_ALL_CLEAR)
+    return
+
+  st.warning(
+    text.incompleteness_banner(
+      banner.missing_papers,
+      banner.papers_with_dropped_facts,
+      banner.total_papers,
+      banner.reached_artifact,
+    )
+  )
+
+  _render_attention_section(
+    report, corpus_root, "unparsed", text.ATTENTION_UNPARSED_HEADING, correct=True
+  )
+  _render_attention_section(
+    report,
+    corpus_root,
+    "extraction_failed",
+    text.ATTENTION_REJECTED_HEADING,
+    correct=True,
+  )
+  _render_attention_section(
+    report, corpus_root, "facts_dropped", text.ATTENTION_DROPPED_HEADING, correct=False
+  )
+
+
+def _render_attention_section(
+  report: AttentionReport,
+  corpus_root: Path,
+  kind: str,
+  heading: str,
+  *,
+  correct: bool,
+) -> None:
+  """Render one group of the queue, offering a correction box where it helps."""
+  items = [item for item in report.items if item.kind == kind]
+  if not items:
+    return
+  st.subheader(f"{heading} ({len(items)})")
+  for item in items:
+    with st.expander(f"{item.citation_key} — {item.title}"):
+      st.write(item.reason)
+      if correct:
+        _render_correction_box(corpus_root, item.citation_key)
+
+
+def _render_correction_box(corpus_root: Path, citation_key: str) -> None:
+  """Render the paste-the-correct-text box that writes a judgments/ overlay."""
+  pasted = st.text_area(
+    text.ATTENTION_CORRECTION_LABEL,
+    key=f"parse-correction-{citation_key}",
+    help=text.ATTENTION_CORRECTION_HELP,
+  )
+  if not st.button(
+    text.ATTENTION_SAVE_CORRECTION, key=f"save-correction-{citation_key}"
+  ):
+    return
+  try:
+    record_parse_correction(corpus_root, citation_key, pasted)
+  except EmptyCorrectionError:
+    st.warning(text.ATTENTION_CORRECTION_EMPTY)
+    return
+  st.success(text.ATTENTION_CORRECTION_SAVED)
 
 
 def render_overview(overview: OverviewData) -> None:
@@ -288,7 +372,7 @@ def _render_gap_card(card: GapCard, corpus_root: Path) -> None:
       )
       if passage.detail:
         st.caption(passage.detail)
-      st.markdown(f"> {passage.passage}")
+      _render_evidence_body(passage.passage, passage.context)
 
     accept_col, reject_col, clear_col = st.columns(3)
     if accept_col.button(
@@ -500,7 +584,9 @@ def _render_gap_cards_page(chosen: CorpusChoice) -> None:
     st.header(text.GAP_CARDS_HEADING)
     st.warning(text.NO_CANDIDATE_GAPS_ARTIFACT)
     return
-  data = build_gap_cards(load_candidate_gaps(chosen.root), load_judgments(chosen.root))
+  data = build_gap_cards(
+    load_candidate_gaps(chosen.root), load_judgments(chosen.root), chosen.root
+  )
   render_gap_cards(data, chosen.root)
 
 
@@ -538,6 +624,7 @@ _PAGE_RENDERERS: dict[str, Callable[[CorpusChoice], None]] = {
   text.PAGE_COMPARISON: lambda chosen: _render_comparison_page(chosen.root),
   text.PAGE_ANALYTICS: lambda chosen: _render_analytics_page(chosen.root),
   text.PAGE_VERIFY: lambda chosen: _render_verify_page(chosen.root),
+  text.PAGE_ATTENTION: lambda chosen: _render_attention_page(chosen.root),
   text.PAGE_OVERVIEW: _render_overview_page,
 }
 
@@ -557,8 +644,29 @@ def main() -> None:
     return
 
   chosen = _select_corpus(choices)
+  _render_incompleteness_banner(chosen.root)
   page = _select_page()
   _PAGE_RENDERERS.get(page, _render_overview_page)(chosen)
+
+
+def _render_incompleteness_banner(corpus_root: Path) -> None:
+  """Show a loud banner on every page when the Corpus is incomplete (issue #46)."""
+  banner = build_attention(corpus_root).banner
+  if banner.total_papers == 0 or banner.is_complete:
+    return
+  st.warning(
+    text.incompleteness_banner(
+      banner.missing_papers,
+      banner.papers_with_dropped_facts,
+      banner.total_papers,
+      banner.reached_artifact,
+    )
+  )
+
+
+def _render_attention_page(corpus_root: Path) -> None:
+  """Assemble and render the needs-manual-attention queue for a Corpus."""
+  render_attention(build_attention(corpus_root), corpus_root)
 
 
 def _render_explainer_page(corpus_root: Path) -> None:
@@ -832,6 +940,38 @@ def _verdict_label(verdict: str | None) -> str:
   }.get(verdict or "", text.VERIFY_VERDICT_UNREVIEWED)
 
 
+def _render_evidence_body(passage: str, context: ExpandedEvidence | None) -> None:
+  """
+  Show the verbatim anchor inside its paragraph, highlighted, with pointers.
+
+  The anchor stays ground truth (CODING_STANDARDS > Research integrity); the code
+  only widens it to the containing paragraph and highlights the anchor, so the
+  reader gets context the dashboard did not invent. Falls back to the bare quote
+  when no parsed text grounds the passage.
+  """
+  if context is None or not context.grounded:
+    st.markdown(f"> {passage}")
+    return
+
+  prefix = "\u2026 " if context.truncated_before else ""
+  suffix = " \u2026" if context.truncated_after else ""
+  body = (
+    f"{prefix}{context.before}"
+    f":orange-background[{context.anchor}]"
+    f"{context.after}{suffix}"
+  )
+  st.markdown(f"> {body}")
+  if context.pointers:
+    st.caption(
+      text.EVIDENCE_POINTERS_LABEL.format(
+        pointers=", ".join(pointer.label for pointer in context.pointers)
+      )
+    )
+  if context.full_section_adds_more:
+    with st.expander(text.EVIDENCE_SHOW_FULL_SECTION):
+      st.markdown(f"> {context.full_section}")
+
+
 def _render_pdf_link(view: PaperReviewView) -> None:
   """Render a link back to the Paper's PDF when its path is known."""
   if view.pdf_path is None:
@@ -853,7 +993,7 @@ def _render_extracted_fact(
   key = f"{citation_key}-{fact.field}-{fact.fact_index}"
   st.markdown(f"- {fact.effective_statement}")
   st.caption(text.VERIFY_SECTION_LABEL.format(section=fact.effective_section))
-  st.markdown(f"> {fact.effective_passage}")
+  _render_evidence_body(fact.effective_passage, fact.context)
   st.caption(_verdict_label(fact.verdict))
 
   approve_col, flag_col, remove_col, clear_col = st.columns(4)
@@ -1030,7 +1170,7 @@ def _render_verify_page(corpus_root: Path) -> None:
     return
 
   review = load_extraction_review(corpus_root).review_for(citation_key)
-  view = build_extraction_review(chosen, review, by_key[citation_key])
+  view = build_extraction_review(chosen, review, by_key[citation_key], corpus_root)
   sections = read_parsed_paper(corpus_root, citation_key).section_labels
   render_verify(view, corpus_root, sections)
 

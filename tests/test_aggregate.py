@@ -199,6 +199,37 @@ def test_invented_fact_reference_becomes_unmapped(tmp_path: Path) -> None:
   assert "methods[7]" in facts.unmapped[0].reason
 
 
+def test_bracketed_fact_reference_resolves(tmp_path: Path) -> None:
+  """
+  A model that copies the rendered reference verbatim still maps.
+
+  Facts are keyed `research_question[0]`, but the prompt renders each behind an
+  extra pair of brackets (`[research_question[0]]`), so a model told to copy the
+  reference "exactly as shown" emits the outer-bracketed form. That must resolve
+  to the fact, not be rejected as a hallucinated fact (regression: the double
+  brackets once silently dropped ~90% of real mappings).
+  """
+  bracketed = {
+    "assignments": [
+      {
+        "original_term": "broken heart syndrome",
+        "fact_ref": "[research_question[0]]",
+        "category_id": "takotsubo-cardiomyopathy",
+      }
+    ],
+    "unmapped": [],
+  }
+  topic_only = [_load(tmp_path, "topic", _TOPIC_TOML)]
+
+  facts = aggregate_paper(_extraction(), topic_only, StubLlmClient(bracketed))
+
+  assert facts.unmapped == []
+  assert len(facts.assignments) == 1
+  assignment = facts.assignments[0]
+  assert assignment.category_id == "takotsubo-cardiomyopathy"
+  assert assignment.evidence.passage == "broken heart syndrome"
+
+
 def test_a_category_alias_resolves_to_its_category(tmp_path: Path) -> None:
   """A category named by label or alias, not id, still resolves."""
   by_alias = {

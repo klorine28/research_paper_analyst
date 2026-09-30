@@ -20,6 +20,7 @@ CANDIDATE_GAPS_NAME = "candidate_gaps.json"
 NORMALIZED_FACTS_NAME = "normalized_facts.json"
 RETRIEVAL_GAPS_NAME = "retrieval_gaps.json"
 EXTRACTIONS_NAME = "extractions.json"
+PARSE_REPORT_NAME = "parse-report.json"
 
 
 class ArtifactNotFoundError(FileNotFoundError):
@@ -334,11 +335,30 @@ class ExtractionRecord(_ReadModel):
   fields: ExtractionFieldsRecord = ExtractionFieldsRecord()
 
 
+class ExtractionFailureRecord(_ReadModel):
+  """A Paper whose extraction was rejected outright, and why."""
+
+  citation_key: str = ""
+  reason: str = ""
+
+
+class UnverifiedFactRecord(_ReadModel):
+  """A fact dropped because its Evidence did not verify (ADR 0004)."""
+
+  citation_key: str = ""
+  field: str = ""
+  statement: str = ""
+  passage: str = ""
+  reason: str = ""
+
+
 class ExtractionsArtifact(_ReadModel):
-  """The Extractions artifact, projected onto what the Comparison view shows."""
+  """The Extractions artifact, projected onto what the dashboard shows."""
 
   corpus_root: Path
   extractions: list[ExtractionRecord] = []
+  failures: list[ExtractionFailureRecord] = []
+  unverified: list[UnverifiedFactRecord] = []
 
 
 def _extractions_path(corpus_root: Path) -> Path:
@@ -360,6 +380,44 @@ def load_extractions(corpus_root: Path) -> ExtractionsArtifact:
     )
   raw = json.loads(path.read_text(encoding="utf-8"))
   return ExtractionsArtifact.model_validate(raw)
+
+
+class ParseFailureRecord(_ReadModel):
+  """A Paper whose PDF could not be parsed by any parser in the chain, and why."""
+
+  citation_key: str = ""
+  pdf_path: Path | None = None
+  error: str = ""
+
+
+class ParseReportArtifact(_ReadModel):
+  """The parse stage's summary, projected onto the failures the dashboard surfaces."""
+
+  corpus_root: Path
+  parsed_paths: list[Path] = []
+  failures: list[ParseFailureRecord] = []
+
+
+def _parse_report_path(corpus_root: Path) -> Path:
+  """Return where a corpus directory keeps its parse-stage summary."""
+  return corpus_root / ARTIFACTS_DIR / PARSE_REPORT_NAME
+
+
+def has_parse_report(corpus_root: Path) -> bool:
+  """Report whether the parse stage left a summary to read."""
+  return _parse_report_path(corpus_root).is_file()
+
+
+def load_parse_report(corpus_root: Path) -> ParseReportArtifact:
+  """Read the parse stage's summary, or raise when the parse stage never ran."""
+  path = _parse_report_path(corpus_root)
+  if not path.is_file():
+    raise ArtifactNotFoundError(
+      f"No parse report at '{path}'. Run `parse` on '{corpus_root}' first."
+    )
+  return ParseReportArtifact.model_validate(
+    json.loads(path.read_text(encoding="utf-8"))
+  )
 
 
 class PaperExplanationRegistersRecord(_ReadModel):

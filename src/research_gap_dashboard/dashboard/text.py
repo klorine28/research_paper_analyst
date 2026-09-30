@@ -35,6 +35,45 @@ PAGE_EXPLAINER = "Paper Explainer"
 PAGE_COMPARISON = "Paper Comparison"
 PAGE_ANALYTICS = "Conversational Analytics"
 PAGE_VERIFY = "Verify Extractions"
+PAGE_ATTENTION = "Needs Attention"
+
+# Needs-Attention page and the corpus-wide incompleteness banner (issue #46
+# Step 3). The banner states the denominator research integrity demands so a
+# partial Corpus is never mistaken for the whole one; the queue lists the Papers
+# that fell out and lets a researcher paste a bad Paper's correct full text.
+ATTENTION_HEADING = "Needs Manual Attention"
+ATTENTION_ALL_CLEAR = (
+  "Every Paper reached the artifact with fully verified facts. Nothing needs "
+  "manual attention."
+)
+ATTENTION_NO_PIPELINE = (
+  "Run `parse` and `extract` on this Corpus first; there is nothing to report yet."
+)
+ATTENTION_UNPARSED_HEADING = "PDFs no parser could read"
+ATTENTION_REJECTED_HEADING = "Papers whose extraction was rejected"
+ATTENTION_DROPPED_HEADING = "Papers with dropped facts"
+ATTENTION_CORRECTION_LABEL = "Paste this Paper's correct full text"
+ATTENTION_CORRECTION_HELP = (
+  "Saved to a review overlay under judgments/. Run `apply-parse-corrections` "
+  "then `extract` to fold it into the pipeline."
+)
+ATTENTION_SAVE_CORRECTION = "Save correction"
+ATTENTION_CORRECTION_SAVED = "Saved. Run `apply-parse-corrections` then `extract`."
+ATTENTION_CORRECTION_EMPTY = "Nothing to save: paste the Paper's text first."
+
+
+def incompleteness_banner(
+  missing: int, dropped_papers: int, total: int, reached: int
+) -> str:
+  """Compose the loud banner that states how incomplete a Corpus is."""
+  parts = [f"{reached}/{total} Papers reached the artifact with real facts."]
+  if missing:
+    parts.append(f"{missing} produced nothing and are missing from every view.")
+  if dropped_papers:
+    parts.append(f"{dropped_papers} are missing some facts (dropped as unverifiable).")
+  parts.append("See the Needs Attention page.")
+  return " ".join(parts)
+
 
 # Verify Extractions page. The reviewer checks a Paper's Extraction against its
 # text and leaves per-field verdicts; verdicts are annotation-only and never
@@ -131,6 +170,9 @@ GAP_CELL_COUNT_LABEL = "Papers in this cell: {count} of {total}."
 GAP_SOURCE_PAPERS_LABEL = "Source Papers: {papers}."
 GAP_EVIDENCE_HEADING = "Evidence"
 GAP_EVIDENCE_SOURCE = "{citation_key} — {section}"
+# Evidence-window expansion (issue #47): the anchor quote shown in its paragraph.
+EVIDENCE_POINTERS_LABEL = "Points to: {pointers}"
+EVIDENCE_SHOW_FULL_SECTION = "Show full section"
 GAP_STATUS_ACCEPTED = "Accepted"
 GAP_STATUS_REJECTED = "Rejected"
 GAP_STATUS_UNDECIDED = "Undecided"

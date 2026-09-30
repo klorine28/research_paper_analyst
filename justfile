@@ -59,6 +59,12 @@ upgrade:
   uv lock --upgrade
   uv sync
 
+# Report the PDFs->parsed->sectioned->extracted funnel for a corpus, surfacing
+# where Papers fall out (issue #46). Pass a corpus dir, e.g. `just diagnose
+# corpora/cardiology`; add `--min-rate 0.9` to gate on the end-to-end target.
+diagnose corpus *ARGS:
+  uv run research-gap-dashboard diagnose {{ corpus }} {{ ARGS }}
+
 # -- Dashboard -- #
 #
 # Streamlit shell that reads the on-disk artifacts (ADR 0002). Set
