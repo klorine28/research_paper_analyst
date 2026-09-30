@@ -26,13 +26,14 @@ from research_gap_dashboard.dashboard.limitations import (
   SourceStatement,
 )
 from research_gap_dashboard.dashboard.meta_analysis import (
-  build_author_collaboration,
+  build_author_table,
   build_citation_network,
   build_cooccurrence,
   build_limitation_flow,
   build_network_figure,
   build_sankey_figure,
   node_role,
+  short_paper_label,
 )
 
 
@@ -120,6 +121,42 @@ def test_citation_network_notes_sparse_structure():
   assert any("Sparse citation structure" in note for note in graph.notes)
 
 
+# --- Graph 1: readable node labels --------------------------------------------
+
+
+def test_short_paper_label_prefers_first_author_surname_and_year():
+  """A node reads 'Surname Year', not the opaque citation key."""
+  paper = PaperRecord(
+    citation_key="templin2015", doi="d", authors=["Christian Templin"], year=2015
+  )
+  assert short_paper_label(paper) == "Templin 2015"
+
+
+def test_short_paper_label_falls_back_to_title_then_key():
+  """With no authors the label uses a trimmed title, then the key as last resort."""
+  titled = PaperRecord(citation_key="k", doi="d", title="A Study", year=2020)
+  bare = PaperRecord(citation_key="k2", doi="d")
+  assert short_paper_label(titled) == "A Study 2020"
+  assert short_paper_label(bare) == "k2"
+
+
+def test_citation_nodes_use_readable_labels_keeping_the_key_in_hover():
+  """The citation graph labels nodes readably but keeps the key in the hover."""
+  papers = [
+    PaperRecord(
+      citation_key="templin2015",
+      doi="d",
+      openalex_id="W1",
+      authors=["Christian Templin"],
+      year=2015,
+    )
+  ]
+  graph = build_citation_network(_manifest(papers))
+  node = graph.nodes[0]
+  assert node.label == "Templin 2015"
+  assert "templin2015" in node.hover
+
+
 # --- Graphs 2 & 6: Topic and Method co-occurrence ------------------------------
 
 
@@ -160,6 +197,66 @@ def test_topic_cooccurrence_surfaces_missing_pairs_as_knowledge_gaps():
   assert "Knowledge Gap" in graph.gap_lens
 
 
+def test_cooccurrence_min_edge_weight_hides_weak_links_and_reports_them():
+  """Raising the threshold hides single-Paper links and notes how many."""
+  normalized = _normalized(
+    {
+      "p01": [("topic", "a", "Alpha"), ("topic", "b", "Beta")],
+      "p02": [("topic", "a", "Alpha"), ("topic", "b", "Beta")],
+      "p03": [("topic", "a", "Alpha"), ("topic", "c", "Gamma")],  # weight-1 a-c
+    }
+  )
+  manifest = _manifest(
+    [PaperRecord(citation_key=k, doi=k) for k in ("p01", "p02", "p03")]
+  )
+  graph = build_cooccurrence(normalized, manifest, axis="topic", min_edge_weight=2)
+
+  pairs = {frozenset((e.source, e.target)) for e in graph.edges}
+  assert frozenset(("a", "b")) in pairs  # weight 2, kept
+  assert frozenset(("a", "c")) not in pairs  # weight 1, hidden
+  assert any("hidden" in note for note in graph.notes)
+
+
+def test_cooccurrence_max_nodes_keeps_the_most_covered_categories():
+  """The node cap keeps the best-covered categories and reports the trim."""
+  normalized = _normalized(
+    {
+      "p01": [("topic", "a", "Alpha")],
+      "p02": [("topic", "a", "Alpha")],
+      "p03": [("topic", "b", "Beta")],
+      "p04": [("topic", "c", "Gamma")],
+    }
+  )
+  manifest = _manifest(
+    [PaperRecord(citation_key=k, doi=k) for k in ("p01", "p02", "p03", "p04")]
+  )
+  graph = build_cooccurrence(normalized, manifest, axis="topic", max_nodes=1)
+
+  assert {n.node_id for n in graph.nodes} == {"a"}  # most-covered kept
+  assert any("most-covered" in note for note in graph.notes)
+
+
+def test_missing_pairs_rank_by_strength_of_both_endpoints():
+  """A pair of two well-studied topics ranks above one touching a rare topic."""
+  normalized = _normalized(
+    {
+      "p01": [("topic", "a", "Alpha")],
+      "p02": [("topic", "a", "Alpha")],
+      "p03": [("topic", "b", "Beta")],
+      "p04": [("topic", "b", "Beta")],
+      "p05": [("topic", "c", "Gamma")],  # rare
+    }
+  )
+  manifest = _manifest(
+    [PaperRecord(citation_key=f"p{i:02d}", doi=f"p{i}") for i in range(1, 6)]
+  )
+  graph = build_cooccurrence(normalized, manifest, axis="topic")
+
+  first = graph.missing_pairs[0]
+  assert {first.source_id, first.target_id} == {"a", "b"}  # strongest gap first
+  assert first.strength == 2
+
+
 def test_method_axis_reads_the_method_placements_and_its_own_gap_lens():
   """The method axis builds from method placements and names Coverage Gaps."""
   normalized = _normalized(
@@ -189,32 +286,36 @@ def test_cooccurrence_ignores_papers_outside_the_corpus():
   assert {n.node_id for n in graph.nodes} == {"a", "b"}
 
 
-# --- Graph 4: Author collaboration --------------------------------------------
+# --- Graph 4: Author collaboration (now a ranked table) -----------------------
 
 
-def test_author_collaboration_joins_co_authors_and_labels_itself_non_gap():
-  """Co-authors on a shared Paper get an edge; the graph says it is field-meta."""
+def test_author_table_ranks_by_papers_and_counts_distinct_collaborators():
+  """The table ranks authors by Papers written and lists their distinct co-authors."""
   papers = [
     PaperRecord(citation_key="p01", doi="p01", authors=["Ng", "Lee"]),
-    PaperRecord(citation_key="p02", doi="p02", authors=["Ng"]),
+    PaperRecord(citation_key="p02", doi="p02", authors=["Ng", "Park"]),
   ]
-  graph = build_author_collaboration(_manifest(papers))
+  table = build_author_table(_manifest(papers))
 
-  assert [(e.source, e.target) for e in graph.edges] == [("Lee", "Ng")]
-  ng = next(n for n in graph.nodes if n.node_id == "Ng")
-  assert ng.weight == 2  # Ng wrote two Papers
-  assert "not a gap" in graph.gap_lens.lower()
+  top = table.rows[0]
+  assert top.author == "Ng" and top.paper_count == 2
+  assert top.collaborator_count == 2  # Lee and Park
+  assert "not a gap" in table.gap_lens.lower()
 
 
-def test_author_collaboration_reports_papers_without_authors():
-  """Papers with no listed authors are counted in a note, not assumed solo."""
+def test_author_table_caps_rows_and_reports_papers_without_authors():
+  """The table caps to top-N (reporting the cap) and counts author-less Papers."""
   papers = [
-    PaperRecord(citation_key="p01", doi="p01", authors=["Ng"]),
-    PaperRecord(citation_key="p02", doi="p02"),
+    PaperRecord(citation_key=f"p{i:02d}", doi=f"p{i}", authors=[f"A{i}"])
+    for i in range(30)
   ]
-  graph = build_author_collaboration(_manifest(papers))
+  papers.append(PaperRecord(citation_key="p99", doi="p99"))  # no authors
+  table = build_author_table(_manifest(papers), top_n=20)
 
-  assert any("1 Paper" in note for note in graph.notes)
+  assert len(table.rows) == 20
+  assert table.papers_without_authors == 1
+  assert any("1 Paper" in note for note in table.notes)
+  assert any("most-published" in note for note in table.notes)
 
 
 # --- Graph 5: Limitation follow-up (Sankey) -----------------------------------
@@ -261,6 +362,28 @@ def test_limitation_flow_splits_addressed_from_open():
   assert "Unanswered Limitation" in graph.gap_lens
 
 
+def test_limitation_flow_flags_all_open_and_counts_groups_with_no_later_paper():
+  """An all-open Corpus is flagged, with how many groups had no later Paper."""
+  open_no_later = LimitationGroupView(
+    group_id="g1",
+    label="Recent-only limitation",
+    earliest_year=2024,
+    source_citation_keys=["p01"],
+    later_paper_count=0,  # nothing published later to check
+    follow_up_count=0,
+    statements=[
+      SourceStatement(citation_key="p01", statement="", passage="", section="")
+    ],
+    follow_ups=[],
+  )
+  graph = build_limitation_flow(
+    LimitationsData(groups=[open_no_later], extracted_paper_count=1)
+  )
+
+  assert graph.all_open
+  assert graph.no_later_count == 1
+
+
 # --- Honesty controls carried by every graph ----------------------------------
 
 
@@ -274,11 +397,14 @@ def test_every_graph_carries_a_question_and_the_incomplete_corpus_caveat():
   graphs = [
     build_citation_network(manifest),
     build_cooccurrence(normalized, manifest, axis="topic"),
-    build_author_collaboration(manifest),
   ]
   for graph in graphs:
     assert graph.question
     assert "only over the Papers in this Corpus" in graph.caveat
+
+  table = build_author_table(manifest)
+  assert table.question
+  assert "only over the Papers in this Corpus" in table.caveat
 
   sankey = build_limitation_flow(_limitations())
   assert sankey.question

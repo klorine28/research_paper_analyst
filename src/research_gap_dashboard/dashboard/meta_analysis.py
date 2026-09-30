@@ -59,10 +59,24 @@ _LAYOUT_SEED = 42
 # note so the denominator still travels with the chart.
 _MAX_COOCCURRENCE_NODES = 25
 
+# Node labels longer than this are trimmed on the graph (full text stays in the
+# hover), so long taxonomy labels do not overlap into an unreadable tangle.
+_MAX_LABEL_CHARS = 26
+
+# Below this many nodes an axis reads as "thin": too few categories mapped for a
+# co-occurrence graph to say much, usually an upstream taxonomy-coverage matter.
+_THIN_AXIS_NODES = 3
+
+# The default number of ranked missing pairs the layout shows before "+N more".
+MISSING_PAIRS_SHOWN = 15
+
+# How many authors the collaboration table lists by default.
+AUTHOR_TABLE_ROWS = 20
+
 # Human labels for the co-occurrence axes, kept here (not in detect: ADR 0002).
 _AXIS_LABELS: dict[str, str] = {"topic": "Topic", "method": "Method"}
 
-GraphKind = Literal["citation", "cooccurrence", "collaboration"]
+GraphKind = Literal["citation", "cooccurrence"]
 
 
 class GraphNode(BaseModel):
@@ -91,6 +105,7 @@ class MissingPair(BaseModel):
   target_id: str
   source_label: str
   target_label: str
+  strength: int = 0  # min Papers on either endpoint: how strong the gap signal is
 
 
 class NetworkGraph(BaseModel):
@@ -178,11 +193,17 @@ class SankeyGraph(BaseModel):
   flows: list[SankeyFlow] = []
   unanswered_count: int = 0
   addressed_count: int = 0
+  no_later_count: int = 0  # groups whose source Paper had no later Paper to check
 
   @property
   def is_empty(self) -> bool:
     """Whether there is any limitation group to flow."""
     return not self.flows
+
+  @property
+  def all_open(self) -> bool:
+    """Whether every group is still open (the common degenerate case)."""
+    return bool(self.flows) and self.addressed_count == 0
 
 
 def _corpus_papers(manifest: ManifestArtifact) -> list[PaperRecord]:
@@ -232,7 +253,7 @@ def build_citation_network(manifest: ManifestArtifact) -> NetworkGraph:
     nodes.append(
       GraphNode(
         node_id=paper.citation_key,
-        label=paper.citation_key,
+        label=short_paper_label(paper),
         weight=1,
         isolated=isolated,
         hover=_citation_hover(paper, isolated),
@@ -267,6 +288,27 @@ def build_citation_network(manifest: ManifestArtifact) -> NetworkGraph:
   )
 
 
+def short_paper_label(paper: PaperRecord) -> str:
+  """
+  Build a compact, human-readable node label for a Paper.
+
+  A citation key like ``templin2015`` is an opaque id on a graph; a reader wants
+  "Templin 2015". The first author's surname and the year read best; the title
+  is the fallback (truncated), and the citation key only the last resort. The
+  full title and key always stay in the hover card, so nothing is hidden.
+  """
+  year = f" {paper.year}" if paper.year is not None else ""
+  if paper.authors:
+    surname = (
+      paper.authors[0].split()[-1] if paper.authors[0].split() else paper.authors[0]
+    )
+    return f"{surname}{year}".strip()
+  if paper.title:
+    trimmed = paper.title if len(paper.title) <= 30 else paper.title[:29] + "\u2026"
+    return f"{trimmed}{year}".strip()
+  return paper.citation_key
+
+
 def _citation_hover(paper: PaperRecord, isolated: bool) -> str:
   """Build the hover card for one citation-network node."""
   lines = [f"<b>{paper.citation_key}</b>"]
@@ -279,11 +321,13 @@ def _citation_hover(paper: PaperRecord, isolated: bool) -> str:
   return "<br>".join(lines)
 
 
-def build_cooccurrence(
+def build_cooccurrence(  # pylint: disable=too-many-locals
   normalized: NormalizedFactsArtifact,
   manifest: ManifestArtifact,
   *,
   axis: Literal["topic", "method"],
+  max_nodes: int = _MAX_COOCCURRENCE_NODES,
+  min_edge_weight: int = 1,
 ) -> NetworkGraph:
   """
   Build the co-occurrence graph for one axis: categories that share a Paper.
@@ -292,21 +336,30 @@ def build_cooccurrence(
   edge joins two categories that at least one Paper covers together, weighted by
   how many Papers do. A pair of categories no Paper combines has no edge: that
   absent edge is the gap (a Knowledge Gap on the Topic axis, a Coverage Gap on
-  the Method axis), so the missing pairs are surfaced as a list, not dropped. The
-  node count is capped so a large axis stays legible; the cap is reported.
+  the Method axis).
+
+  Two controls keep the flagship from becoming a hairball, both honest because
+  what they hide is reported: ``max_nodes`` keeps the most-covered categories
+  (the rest are noted, not dropped silently), and ``min_edge_weight`` hides links
+  backed by fewer Papers than the threshold (a single-Paper co-occurrence is a
+  weak signal), counting how many were hidden. Missing pairs are ranked by the
+  weaker endpoint's coverage, so a pair of two well-studied categories that no
+  Paper combines \u2014 the strongest gap signal \u2014 rises to the top.
   """
   papers_by_category, labels, per_paper = _axis_placements(normalized, manifest, axis)
   axis_label = _AXIS_LABELS.get(axis, axis.capitalize())
   ranked = sorted(
     papers_by_category, key=lambda cid: (-len(papers_by_category[cid]), labels[cid])
   )
-  kept = ranked[:_MAX_COOCCURRENCE_NODES]
-  pair_papers = _cooccurrence_pairs(per_paper, set(kept))
+  kept = ranked[: max(max_nodes, 1)]
+  all_pairs = _cooccurrence_pairs(per_paper, set(kept))
+  pair_papers = {p: k for p, k in all_pairs.items() if len(k) >= min_edge_weight}
+  hidden_weak = len(all_pairs) - len(pair_papers)
 
   nodes = [
     GraphNode(
       node_id=cid,
-      label=labels[cid],
+      label=_trim_label(labels[cid]),
       weight=len(papers_by_category[cid]),
       isolated=not any(cid in pair for pair in pair_papers),
       hover=text.META_COOCCURRENCE_NODE_HOVER.format(
@@ -324,25 +377,10 @@ def build_cooccurrence(
     )
     for pair, keys in pair_papers.items()
   ]
-  missing = [
-    MissingPair(
-      source_id=left,
-      target_id=right,
-      source_label=labels[left],
-      target_label=labels[right],
-    )
-    for left, right in combinations(kept, 2)
-    if frozenset((left, right)) not in pair_papers
-  ]
-
-  notes = [text.META_COOCCURRENCE_DENOMINATOR.format(axis=axis_label, total=len(nodes))]
-  if len(ranked) > len(kept):
-    notes.append(
-      text.META_COOCCURRENCE_CAPPED.format(
-        shown=len(kept), total=len(ranked), axis=axis_label.lower()
-      )
-    )
-
+  missing = _missing_pairs(kept, all_pairs, papers_by_category, labels)
+  notes = _cooccurrence_notes(
+    axis, axis_label, len(nodes), len(ranked), len(kept), hidden_weak, min_edge_weight
+  )
   return NetworkGraph(
     kind="cooccurrence",
     slug=f"{axis}-cooccurrence",
@@ -356,6 +394,59 @@ def build_cooccurrence(
     missing_pairs=missing,
     notes=notes,
   )
+
+
+def _missing_pairs(
+  kept: list[str],
+  all_pairs: dict[frozenset[str], set[str]],
+  papers_by_category: dict[str, set[str]],
+  labels: dict[str, str],
+) -> list[MissingPair]:
+  """Build the ranked list of kept-category pairs no Paper combines."""
+  return sorted(
+    (
+      MissingPair(
+        source_id=left,
+        target_id=right,
+        source_label=labels[left],
+        target_label=labels[right],
+        strength=min(len(papers_by_category[left]), len(papers_by_category[right])),
+      )
+      for left, right in combinations(kept, 2)
+      if frozenset((left, right)) not in all_pairs
+    ),
+    key=lambda pair: (-pair.strength, pair.source_label, pair.target_label),
+  )
+
+
+def _cooccurrence_notes(  # pylint: disable=too-many-arguments,too-many-positional-arguments
+  axis: str,
+  axis_label: str,
+  shown_nodes: int,
+  total_categories: int,
+  kept_categories: int,
+  hidden_weak: int,
+  min_edge_weight: int,
+) -> list[str]:
+  """Assemble the denominator, capping, weak-link, and thin-axis notes."""
+  notes = [
+    text.META_COOCCURRENCE_DENOMINATOR.format(axis=axis_label, total=shown_nodes)
+  ]
+  if total_categories > kept_categories:
+    notes.append(
+      text.META_COOCCURRENCE_CAPPED.format(
+        shown=kept_categories, total=total_categories, axis=axis_label.lower()
+      )
+    )
+  if hidden_weak:
+    notes.append(
+      text.META_COOCCURRENCE_WEAK_HIDDEN.format(
+        count=hidden_weak, threshold=min_edge_weight
+      )
+    )
+  if axis == "method" and shown_nodes < _THIN_AXIS_NODES:
+    notes.append(text.META_METHOD_THIN_NOTE)
+  return notes
 
 
 def _cooccurrence_pairs(
@@ -392,6 +483,13 @@ def _axis_placements(
   return papers_by_category, labels, per_paper
 
 
+def _trim_label(label: str) -> str:
+  """Trim a long category label for on-graph display; hover keeps the full text."""
+  if len(label) <= _MAX_LABEL_CHARS:
+    return label
+  return label[: _MAX_LABEL_CHARS - 1] + "\u2026"
+
+
 def _axis_field(axis: str, topic_value: str, method_value: str) -> str:
   """Pick the topic- or method-axis copy for a co-occurrence graph field."""
   return topic_value if axis == "topic" else method_value
@@ -405,72 +503,93 @@ def _pair_hover(pair: frozenset[str], labels: dict[str, str], keys: set[str]) ->
   )
 
 
-def build_author_collaboration(manifest: ManifestArtifact) -> NetworkGraph:
-  """
-  Build the author collaboration graph: co-authorship between Corpus Papers.
+class AuthorRow(BaseModel):
+  """One author's collaboration record: Papers written and distinct co-authors."""
 
-  A node is an author, sized by how many Corpus Papers they wrote; an edge joins
-  two authors who share a Paper. This is field-meta, not a gap signal: it
-  describes the field's collaboration structure, and the graph says so. An author
-  who never shares a Paper is isolated here only in the co-authorship sense, not
-  as any kind of gap.
+  author: str
+  paper_count: int
+  collaborator_count: int
+
+
+class AuthorCollaborationTable(BaseModel):
+  """
+  The author collaboration view as a ranked table, not a node-link graph.
+
+  A co-authorship network over a 10-75 Paper Corpus is a dense hairball (a single
+  prolific author can touch hundreds of others), and it carries no gap signal to
+  justify the clutter \u2014 collaboration is field-meta. A table answers the same
+  question legibly: who publishes the most here, and how broadly do they
+  collaborate. Rows are ranked by Paper count; the view keeps its denominators
+  and says, in ``gap_lens``, that it is explicitly not a gap.
+  """
+
+  title: str
+  question: str
+  caveat: str
+  gap_lens: str
+  rows: list[AuthorRow] = []
+  total_authors: int = 0
+  papers_with_authors: int = 0
+  papers_without_authors: int = 0
+  notes: list[str] = []
+
+  @property
+  def is_empty(self) -> bool:
+    """Whether any author could be listed."""
+    return not self.rows
+
+
+def build_author_table(
+  manifest: ManifestArtifact, *, top_n: int = AUTHOR_TABLE_ROWS
+) -> AuthorCollaborationTable:
+  """
+  Rank the Corpus's authors by Papers written, with their distinct co-authors.
+
+  Replaces the co-authorship node-link graph (an unreadable hairball at Corpus
+  scale) with the same information as a table. Every count is over the Papers
+  that list authors; Papers with none are reported, never assumed solo.
   """
   papers = [p for p in manifest.papers if p.authors]
   papers_by_author: dict[str, int] = {}
-  edge_papers: dict[frozenset[str], int] = {}
-  touched: set[str] = set()
+  collaborators: dict[str, set[str]] = {}
   for paper in papers:
     authors = sorted(set(paper.authors))
     for author in authors:
       papers_by_author[author] = papers_by_author.get(author, 0) + 1
-    for left, right in combinations(authors, 2):
-      edge_papers[frozenset((left, right))] = (
-        edge_papers.get(frozenset((left, right)), 0) + 1
-      )
-      touched.add(left)
-      touched.add(right)
+      collaborators.setdefault(author, set()).update(a for a in authors if a != author)
 
-  nodes = [
-    GraphNode(
-      node_id=author,
-      label=author,
-      weight=count,
-      isolated=author not in touched,
-      hover=text.META_COLLABORATION_NODE_HOVER.format(author=author, count=count),
+  ranked = sorted(papers_by_author.items(), key=lambda kv: (-kv[1], kv[0]))
+  rows = [
+    AuthorRow(
+      author=author,
+      paper_count=count,
+      collaborator_count=len(collaborators.get(author, set())),
     )
-    for author, count in sorted(
-      papers_by_author.items(), key=lambda kv: (-kv[1], kv[0])
-    )
-  ]
-  edges = [
-    GraphEdge(
-      source=sorted(pair)[0],
-      target=sorted(pair)[1],
-      weight=count,
-      hover=text.META_COLLABORATION_EDGE_HOVER.format(
-        left=sorted(pair)[0], right=sorted(pair)[1], count=count
-      ),
-    )
-    for pair, count in edge_papers.items()
+    for author, count in ranked[: max(top_n, 1)]
   ]
 
   without_authors = len(manifest.papers) - len(papers)
   notes = [
-    text.META_COLLABORATION_DENOMINATOR.format(authors=len(nodes), papers=len(papers))
+    text.META_COLLABORATION_DENOMINATOR.format(
+      authors=len(papers_by_author), papers=len(papers)
+    )
   ]
+  if len(ranked) > len(rows):
+    notes.append(
+      text.META_COLLABORATION_TABLE_CAPPED.format(shown=len(rows), total=len(ranked))
+    )
   if without_authors:
     notes.append(text.META_COLLABORATION_MISSING.format(count=without_authors))
 
-  return NetworkGraph(
-    kind="collaboration",
-    slug="collaboration",
+  return AuthorCollaborationTable(
     title=text.META_COLLABORATION_TITLE,
     question=text.META_COLLABORATION_QUESTION,
     caveat=text.META_CAVEAT,
     gap_lens=text.META_COLLABORATION_GAP_LENS,
-    directed=False,
-    nodes=nodes,
-    edges=edges,
+    rows=rows,
+    total_authors=len(papers_by_author),
+    papers_with_authors=len(papers),
+    papers_without_authors=without_authors,
     notes=notes,
   )
 
@@ -500,6 +619,7 @@ def build_limitation_flow(limitations: LimitationsData) -> SankeyGraph:
     node_labels.append(group.label or group.group_id)
 
   addressed = sum(1 for group in limitations.groups if group.addressed)
+  no_later = sum(1 for group in limitations.groups if group.later_paper_count == 0)
   return SankeyGraph(
     title=text.META_LIMITATION_TITLE,
     question=text.META_LIMITATION_QUESTION,
@@ -510,6 +630,7 @@ def build_limitation_flow(limitations: LimitationsData) -> SankeyGraph:
     flows=flows,
     unanswered_count=len(limitations.groups) - addressed,
     addressed_count=addressed,
+    no_later_count=no_later,
   )
 
 

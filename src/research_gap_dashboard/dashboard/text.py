@@ -447,9 +447,11 @@ META_SELECTED_NONE = "Selected **{label}** \u2014 no neighbours in this graph."
 META_CLEAR_SELECTION = "Clear selection"
 META_MISSING_PAIR_JUMP = "View in Gap Cards"
 META_MISSING_PAIRS_HINT = (
-  "Each pair below is an absent edge \u2014 a candidate gap. Jump to the Gap "
-  "Cards page to see the matching card and its Evidence."
+  "Each pair below is an absent edge \u2014 a candidate gap, strongest first "
+  "(both categories well-studied but never combined). Jump to the Gap Cards "
+  "page to see the matching card and its Evidence."
 )
+META_MISSING_MORE = "+{more} more absent pairs (see the data table for all links)."
 META_MISSING_PAIRS_LABEL = "Missing pairs (candidate gaps)"
 META_NO_MISSING_PAIRS = "Every pair of shown categories co-occurs in some Paper."
 META_MISSING_PAIR_ROW = "{source} \u00d7 {target}"
@@ -496,6 +498,35 @@ META_COOCCURRENCE_CAPPED = (
 )
 META_COOCCURRENCE_NODE_HOVER = "{label}: {count} Paper(s)"
 META_COOCCURRENCE_EDGE_HOVER = "{left} + {right}: {count} Paper(s)"
+META_COOCCURRENCE_WEAK_HIDDEN = (
+  "{count} link(s) backed by fewer than {threshold} Paper(s) are hidden as weak "
+  "signal; lower the threshold to show them."
+)
+META_COOCCURRENCE_EMPTY_REASON = (
+  "NormalizedFacts placed no Corpus Paper on the {axis} axis, so there is "
+  "nothing to co-occur. Run `aggregate`, or check the {axis} taxonomy covers "
+  "this Corpus."
+)
+META_METHOD_THIN_NOTE = (
+  "Few Methods mapped: the Method taxonomy is study-design-only, so clinical "
+  "procedures and treatments are set aside as unmapped terms (see taxonomy "
+  "editing). A thin graph here is usually upstream coverage, not a real gap."
+)
+META_COOCCURRENCE_CONTROLS_LABEL = "Graph controls"
+META_MIN_EDGE_LABEL = "Minimum Papers per link"
+META_MAX_NODES_LABEL = "Maximum categories shown"
+META_FIGURE_SUMMARY = (
+  "Network figure: {nodes} nodes, {edges} links, {isolated} isolated. "
+  "The data table below lists every link."
+)
+META_MISSING_STRENGTH = "both well-studied ({strength}+ Papers each)"
+META_OPEN_NODE_JUMP = "Open in Paper Explainer"
+META_LIMITATION_ALL_OPEN_NOTE = (
+  "Every group is still open. {no_later} had no later Paper in the Corpus to "
+  "check (their source Paper is among the most recent); the rest were checked "
+  "against later Papers and none addressed them. This may be a real signal or a "
+  "chronologically clustered Corpus \u2014 read it as a candidate, not a verdict."
+)
 
 # Graph 4: Author collaboration.
 META_COLLABORATION_TITLE = "Author collaboration"
@@ -512,8 +543,12 @@ META_COLLABORATION_DENOMINATOR = (
 META_COLLABORATION_MISSING = (
   "{count} Paper(s) list no authors and contribute no node (run ingest `--resolve`)."
 )
-META_COLLABORATION_NODE_HOVER = "{author}: {count} Paper(s) in Corpus"
-META_COLLABORATION_EDGE_HOVER = "{left} + {right}: {count} shared Paper(s)"
+META_COLLABORATION_TABLE_CAPPED = (
+  "Showing the {shown} most-published of {total} authors."
+)
+META_COLLABORATION_COL_AUTHOR = "Author"
+META_COLLABORATION_COL_PAPERS = "Papers in Corpus"
+META_COLLABORATION_COL_COLLABORATORS = "Distinct co-authors"
 
 # Graph 5: Limitation follow-up (Sankey).
 META_LIMITATION_TITLE = "Limitation follow-up"
