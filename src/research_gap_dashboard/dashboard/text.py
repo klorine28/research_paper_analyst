@@ -127,7 +127,124 @@ METRIC_PAPER_COUNT = "Papers in the Corpus"
 METRIC_VENUE_COUNT = "Venues"
 METRIC_YEAR_SPAN = "Year span"
 PAPERS_PER_YEAR_HEADING = "Papers per year"
+PAPERS_PER_YEAR_QUESTION = "When were the Papers in this Corpus published?"
 VENUES_HEADING = "Venues"
+VENUES_QUESTION = "Where were the Papers in this Corpus published?"
+
+# The parse/extract completeness gauge: the honesty meter that mirrors the
+# corpus-wide incompleteness banner (issue #45; issue #46). Every chart below it
+# is computed only over the Papers that reached the artifact, so this states the
+# denominator the rest of the page inherits (CODING_STANDARDS.md > Research
+# integrity: show the denominator).
+COMPLETENESS_HEADING = "Parse & extract completeness"
+COMPLETENESS_QUESTION = (
+  "How much of the Corpus actually reached the charts below? Everything on this "
+  "page is computed only over the Papers that reached the artifact."
+)
+COMPLETENESS_METRIC = "Papers with real facts"
+COMPLETENESS_PROGRESS = "{reached} of {total} Papers reached the artifact ({percent}%)"
+COMPLETENESS_COMPLETE = "Every Paper reached the artifact with fully verified facts."
+
+
+def completeness_caveat(missing: int, dropped_papers: int) -> str:
+  """State how many Papers are absent from or thin in the charts below."""
+  parts: list[str] = []
+  if missing:
+    parts.append(f"{missing} produced nothing and are missing from every chart below.")
+  if dropped_papers:
+    parts.append(f"{dropped_papers} are missing some facts (dropped as unverifiable).")
+  parts.append("See the Needs Attention page.")
+  return " ".join(parts)
+
+
+COMPLETENESS_NO_DATA = (
+  "Run `parse` and `extract` on this Corpus to measure completeness."
+)
+
+# Per-axis frequency bars: how often each Topic, Method, Population, and Dataset
+# appears across the Papers placed on that axis (issue #45).
+AXIS_FREQUENCIES_HEADING = "What the Corpus studies"
+AXIS_FREQUENCIES_QUESTION = (
+  "How often does each Topic, Method, Population, and Dataset appear across the Corpus?"
+)
+AXIS_FREQUENCIES_NO_DATA = (
+  "Run `aggregate` on this Corpus to place Papers on the Topic, Method, "
+  "Population, and Dataset axes."
+)
+AXIS_DENOMINATOR = "{placed} of {total} Papers placed on {axis}."
+COLUMN_CATEGORY = "Category"
+
+# Facts-per-paper extraction density (issue #45, optional expander).
+FACT_DENSITY_HEADING = "Facts-per-paper extraction density"
+FACT_DENSITY_QUESTION = "How many verified facts did each Paper contribute?"
+FACT_DENSITY_SUMMARY = (
+  "{facts} verified facts across {papers} extracted Papers (mean {mean:.1f})."
+)
+FACT_DENSITY_NO_DATA = (
+  "Run `extract` on this Corpus to measure how many facts each Paper contributed."
+)
+COLUMN_PAPER = "Paper"
+COLUMN_FACTS = "Facts"
+
+# The Corpus Overview chart gallery: a grid of clickable tiles, each a chart in
+# its own shade of blue, that expands to the chart and a "how to read" explainer
+# (issue #45 follow-up). Every explainer follows the same four-line shape so a
+# reader learns the pattern once: what it answers, how to read it, what a gap
+# looks like here, and the denominator caveat (CODING_STANDARDS.md > Research
+# integrity).
+OVERVIEW_GALLERY_HEADING = "Corpus charts"
+OVERVIEW_GALLERY_HINT = (
+  "Each card previews one chart in its own shade of blue. Expand a card for the "
+  "full-size chart and a short guide on how to read it."
+)
+OVERVIEW_TILE_EXPAND = "Expand \u25be"
+OVERVIEW_TILE_COLLAPSE = "Collapse \u25b4"
+OVERVIEW_TILE_PREVIEW_EMPTY = "No data yet \u2014 expand for details."
+
+# One-line headline stats shown on each preview tile, so a collapsed card still
+# carries a number, not just a shape.
+PREVIEW_PAPERS_YEAR = "{count} papers \u00b7 {span}"
+PREVIEW_VENUES = "{count} venues \u00b7 top: {top} ({n})"
+PREVIEW_AXES = "{count} {axis} categories \u00b7 top: {top} ({n})"
+PREVIEW_FACTS = "{facts} facts \u00b7 mean {mean:.1f}/paper"
+
+PAPERS_PER_YEAR_EXPLAINER = (
+  "**What it answers:** When were the Papers in this Corpus published?\n\n"
+  "**How to read it:** Each bar is one year; its height is how many Papers "
+  "carry that year. Papers with no year are collected under 'Unknown'.\n\n"
+  "**What a gap looks like here:** A short or missing bar in recent years can "
+  "mean the Corpus thins out there \u2014 not that the field went quiet.\n\n"
+  "**Caveat:** Counted over every Paper in this Corpus."
+)
+VENUES_EXPLAINER = (
+  "**What it answers:** Where were the Papers in this Corpus published?\n\n"
+  "**How to read it:** Each row is a venue; the count is how many Papers came "
+  "from it, most-published first.\n\n"
+  "**What a gap looks like here:** A Corpus dominated by one venue may be "
+  "narrow; read any coverage claim with that in mind.\n\n"
+  "**Caveat:** Counted over every Paper in this Corpus."
+)
+AXIS_FREQUENCIES_EXPLAINER = (
+  "**What it answers:** How often does each Topic, Method, Population, and "
+  "Dataset appear across the Corpus?\n\n"
+  "**How to read it:** One chart per axis; each bar is a category and its "
+  "height is how many distinct Papers were placed on it.\n\n"
+  "**What a gap looks like here:** A category with few or no Papers is where "
+  "the Corpus is thin \u2014 a candidate Coverage Gap. Missing *pairings* show "
+  "up on the Coverage matrix.\n\n"
+  "**Caveat:** Counted only over the Papers placed on each axis (the "
+  "denominator shown above each chart)."
+)
+FACT_DENSITY_EXPLAINER = (
+  "**What it answers:** How many verified facts did each Paper contribute?\n\n"
+  "**How to read it:** One bar per Paper; its height is the number of facts "
+  "that passed Evidence verification.\n\n"
+  "**What a gap looks like here:** A very short bar means little was extracted "
+  "\u2014 the Paper is thin in the analysis, not necessarily thin in reality. "
+  "Check the Needs Attention page.\n\n"
+  "**Caveat:** Only Papers that produced an Extraction appear here."
+)
+
 EXCLUSIONS_HEADING = "What was left out"
 NO_EXCLUSIONS = "Every paper-list entry and every PDF was placed in the Corpus."
 UNMATCHED_ENTRIES_LABEL = "Paper-list entries with no matching PDF"
@@ -234,6 +351,20 @@ HEATMAP_DENOMINATOR = "Counts are over the {total} Papers in the Corpus."
 HEATMAP_NO_MATRICES = (
   "No Coverage Matrix has both rows and columns to show for this Corpus."
 )
+HOW_TO_READ_LABEL = "How to read this chart"
+HEATMAP_EXPLAINER = (
+  "**What it answers:** Which pairs of categories do Papers in this Corpus "
+  "study together?\n\n"
+  "**How to read it:** Rows and columns are categories. Each cell shows how "
+  "many Papers cover *both* its row and its column; the deeper the blue, the "
+  "more Papers. A blank cell labelled '" + HEATMAP_NO_PAPERS + "' means no "
+  "Paper combines that pair \u2014 it is a fact about the Corpus, not a "
+  "measured zero, so it is painted separately from the low end of the scale."
+  "\n\n"
+  "**What a gap looks like here:** An empty cell between two otherwise "
+  "well-studied categories is a candidate Knowledge Gap.\n\n"
+  "**Caveat:** Counts are over the Papers placed on both axes (shown below)."
+)
 
 # Trends chart.
 TRENDS_HEADING = "Publication volume per Topic over time"
@@ -258,6 +389,17 @@ TRENDS_NO_HIGHLIGHTS = "No Topic reads as clearly emerging or abandoned in this 
 TRENDS_NO_DATA = (
   "No Topic could be placed on a timeline: the Corpus's Papers carry no known "
   "publication years."
+)
+TRENDS_EXPLAINER = (
+  "**What it answers:** How has each Topic's publication volume moved over "
+  "time?\n\n"
+  "**How to read it:** Each line is a Topic; the x-axis is the year and the "
+  "y-axis is how many Papers covered it that year. Bold solid lines are "
+  "*emerging* Topics (they first appear in the recent half of the span); bold "
+  "dashed lines are *abandoned* Topics (no Paper since then).\n\n"
+  "**What a gap looks like here:** An abandoned Topic may hold an unanswered "
+  "question; an emerging one shows where the field is moving.\n\n"
+  "**Caveat:** Built only from Papers with a known year (denominator below)."
 )
 
 # Unanswered Limitations page. Each group gathers limitation and future-work

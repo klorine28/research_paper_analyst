@@ -17,10 +17,13 @@ import research_gap_dashboard.dashboard as dashboard_pkg
 
 from research_gap_dashboard.dashboard.artifacts import (
   ArtifactNotFoundError,
+  ExtractionsArtifact,
   ManifestArtifact,
+  NormalizedFactsArtifact,
   discover_corpora,
   load_manifest,
 )
+from research_gap_dashboard.dashboard.attention import IncompletenessBanner
 from research_gap_dashboard.dashboard.overview import build_overview
 from research_gap_dashboard.dashboard.text import SCOPE_STATEMENT, UNKNOWN_YEAR_LABEL
 from research_gap_dashboard.ingest import ingest_corpus
@@ -122,6 +125,157 @@ def test_overview_handles_a_paper_with_an_unknown_year():
 
   assert overview.papers_per_year[-1].label == UNKNOWN_YEAR_LABEL
   assert overview.papers_per_year[-1].count == 1
+
+
+def test_overview_without_optional_artifacts_is_unchanged(corpus: Path):
+  """With only a manifest, the new sections stay empty rather than erroring."""
+  overview = build_overview(load_manifest(corpus))
+
+  assert overview.completeness is None
+  assert overview.axis_frequencies == []
+  assert overview.fact_density is None
+
+
+def test_overview_reports_parse_extract_completeness(corpus: Path):
+  """The honesty meter states how many Papers reached the artifact."""
+  banner = IncompletenessBanner(
+    total_papers=10,
+    unparsed=1,
+    extraction_failed=0,
+    papers_with_dropped_facts=2,
+    dropped_facts=3,
+  )
+
+  overview = build_overview(load_manifest(corpus), completeness=banner)
+
+  gauge = overview.completeness
+  assert gauge is not None
+  assert gauge.total_papers == 10
+  assert gauge.reached_papers == 9
+  assert gauge.missing_papers == 1
+  assert gauge.papers_with_dropped_facts == 2
+  assert gauge.reached_percent == 90
+  assert not gauge.is_complete
+
+
+def test_overview_completeness_is_complete_for_a_clean_corpus(corpus: Path):
+  """A fully verified Corpus reads as complete."""
+  banner = IncompletenessBanner(
+    total_papers=10,
+    unparsed=0,
+    extraction_failed=0,
+    papers_with_dropped_facts=0,
+    dropped_facts=0,
+  )
+
+  gauge = build_overview(load_manifest(corpus), completeness=banner).completeness
+
+  assert gauge is not None
+  assert gauge.is_complete
+  assert gauge.reached_percent == 100
+
+
+def test_overview_counts_papers_per_axis():
+  """Per-axis bars count distinct Papers per category, most-covered first."""
+  manifest = ManifestArtifact.model_validate(
+    {
+      "corpus_root": ".",
+      "papers": [
+        {"citation_key": "a", "doi": "10.1/a", "journal": "J", "year": 2020},
+        {"citation_key": "b", "doi": "10.1/b", "journal": "J", "year": 2021},
+      ],
+    }
+  )
+  normalized = NormalizedFactsArtifact.model_validate(
+    {
+      "corpus_root": ".",
+      "normalized": [
+        {
+          "citation_key": "a",
+          "assignments": [
+            {"axis": "topic", "category_id": "t1", "category_label": "Heart"},
+            {"axis": "method", "category_id": "m1", "category_label": "RCT"},
+          ],
+        },
+        {
+          "citation_key": "b",
+          "assignments": [
+            {"axis": "topic", "category_id": "t1", "category_label": "Heart"},
+            {"axis": "population", "category_id": "p1", "category_label": "Adults"},
+          ],
+        },
+      ],
+    }
+  )
+
+  overview = build_overview(manifest, normalized=normalized)
+
+  axes = {axis.axis: axis for axis in overview.axis_frequencies}
+  assert set(axes) == {"topic", "method", "population"}
+  topic = axes["topic"]
+  assert topic.label == "Topic"
+  assert topic.papers_placed == 2
+  assert topic.categories[0].label == "Heart"
+  assert topic.categories[0].count == 2
+
+
+def test_overview_axis_frequencies_ignore_papers_outside_the_corpus(corpus: Path):
+  """Placements for a citation key not in the Corpus do not inflate the bars."""
+  normalized = NormalizedFactsArtifact.model_validate(
+    {
+      "corpus_root": ".",
+      "normalized": [
+        {
+          "citation_key": "not-in-corpus",
+          "assignments": [
+            {"axis": "topic", "category_id": "t1", "category_label": "Ghost"},
+          ],
+        }
+      ],
+    }
+  )
+
+  overview = build_overview(load_manifest(corpus), normalized=normalized)
+
+  assert overview.axis_frequencies == []
+
+
+def test_overview_measures_fact_density():
+  """Facts-per-paper counts every verified fact a Paper contributed."""
+  manifest = ManifestArtifact.model_validate(
+    {
+      "corpus_root": ".",
+      "papers": [
+        {"citation_key": "a", "doi": "10.1/a", "journal": "J", "year": 2020},
+        {"citation_key": "b", "doi": "10.1/b", "journal": "J", "year": 2021},
+      ],
+    }
+  )
+  extractions = ExtractionsArtifact.model_validate(
+    {
+      "corpus_root": ".",
+      "extractions": [
+        {
+          "citation_key": "a",
+          "fields": {
+            "research_question": [{"statement": "q"}],
+            "methods": [{"statement": "m1"}, {"statement": "m2"}],
+          },
+        },
+        {"citation_key": "b", "fields": {}},
+      ],
+    }
+  )
+
+  overview = build_overview(manifest, extractions=extractions)
+
+  density = overview.fact_density
+  assert density is not None
+  assert density.total_facts == 3
+  assert density.papers_with_facts == 2
+  assert density.papers[0].citation_key == "a"
+  assert density.papers[0].count == 3
+  assert density.papers[-1].count == 0
 
 
 def test_discover_corpora_finds_ingested_corpora(corpus: Path):

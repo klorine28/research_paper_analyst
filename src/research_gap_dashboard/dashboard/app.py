@@ -13,6 +13,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 
+import plotly.graph_objects as go
 import streamlit as st
 
 from research_gap_dashboard.analytics import (
@@ -99,7 +100,13 @@ from research_gap_dashboard.dashboard.parse_corrections import (
   EmptyCorrectionError,
   record_parse_correction,
 )
-from research_gap_dashboard.dashboard.overview import OverviewData, build_overview
+from research_gap_dashboard.dashboard.overview import (
+  AxisFrequency,
+  CompletenessGauge,
+  FactDensity,
+  OverviewData,
+  build_overview,
+)
 from research_gap_dashboard.dashboard.extraction_review import (
   UnknownFieldError,
   add_fact,
@@ -261,6 +268,20 @@ def _render_correction_box(corpus_root: Path, citation_key: str) -> None:
   st.success(text.ATTENTION_CORRECTION_SAVED)
 
 
+# The Corpus Overview chart gallery: each descriptive chart is a clickable tile
+# in its own shade of blue, so the four charts read as distinct identities
+# rather than one long scroll (issue #45 follow-up). Order here is the order the
+# tiles and their expanded panels appear in.
+_OVERVIEW_TILES: list[tuple[str, str, str]] = [
+  ("papers_year", text.PAPERS_PER_YEAR_HEADING, "#e8f1fc"),
+  ("venues", text.VENUES_HEADING, "#cfe3f8"),
+  ("axes", text.AXIS_FREQUENCIES_HEADING, "#b6d4f2"),
+  ("facts", text.FACT_DENSITY_HEADING, "#9dc4ec"),
+]
+_OVERVIEW_TILE_TEXT = "#0b2545"
+OVERVIEW_OPEN_KEY = "overview_open_charts"
+
+
 def render_overview(overview: OverviewData) -> None:
   """Render the Corpus Overview page from already-computed data."""
   st.header(text.OVERVIEW_HEADING)
@@ -271,22 +292,8 @@ def render_overview(overview: OverviewData) -> None:
   venue_col.metric(text.METRIC_VENUE_COUNT, overview.venue_count)
   year_col.metric(text.METRIC_YEAR_SPAN, overview.year_span)
 
-  st.subheader(text.PAPERS_PER_YEAR_HEADING)
-  st.bar_chart(
-    {
-      text.COLUMN_PAPERS: {
-        bucket.label: bucket.count for bucket in overview.papers_per_year
-      }
-    }
-  )
-
-  st.subheader(text.VENUES_HEADING)
-  st.table(
-    [
-      {text.COLUMN_VENUE: venue.venue, text.COLUMN_PAPERS: venue.count}
-      for venue in overview.venues
-    ]
-  )
+  _render_completeness(overview.completeness)
+  _render_overview_gallery(overview)
 
   st.subheader(text.EXCLUSIONS_HEADING)
   if not overview.has_exclusions:
@@ -305,6 +312,270 @@ def render_overview(overview: OverviewData) -> None:
     st.table([{text.COLUMN_FILE: name} for name in overview.orphan_pdfs])
 
 
+def _render_completeness(gauge: CompletenessGauge | None) -> None:
+  """Render the prominent parse/extract completeness gauge: the honesty meter."""
+  st.subheader(text.COMPLETENESS_HEADING)
+  st.caption(text.COMPLETENESS_QUESTION)
+  if gauge is None or gauge.total_papers == 0:
+    st.info(text.COMPLETENESS_NO_DATA)
+    return
+  st.progress(
+    gauge.reached_fraction,
+    text=text.COMPLETENESS_PROGRESS.format(
+      reached=gauge.reached_papers,
+      total=gauge.total_papers,
+      percent=gauge.reached_percent,
+    ),
+  )
+  if gauge.is_complete:
+    st.success(text.COMPLETENESS_COMPLETE)
+  else:
+    st.warning(
+      text.completeness_caveat(gauge.missing_papers, gauge.papers_with_dropped_facts)
+    )
+
+
+_PREVIEW_HEIGHT = 150
+
+
+def _render_overview_gallery(overview: OverviewData) -> None:
+  """Render the 2x2 grid of coloured preview tiles and the expanded panels."""
+  st.subheader(text.OVERVIEW_GALLERY_HEADING)
+  st.caption(text.OVERVIEW_GALLERY_HINT)
+  _inject_tile_styles()
+
+  # Every tile starts collapsed to a miniature; the researcher expands the ones
+  # they want full size (issue #45 follow-up).
+  open_charts: set[str] = st.session_state.setdefault(OVERVIEW_OPEN_KEY, set())
+  for row_start in range(0, len(_OVERVIEW_TILES), 2):
+    columns = st.columns(2)
+    for (chart_id, title, _shade), column in zip(
+      _OVERVIEW_TILES[row_start : row_start + 2], columns
+    ):
+      with column, st.container(key=f"ovtile_{chart_id}", border=True):
+        st.markdown(f"**{title}**")
+        _render_tile_preview(chart_id, overview)
+        is_open = chart_id in open_charts
+        label = text.OVERVIEW_TILE_COLLAPSE if is_open else text.OVERVIEW_TILE_EXPAND
+        if st.button(label, key=f"ovtile_btn_{chart_id}", use_container_width=True):
+          open_charts.symmetric_difference_update({chart_id})
+          st.rerun()
+
+  for chart_id, title, shade in _OVERVIEW_TILES:
+    if chart_id in open_charts:
+      _render_overview_panel(chart_id, title, shade, overview)
+
+
+def _inject_tile_styles() -> None:
+  """
+  Tint each overview tile its own shade of blue, keeping its text readable.
+
+  The tile background is a light blue, but Streamlit text inherits the active
+  theme's font colour (light in dark mode), which would vanish on a light tile.
+  So the tile's text is pinned dark and the expand button is given an explicit
+  light background, making both legible on every shade and in either theme.
+  """
+  blocks = []
+  for chart_id, _title, shade in _OVERVIEW_TILES:
+    key = f".st-key-ovtile_{chart_id}"
+    blocks.append(
+      f"{key}{{background:{shade};border-radius:0.6rem;}}"
+      f"{key} p,{key} label,{key} strong,{key} span,"
+      f"{key} h1,{key} h2,{key} h3{{color:{_OVERVIEW_TILE_TEXT} !important;}}"
+      f"{key} button{{background:#ffffff !important;"
+      f"color:{_OVERVIEW_TILE_TEXT} !important;"
+      "border:1px solid rgba(11,37,69,0.25) !important;}"
+      f"{key} button:hover{{background:#eef4fc !important;"
+      f"color:{_OVERVIEW_TILE_TEXT} !important;}}"
+    )
+  st.markdown(f"<style>{''.join(blocks)}</style>", unsafe_allow_html=True)
+
+
+def _render_tile_preview(chart_id: str, overview: OverviewData) -> None:
+  """Render a clean thumbnail of a chart inside its tile (labels on hover)."""
+  if chart_id == "papers_year":
+    buckets = overview.papers_per_year
+    st.caption(
+      text.PREVIEW_PAPERS_YEAR.format(
+        count=overview.paper_count, span=overview.year_span
+      )
+    )
+    _render_mini_bar(
+      [b.label for b in buckets], [b.count for b in buckets], key=chart_id
+    )
+  elif chart_id == "venues":
+    top_venues = overview.venues[:8]
+    if top_venues:
+      st.caption(
+        text.PREVIEW_VENUES.format(
+          count=overview.venue_count,
+          top=top_venues[0].venue,
+          n=top_venues[0].count,
+        )
+      )
+    _render_mini_bar(
+      [v.venue for v in top_venues], [v.count for v in top_venues], key=chart_id
+    )
+  elif chart_id == "axes":
+    if overview.axis_frequencies:
+      axis = overview.axis_frequencies[0]
+      top = axis.categories[:8]
+      st.caption(
+        text.PREVIEW_AXES.format(
+          count=len(axis.categories),
+          axis=axis.label,
+          top=top[0].label,
+          n=top[0].count,
+        )
+      )
+      _render_mini_bar([c.label for c in top], [c.count for c in top], key=chart_id)
+    else:
+      st.caption(text.OVERVIEW_TILE_PREVIEW_EMPTY)
+  elif chart_id == "facts":
+    density = overview.fact_density
+    if density is not None and density.papers:
+      st.caption(
+        text.PREVIEW_FACTS.format(facts=density.total_facts, mean=density.mean)
+      )
+      _render_mini_bar(
+        [p.label for p in density.papers[:8]],
+        [p.count for p in density.papers[:8]],
+        key=chart_id,
+      )
+    else:
+      st.caption(text.OVERVIEW_TILE_PREVIEW_EMPTY)
+
+
+def _render_mini_bar(labels: list[str], values: list[int], *, key: str) -> None:
+  """
+  Render a compact bar thumbnail: value labels on bars, full names on hover.
+
+  A miniature shows the shape of a distribution at a glance with a little
+  detail. Long category names (paper titles, venue names) would swallow a fixed
+  small chart, so the x ticks stay hidden and each bar instead carries its
+  count; the full name is on hover and in the expanded panel below.
+  """
+  if not labels:
+    st.caption(text.OVERVIEW_TILE_PREVIEW_EMPTY)
+    return
+  figure = go.Figure(
+    go.Bar(
+      x=list(range(len(labels))),
+      y=values,
+      marker_color="#2f6fb3",
+      customdata=labels,
+      text=values,
+      textposition="outside",
+      textfont={"size": 10, "color": "#0b2545"},
+      cliponaxis=False,
+      hovertemplate="%{customdata}: %{y}<extra></extra>",
+    )
+  )
+  headroom = max(values) * 1.25 if values else 1
+  figure.update_layout(
+    height=_PREVIEW_HEIGHT,
+    margin={"l": 6, "r": 6, "t": 14, "b": 6},
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    showlegend=False,
+    bargap=0.25,
+    xaxis={"visible": False, "fixedrange": True},
+    yaxis={"visible": False, "fixedrange": True, "range": [0, headroom]},
+  )
+  st.plotly_chart(
+    figure,
+    use_container_width=True,
+    config={"displayModeBar": False},
+    key=f"ovmini_{key}",
+  )
+
+
+def _render_overview_panel(
+  chart_id: str, title: str, shade: str, overview: OverviewData
+) -> None:
+  """Render one expanded chart panel: coloured header, how-to-read, the chart."""
+  st.markdown(
+    f"<div style='background:{shade};color:{_OVERVIEW_TILE_TEXT};"
+    "padding:0.45rem 0.9rem;border-radius:0.4rem;font-weight:600;"
+    f"margin-top:0.6rem;'>{title}</div>",
+    unsafe_allow_html=True,
+  )
+  if chart_id == "papers_year":
+    _render_papers_per_year(overview)
+  elif chart_id == "venues":
+    _render_venues(overview)
+  elif chart_id == "axes":
+    _render_axis_frequencies(overview.axis_frequencies, overview.paper_count)
+  elif chart_id == "facts":
+    _render_fact_density(overview.fact_density)
+
+
+def _render_papers_per_year(overview: OverviewData) -> None:
+  """Render the papers-per-year bar chart with its how-to-read explainer."""
+  with st.expander(text.HOW_TO_READ_LABEL):
+    st.markdown(text.PAPERS_PER_YEAR_EXPLAINER)
+  st.bar_chart(
+    {
+      text.COLUMN_PAPERS: {
+        bucket.label: bucket.count for bucket in overview.papers_per_year
+      }
+    }
+  )
+
+
+def _render_venues(overview: OverviewData) -> None:
+  """Render the venues table with its how-to-read explainer."""
+  with st.expander(text.HOW_TO_READ_LABEL):
+    st.markdown(text.VENUES_EXPLAINER)
+  st.table(
+    [
+      {text.COLUMN_VENUE: venue.venue, text.COLUMN_PAPERS: venue.count}
+      for venue in overview.venues
+    ]
+  )
+
+
+def _render_axis_frequencies(axes: list[AxisFrequency], total_papers: int) -> None:
+  """Render one bar chart per axis: papers per Topic, Method, Population, Dataset."""
+  with st.expander(text.HOW_TO_READ_LABEL):
+    st.markdown(text.AXIS_FREQUENCIES_EXPLAINER)
+  if not axes:
+    st.info(text.AXIS_FREQUENCIES_NO_DATA)
+    return
+  for axis in axes:
+    st.caption(
+      text.AXIS_DENOMINATOR.format(
+        placed=axis.papers_placed, total=total_papers, axis=axis.label
+      )
+    )
+    st.bar_chart(
+      {
+        text.COLUMN_PAPERS: {
+          category.label: category.count for category in axis.categories
+        }
+      }
+    )
+
+
+def _render_fact_density(density: FactDensity | None) -> None:
+  """Render the facts-per-paper extraction-density chart and its explainer."""
+  with st.expander(text.HOW_TO_READ_LABEL):
+    st.markdown(text.FACT_DENSITY_EXPLAINER)
+  if density is None or not density.papers:
+    st.info(text.FACT_DENSITY_NO_DATA)
+    return
+  st.caption(
+    text.FACT_DENSITY_SUMMARY.format(
+      facts=density.total_facts,
+      papers=density.papers_with_facts,
+      mean=density.mean,
+    )
+  )
+  st.bar_chart(
+    {text.COLUMN_FACTS: {paper.label: paper.count for paper in density.papers}}
+  )
+
+
 def render_coverage(matrices: list[CoverageMatrixView], trends: TrendsData) -> None:
   """Render the Coverage Matrix heatmap and the Trends chart from finished data."""
   st.header(text.COVERAGE_HEADING)
@@ -314,6 +585,8 @@ def render_coverage(matrices: list[CoverageMatrixView], trends: TrendsData) -> N
   if not matrices:
     st.warning(text.HEATMAP_NO_MATRICES)
   else:
+    with st.expander(text.HOW_TO_READ_LABEL):
+      st.markdown(text.HEATMAP_EXPLAINER)
     chosen = st.selectbox(
       text.HEATMAP_AXIS_LABEL,
       matrices,
@@ -328,6 +601,8 @@ def render_coverage(matrices: list[CoverageMatrixView], trends: TrendsData) -> N
 
 def _render_trends(trends: TrendsData) -> None:
   """Render the Trends chart with its denominator and emerging/abandoned lines."""
+  with st.expander(text.HOW_TO_READ_LABEL):
+    st.markdown(text.TRENDS_EXPLAINER)
   if not trends.has_data:
     st.info(text.TRENDS_NO_DATA)
     return
@@ -645,7 +920,18 @@ def _render_retrieval_page(chosen: CorpusChoice) -> None:
 
 def _render_overview_page(chosen: CorpusChoice) -> None:
   """Render the Corpus Overview page for the chosen Corpus."""
-  render_overview(build_overview(load_manifest(chosen.root)))
+  root = chosen.root
+  normalized = load_normalized_facts(root) if has_normalized_facts(root) else None
+  extractions = load_extractions(root) if has_extractions(root) else None
+  completeness = build_attention(root).banner
+  render_overview(
+    build_overview(
+      load_manifest(root),
+      normalized=normalized,
+      extractions=extractions,
+      completeness=completeness,
+    )
+  )
 
 
 # Each dashboard page maps to the function that renders it for a chosen Corpus,
