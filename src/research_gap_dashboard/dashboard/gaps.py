@@ -9,12 +9,18 @@ the same verdicts. Cards keep the artifact's order so the same artifact always
 lists gaps the same way.
 """
 
+from pathlib import Path
+
 from pydantic import BaseModel
 
 from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard.artifacts import (
   CandidateGapRecord,
   CandidateGapsArtifact,
+)
+from research_gap_dashboard.dashboard.evidence_context import (
+  EvidenceExpander,
+  ExpandedEvidence,
 )
 from research_gap_dashboard.dashboard.judgments import Decision, JudgmentLog
 
@@ -28,6 +34,7 @@ class EvidencePassage(BaseModel):
   passage: str
   section: str
   detail: str
+  context: ExpandedEvidence | None = None
 
 
 class GapCard(BaseModel):
@@ -86,7 +93,9 @@ def _evidence_detail(passage_source: CandidateGapRecord, index: int) -> str:
   return ""
 
 
-def _card(record: CandidateGapRecord, status: Status) -> GapCard:
+def _card(
+  record: CandidateGapRecord, status: Status, expander: EvidenceExpander
+) -> GapCard:
   """Assemble one display card from an artifact record and its judgment."""
   return GapCard(
     gap_id=record.gap_id,
@@ -106,6 +115,7 @@ def _card(record: CandidateGapRecord, status: Status) -> GapCard:
         passage=link.evidence.passage,
         section=link.evidence.section,
         detail=_evidence_detail(record, index),
+        context=expander.context_for(link.citation_key, link.evidence.passage),
       )
       for index, link in enumerate(record.evidence)
     ],
@@ -114,14 +124,25 @@ def _card(record: CandidateGapRecord, status: Status) -> GapCard:
 
 
 def build_gap_cards(
-  artifact: CandidateGapsArtifact, judgments: JudgmentLog
+  artifact: CandidateGapsArtifact,
+  judgments: JudgmentLog,
+  corpus_root: Path | None = None,
 ) -> GapCardsData:
-  """Merge the Candidate Gaps with the researcher's saved accept/reject state."""
+  """
+  Merge the Candidate Gaps with the researcher's saved accept/reject state.
+
+  When a corpus root is given, each Evidence passage is deterministically widened
+  to its containing paragraph (`evidence_context`) so a card shows the anchor in
+  situ; without one the passages stay bare, keeping this callable in unit tests
+  that have no parsed text on disk.
+  """
   decided = judgments.by_gap_id()
+  expander = EvidenceExpander(corpus_root)
   cards = [
     _card(
       record,
       decided[record.gap_id].decision if record.gap_id in decided else None,
+      expander,
     )
     for record in artifact.gaps
   ]

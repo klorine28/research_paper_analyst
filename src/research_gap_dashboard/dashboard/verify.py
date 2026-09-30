@@ -20,6 +20,10 @@ from research_gap_dashboard.dashboard.artifacts import (
   ExtractionRecord,
   PaperRecord,
 )
+from research_gap_dashboard.dashboard.evidence_context import (
+  EvidenceExpander,
+  ExpandedEvidence,
+)
 from research_gap_dashboard.dashboard.extraction_review import (
   FIELD_NAMES,
   PaperReview,
@@ -51,6 +55,7 @@ class ReviewFactView(BaseModel):
   edited_section: str | None = None
   is_added: bool = False
   fact_id: str = ""
+  context: ExpandedEvidence | None = None
 
   @property
   def effective_statement(self) -> str:
@@ -114,11 +119,16 @@ class PaperReviewView(BaseModel):
 
 
 def _extracted_fact_view(
-  field: str, index: int, fact: ExtractedFactRecord, review: PaperReview
+  field: str,
+  index: int,
+  fact: ExtractedFactRecord,
+  review: PaperReview,
+  expander: EvidenceExpander,
+  citation_key: str,
 ) -> ReviewFactView:
   """Build the view for one extracted fact, overlaying any verdict on it."""
   verdict = review.verdict_for(field, index)
-  return ReviewFactView(
+  view = ReviewFactView(
     field=field,
     fact_index=index,
     statement=fact.statement,
@@ -129,14 +139,21 @@ def _extracted_fact_view(
     edited_passage=verdict.edited_passage if verdict is not None else None,
     edited_section=verdict.edited_section if verdict is not None else None,
   )
+  view.context = expander.context_for(citation_key, view.effective_passage)
+  return view
 
 
 def _field_view(
-  field: str, facts: list[ExtractedFactRecord], review: PaperReview
+  field: str,
+  facts: list[ExtractedFactRecord],
+  review: PaperReview,
+  expander: EvidenceExpander,
+  citation_key: str,
 ) -> ReviewFieldView:
   """Build the view for one Extraction field: its extracted then added facts."""
   views = [
-    _extracted_fact_view(field, index, fact, review) for index, fact in enumerate(facts)
+    _extracted_fact_view(field, index, fact, review, expander, citation_key)
+    for index, fact in enumerate(facts)
   ]
   for added in review.added_facts:
     if added.field != field:
@@ -150,17 +167,31 @@ def _field_view(
         section=added.section,
         is_added=True,
         fact_id=added.fact_id,
+        context=expander.context_for(citation_key, added.passage),
       )
     )
   return ReviewFieldView(field=field, label=FIELD_LABELS[field], facts=views)
 
 
 def build_extraction_review(
-  extraction: ExtractionRecord, review: PaperReview, paper: PaperRecord
+  extraction: ExtractionRecord,
+  review: PaperReview,
+  paper: PaperRecord,
+  corpus_root: Path | None = None,
 ) -> PaperReviewView:
-  """Assemble a Paper's Verify Extractions page from its Extraction and its review."""
+  """
+  Assemble a Paper's Verify Extractions page from its Extraction and its review.
+
+  A corpus root lets each fact's Evidence widen to its containing paragraph
+  (`evidence_context`), the same deterministic expansion the gap cards use;
+  without one the passages stay bare so unit tests need no parsed text on disk.
+  """
+  expander = EvidenceExpander(corpus_root)
   fields = [
-    _field_view(name, getattr(extraction.fields, name), review) for name in FIELD_NAMES
+    _field_view(
+      name, getattr(extraction.fields, name), review, expander, paper.citation_key
+    )
+    for name in FIELD_NAMES
   ]
   return PaperReviewView(
     citation_key=paper.citation_key,
