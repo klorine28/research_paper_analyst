@@ -1687,6 +1687,7 @@ source = { editable = "." }
 dependencies = [
     { name = "bibtexparser" },
     { name = "httpx" },
+    { name = "networkx" },
     { name = "plotly" },
     { name = "pydantic" },
     { name = "streamlit" },
@@ -1712,6 +1713,7 @@ requires-dist = [
     { name = "bibtexparser", specifier = ">=2.0.1" },
     { name = "docling", marker = "extra == 'pdf'", specifier = ">=2.130.0" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "networkx", specifier = ">=3.7" },
     { name = "pdfplumber", marker = "extra == 'pdf'", specifier = ">=0.11.10" },
     { name = "plotly", specifier = ">=7.1.0" },
     { name = "pydantic", specifier = ">=2.13.5" },

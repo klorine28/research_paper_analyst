@@ -29,6 +29,7 @@ NAV_LABEL = "Page"
 PAGE_OVERVIEW = "Corpus Overview"
 PAGE_GAP_CARDS = "Gap Cards"
 PAGE_COVERAGE = "Coverage & Trends"
+PAGE_META = "Field Meta-Analysis"
 PAGE_LIMITATIONS = "Unanswered Limitations"
 PAGE_RETRIEVAL = "Retrieval Gaps"
 PAGE_EXPLAINER = "Paper Explainer"
@@ -401,6 +402,124 @@ TRENDS_EXPLAINER = (
   "question; an emerging one shows where the field is moving.\n\n"
   "**Caveat:** Built only from Papers with a known year (denominator below)."
 )
+
+# Field Meta-Analysis page (issue #49). A comprehensive-but-honest layer of
+# network graphs over the whole Corpus. Every graph names the question it
+# answers and inherits the incomplete-Corpus caveat; absent edges and isolated
+# nodes are surfaced, never hidden, because that is where the gaps live.
+META_HEADING = "Field Meta-Analysis"
+META_INTRO = (
+  "A field-level view of the whole Corpus as network graphs \u2014 a **map for "
+  "human judgment, not a set of verdicts**. Every graph names the question it "
+  "answers; an absent edge or an isolated node is a fact about *this* Corpus, "
+  "never a measured zero, and is where a candidate gap may hide."
+)
+META_CAVEAT = (
+  "Computed only over the Papers in this Corpus. A missing edge means no Paper "
+  "here links the two \u2014 it is not a claim about the wider literature."
+)
+META_NO_MANIFEST = (
+  "Run `ingest` on this Corpus first; the meta-analysis reads the CorpusManifest."
+)
+META_NO_NORMALIZED = (
+  "Run `aggregate` on this Corpus first; the co-occurrence graphs read the "
+  "NormalizedFacts artifact."
+)
+META_QUESTION_LABEL = "Question this graph answers"
+META_GAP_LENS_LABEL = "Gap lens"
+META_DATA_TABLE_LABEL = "Data table (accessible fallback)"
+META_EMPTY_GRAPH = "Nothing to draw here yet for this Corpus."
+META_LEGEND_TITLE = "Node"
+META_CONNECTED_LEGEND = "Connected"
+META_ISOLATED_LEGEND = "Isolated"
+META_CONNECTED_COLOR = "#2c7fb8"
+META_ISOLATED_COLOR = "#d62728"
+META_MISSING_PAIRS_LABEL = "Missing pairs (candidate gaps)"
+META_NO_MISSING_PAIRS = "Every pair of shown categories co-occurs in some Paper."
+META_MISSING_PAIR_ROW = "{source} \u00d7 {target}"
+
+# Graph 1: Citation network.
+META_CITATION_TITLE = "Citation network (in-Corpus citations)"
+META_CITATION_QUESTION = (
+  "Which Papers in this Corpus cite which other Papers in this Corpus?"
+)
+META_CITATION_GAP_LENS = (
+  "An isolated node \u2014 a Paper no in-Corpus citation touches \u2014 is a "
+  "candidate Retrieval Gap: the work that would connect it may be missing."
+)
+META_CITATION_DENOMINATOR = (
+  "Drawn over the {resolved} of {total} Papers with an OpenAlex id."
+)
+META_CITATION_UNRESOLVED = (
+  "{count} Paper(s) have no OpenAlex id and are not on the graph (run ingest "
+  "`--resolve`): {keys}."
+)
+META_CITATION_SPARSE = (
+  "Sparse citation structure: fewer in-Corpus citations than Papers. On a "
+  "tight topical Corpus this is expected; read isolated nodes with care."
+)
+META_CITATION_ISOLATED_HOVER = "No in-Corpus citation \u2014 candidate Retrieval Gap"
+
+# Graphs 2 and 6: Topic and Method co-occurrence.
+META_TOPIC_TITLE = "Topic co-occurrence"
+META_TOPIC_QUESTION = "Which Topics do Papers in this Corpus study together?"
+META_TOPIC_GAP_LENS = (
+  "A missing edge between two Topics is a candidate Knowledge Gap: no Paper "
+  "here studies them together."
+)
+META_METHOD_TITLE = "Method co-occurrence"
+META_METHOD_QUESTION = "Which Methods do Papers in this Corpus apply together?"
+META_METHOD_GAP_LENS = (
+  "A missing edge between two Methods is a candidate Coverage Gap: no Paper "
+  "here combines them. This is method *co-occurrence*, not method similarity."
+)
+META_COOCCURRENCE_DENOMINATOR = "Nodes are the {total} {axis} categories shown."
+META_COOCCURRENCE_CAPPED = (
+  "Showing the {shown} most-covered of {total} {axis} categories to keep the "
+  "graph legible."
+)
+META_COOCCURRENCE_NODE_HOVER = "{label}: {count} Paper(s)"
+META_COOCCURRENCE_EDGE_HOVER = "{left} + {right}: {count} Paper(s)"
+
+# Graph 4: Author collaboration.
+META_COLLABORATION_TITLE = "Author collaboration"
+META_COLLABORATION_QUESTION = (
+  "Which authors co-wrote Papers in this Corpus with which others?"
+)
+META_COLLABORATION_GAP_LENS = (
+  "Field-meta, not a gap: this describes the Corpus's collaboration structure. "
+  "An author with no co-author here is not any kind of gap."
+)
+META_COLLABORATION_DENOMINATOR = (
+  "Nodes are the {authors} authors across the {papers} Papers that list authors."
+)
+META_COLLABORATION_MISSING = (
+  "{count} Paper(s) list no authors and contribute no node (run ingest `--resolve`)."
+)
+META_COLLABORATION_NODE_HOVER = "{author}: {count} Paper(s) in Corpus"
+META_COLLABORATION_EDGE_HOVER = "{left} + {right}: {count} shared Paper(s)"
+
+# Graph 5: Limitation follow-up (Sankey).
+META_LIMITATION_TITLE = "Limitation follow-up"
+META_LIMITATION_QUESTION = (
+  "Which stated limitations did a later Paper in this Corpus address?"
+)
+META_LIMITATION_GAP_LENS = (
+  "A limitation flowing to 'still open' is a candidate Unanswered Limitation: "
+  "no later Paper here addressed it."
+)
+META_LIMITATION_ADDRESSED_NODE = "Addressed by a later Paper"
+META_LIMITATION_OPEN_NODE = "Still open"
+META_LIMITATION_GROUP_HOVER = (
+  "{label}: stated by {sources} Paper(s), {follow_ups} follow-up(s)"
+)
+META_LIMITATION_ADDRESSED_FLOW = "{label}: addressed by {count} later Paper(s)"
+META_LIMITATION_OPEN_FLOW = "{label}: still open"
+META_LIMITATION_SUMMARY = (
+  "{open} of {total} limitation group(s) are still open; {addressed} were "
+  "addressed by a later Paper in this Corpus."
+)
+META_LIMITATION_NO_DATA = "This Corpus produced no limitation groups to flow."
 
 # Unanswered Limitations page. Each group gathers limitation and future-work
 # statements that mean the same thing across Papers; a group is "unanswered"

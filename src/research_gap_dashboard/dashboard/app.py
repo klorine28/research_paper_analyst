@@ -69,6 +69,16 @@ from research_gap_dashboard.dashboard.coverage import (
   build_trends,
   build_trends_figure,
 )
+from research_gap_dashboard.dashboard.meta_analysis import (
+  NetworkGraph,
+  SankeyGraph,
+  build_author_collaboration,
+  build_citation_network,
+  build_cooccurrence,
+  build_limitation_flow,
+  build_network_figure,
+  build_sankey_figure,
+)
 from research_gap_dashboard.dashboard.gaps import (
   GapCard,
   GapCardsData,
@@ -180,6 +190,7 @@ def _select_page() -> str:
     [
       text.PAGE_OVERVIEW,
       text.PAGE_COVERAGE,
+      text.PAGE_META,
       text.PAGE_GAP_CARDS,
       text.PAGE_LIMITATIONS,
       text.PAGE_RETRIEVAL,
@@ -888,6 +899,102 @@ def _render_coverage_page(chosen: CorpusChoice) -> None:
   render_coverage(matrices, trends)
 
 
+def _render_meta_page(chosen: CorpusChoice) -> None:
+  """Render the Field Meta-Analysis page for the chosen Corpus."""
+  st.header(text.META_HEADING)
+  if not has_manifest(chosen.root):
+    st.warning(text.META_NO_MANIFEST)
+    return
+  st.info(text.META_INTRO)
+  manifest = load_manifest(chosen.root)
+
+  render_network_graph(build_citation_network(manifest))
+
+  if has_normalized_facts(chosen.root):
+    normalized = load_normalized_facts(chosen.root)
+    render_network_graph(build_cooccurrence(normalized, manifest, axis="topic"))
+    render_network_graph(build_cooccurrence(normalized, manifest, axis="method"))
+    st.subheader(text.TRENDS_HEADING)
+    _render_trends(build_trends(normalized, manifest))
+  else:
+    st.info(text.META_NO_NORMALIZED)
+
+  render_network_graph(build_author_collaboration(manifest))
+
+  if has_candidate_gaps(chosen.root):
+    render_limitation_flow(
+      build_limitation_flow(build_limitations(load_candidate_gaps(chosen.root)))
+    )
+
+
+def render_network_graph(graph: NetworkGraph) -> None:
+  """Render one meta-analysis network graph with its question, caveat, and table."""
+  st.subheader(graph.title)
+  st.caption(f"**{text.META_QUESTION_LABEL}:** {graph.question}")
+  st.caption(f"**{text.META_GAP_LENS_LABEL}:** {graph.gap_lens}")
+  if graph.is_empty:
+    st.info(text.META_EMPTY_GRAPH)
+    for note in graph.notes:
+      st.caption(note)
+    return
+  st.plotly_chart(
+    build_network_figure(graph),
+    use_container_width=True,
+    key=f"meta-{graph.kind}-{graph.title}",
+  )
+  for note in graph.notes:
+    st.caption(note)
+  if graph.isolated_labels:
+    st.caption(text.META_ISOLATED_LEGEND + ": " + ", ".join(graph.isolated_labels))
+  if graph.missing_pairs:
+    with st.expander(f"{text.META_MISSING_PAIRS_LABEL} ({len(graph.missing_pairs)})"):
+      for pair in graph.missing_pairs:
+        st.markdown(
+          "- "
+          + text.META_MISSING_PAIR_ROW.format(
+            source=pair.source_label, target=pair.target_label
+          )
+        )
+  elif graph.kind == "cooccurrence":
+    st.caption(text.META_NO_MISSING_PAIRS)
+  st.caption(graph.caveat)
+  _render_graph_data_table(graph)
+
+
+def _render_graph_data_table(graph: NetworkGraph) -> None:
+  """Show the graph's edges as a table: the accessible, non-interactive fallback."""
+  rows = [
+    {"Source": edge.source, "Target": edge.target, "Papers": edge.weight}
+    for edge in graph.edges
+  ]
+  with st.expander(text.META_DATA_TABLE_LABEL):
+    if rows:
+      st.dataframe(rows, use_container_width=True, hide_index=True)
+    else:
+      st.caption(text.META_EMPTY_GRAPH)
+
+
+def render_limitation_flow(graph: SankeyGraph) -> None:
+  """Render the limitation follow-up Sankey with its question and caveat."""
+  st.subheader(graph.title)
+  st.caption(f"**{text.META_QUESTION_LABEL}:** {graph.question}")
+  st.caption(f"**{text.META_GAP_LENS_LABEL}:** {graph.gap_lens}")
+  if graph.is_empty:
+    st.info(text.META_LIMITATION_NO_DATA)
+    return
+  st.plotly_chart(
+    build_sankey_figure(graph), use_container_width=True, key="meta-sankey"
+  )
+  st.caption(
+    text.META_LIMITATION_SUMMARY.format(
+      open=graph.unanswered_count,
+      total=graph.unanswered_count + graph.addressed_count,
+      addressed=graph.addressed_count,
+    )
+  )
+  st.caption(graph.caveat)
+
+
 def _render_gap_cards_page(chosen: CorpusChoice) -> None:
   """Render the Gap Cards page for the chosen Corpus."""
   if not has_candidate_gaps(chosen.root):
@@ -938,6 +1045,7 @@ def _render_overview_page(chosen: CorpusChoice) -> None:
 # so `main` just dispatches instead of growing a return per page.
 _PAGE_RENDERERS: dict[str, Callable[[CorpusChoice], None]] = {
   text.PAGE_COVERAGE: _render_coverage_page,
+  text.PAGE_META: _render_meta_page,
   text.PAGE_GAP_CARDS: _render_gap_cards_page,
   text.PAGE_LIMITATIONS: _render_limitations_page,
   text.PAGE_RETRIEVAL: _render_retrieval_page,
