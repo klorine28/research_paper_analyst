@@ -17,8 +17,9 @@ from test_detect import _PLACEMENTS, _write_corpus
 
 import research_gap_dashboard.dashboard as dashboard_pkg
 
+from research_gap_dashboard.analytics import CorpusPaper, GroundingContext
 from research_gap_dashboard.dashboard.artifacts import load_candidate_gaps
-from research_gap_dashboard.dashboard.gaps import build_gap_cards
+from research_gap_dashboard.dashboard.gaps import build_gap_cards, scope_context_to_gap
 from research_gap_dashboard.dashboard.judgments import load_judgments, record_judgment
 from research_gap_dashboard.detect import detect_corpus
 
@@ -99,6 +100,40 @@ def test_saved_judgments_are_merged_onto_the_cards(corpus: Path):
   assert data.undecided_count == data.gap_count - 2
 
 
+def _corpus_context() -> GroundingContext:
+  """Build a whole-Corpus grounding context spanning the synthetic Corpus."""
+  return GroundingContext(
+    papers=[
+      CorpusPaper(citation_key=f"p0{n}", title=f"Paper {n}", year=2000 + n)
+      for n in range(1, 7)
+    ]
+  )
+
+
+def test_scope_context_to_gap_narrows_to_the_gaps_slice(corpus: Path):
+  """A scoped context keeps only the gap, its source Papers, and its Evidence."""
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  scoped = scope_context_to_gap(card, _corpus_context())
+
+  assert [gap.title for gap in scoped.gaps] == [card.title]
+  evidence_keys = {passage.citation_key for passage in card.evidence}
+  scoped_keys = {paper.citation_key for paper in scoped.papers}
+  assert scoped_keys == set(card.source_citation_keys) | evidence_keys
+  assert scoped_keys < _corpus_context().allowed_keys
+
+
+def test_scope_context_to_gap_carries_the_evidence_passages(corpus: Path):
+  """The scoped context quotes the same Evidence passages the card shows."""
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  scoped = scope_context_to_gap(card, _corpus_context())
+
+  rendered = scoped.render()
+  for passage in card.evidence:
+    assert passage.passage in rendered
+
+
 def _run_gap_cards_app(corpus: Path, monkeypatch: pytest.MonkeyPatch):
   """Run the Streamlit shell on the Gap Cards page for a corpus directory."""
   from streamlit.testing.v1 import AppTest
@@ -125,3 +160,42 @@ def test_gap_cards_page_renders_and_persists_a_judgment(
 
   assert not app.exception
   assert load_judgments(corpus).by_gap_id()[gap_id].decision == "accepted"
+
+
+def test_discuss_this_gap_seeds_a_scoped_chat(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """Clicking 'Discuss this gap' opens a chat scoped to that gap on Analytics."""
+  import research_gap_dashboard.analytics as analytics_module
+  from research_gap_dashboard.dashboard.text import (
+    ANALYTICS_SCOPED_INTRO,
+    GAP_DISCUSS_BUTTON,
+    PAGE_ANALYTICS,
+  )
+
+  # A keyless stub answers the scoped chat so the smoke test never touches the
+  # network (CODING_STANDARDS.md > Test with fixtures, not live services). AppTest
+  # re-imports the app each run, so patch the client factory at its source module.
+  monkeypatch.setattr(
+    analytics_module,
+    "build_analytics_client",
+    lambda _cache_dir: StubLlmClient({"answer": "Grounded.", "citations": []}),
+  )
+
+  app = _run_gap_cards_app(corpus, monkeypatch)
+  discuss = next(button for button in app.button if button.label == GAP_DISCUSS_BUTTON)
+  gap_id = discuss.key.removeprefix("discuss-")
+
+  discuss.click().run()
+
+  assert not app.exception
+  assert app.session_state["discuss_gap_id"] == gap_id
+  assert app.session_state["nav_page"] == PAGE_ANALYTICS
+  intros = [block.value for block in app.info]
+  assert ANALYTICS_SCOPED_INTRO in intros
+
+  app.chat_input[0].set_value("Why is this a gap?").run()
+
+  assert not app.exception
+  markdown = " ".join(block.value for block in app.markdown)
+  assert "Grounded." in markdown

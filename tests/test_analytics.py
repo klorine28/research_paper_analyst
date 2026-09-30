@@ -14,6 +14,7 @@ from conftest import StubLlmClient
 
 from research_gap_dashboard.analytics import (
   CorpusPaper,
+  GapEvidence,
   GapFact,
   GroundingContext,
   answer_question,
@@ -106,6 +107,52 @@ def test_narrative_summary_keeps_only_grounded_citations():
   assert result.paragraphs == ["The Corpus is silent on RCTs for Takotsubo."]
   assert result.citations == ["hanna2019"]
   assert result.dropped_citations == ["invented1999"]
+
+
+def test_context_renders_evidence_passages_with_their_papers():
+  """Evidence passages are rendered so a scoped chat can quote them verbatim."""
+  context = GroundingContext(
+    papers=[CorpusPaper(citation_key="hanna2019", title="Takotsubo", year=2019)],
+    evidence=[
+      GapEvidence(
+        citation_key="hanna2019",
+        section="methods",
+        passage="No randomized controlled trial was conducted.",
+      )
+    ],
+  )
+
+  rendered = context.render()
+
+  assert "No randomized controlled trial was conducted." in rendered
+  assert "hanna2019" in rendered
+  assert "methods" in rendered
+
+
+def test_scoped_chat_prompt_carries_the_gap_evidence():
+  """A chat over a gap-scoped context puts its Evidence in the prompt to quote."""
+  client = _CapturingStub({"answer": "Answer", "citations": ["hanna2019"]})
+  context = GroundingContext(
+    papers=[CorpusPaper(citation_key="hanna2019", title="Takotsubo", year=2019)],
+    gaps=[
+      GapFact(
+        gap_type="Coverage Gap",
+        title="No RCTs on Takotsubo",
+        source_citation_keys=["hanna2019"],
+      )
+    ],
+    evidence=[
+      GapEvidence(
+        citation_key="hanna2019",
+        section="methods",
+        passage="No randomized controlled trial was conducted.",
+      )
+    ],
+  )
+
+  answer_question("Why is this a gap?", context, client)
+
+  assert "No randomized controlled trial was conducted." in client.prompt
 
 
 def test_narrative_prompt_carries_the_candidate_gaps():

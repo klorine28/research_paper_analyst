@@ -13,6 +13,11 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from research_gap_dashboard.analytics import (
+  GapEvidence,
+  GapFact,
+  GroundingContext,
+)
 from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard.artifacts import (
   CandidateGapRecord,
@@ -121,6 +126,47 @@ def _card(
     ],
     status=status,
   )
+
+
+def scope_context_to_gap(card: GapCard, corpus: GroundingContext) -> GroundingContext:
+  """
+  Scope a Corpus's grounding context down to one Candidate Gap's slice.
+
+  The one-click "Discuss this gap" chat (issue #48) reuses the existing chat and
+  grounding machinery, but over a context narrowed to just this gap: its source
+  Papers (plus any Paper its Evidence quotes), the single gap, and the same
+  expanded Evidence the card shows. So the model answers "why is this a gap, and
+  what would close it" from that slice, still citing only Papers in the Corpus
+  (CODING_STANDARDS.md > Research integrity). It stays a Candidate Gap, never a
+  verdict.
+  """
+  keys = set(card.source_citation_keys)
+  keys |= {passage.citation_key for passage in card.evidence}
+  papers = [paper for paper in corpus.papers if paper.citation_key in keys]
+  gap = GapFact(
+    gap_type=card.gap_type_label,
+    title=card.title,
+    explanation=card.explanation,
+    confidence=card.confidence_label,
+    source_citation_keys=card.source_citation_keys,
+  )
+  evidence = [
+    GapEvidence(
+      citation_key=passage.citation_key,
+      section=passage.section,
+      passage=_expanded_passage(passage),
+    )
+    for passage in card.evidence
+  ]
+  return GroundingContext(papers=papers, gaps=[gap], evidence=evidence)
+
+
+def _expanded_passage(passage: EvidencePassage) -> str:
+  """Use the paragraph-expanded window when grounded, else the bare anchor quote."""
+  context = passage.context
+  if context is not None and context.grounded:
+    return context.window
+  return passage.passage
 
 
 def build_gap_cards(

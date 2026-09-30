@@ -61,6 +61,21 @@ class GapFact(BaseModel):
   source_citation_keys: list[str] = []
 
 
+class GapEvidence(BaseModel):
+  """
+  One verbatim Evidence passage the context may quote, and the Paper it's in.
+
+  A scoped chat about one gap (issue #48) carries the same expanded Evidence the
+  gap card shows, so the model can quote the passage the researcher is looking at
+  instead of paraphrasing it. The passage stays verbatim from the Paper
+  (CODING_STANDARDS.md > Research integrity).
+  """
+
+  citation_key: str
+  section: str = ""
+  passage: str
+
+
 class GroundingContext(BaseModel):
   """
   The Corpus facts the model may answer from, and the allow-list to cite against.
@@ -72,6 +87,7 @@ class GroundingContext(BaseModel):
 
   papers: list[CorpusPaper]
   gaps: list[GapFact] = []
+  evidence: list[GapEvidence] = []
 
   @property
   def allowed_keys(self) -> set[str]:
@@ -99,6 +115,15 @@ class GroundingContext(BaseModel):
         )
         if gap.explanation:
           lines.append(f"  {gap.explanation}")
+    if self.evidence:
+      lines.append("")
+      lines.append(
+        f"EVIDENCE ({len(self.evidence)} passages), quoted verbatim from the "
+        "Papers above; you may quote these back:"
+      )
+      for passage in self.evidence:
+        section = f" \u2014 {passage.section}" if passage.section else ""
+        lines.append(f"- [{passage.citation_key}{section}] {passage.passage}")
     return "\n".join(lines)
 
 

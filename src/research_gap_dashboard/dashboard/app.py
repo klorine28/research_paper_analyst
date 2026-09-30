@@ -10,6 +10,7 @@ corpus directories with the RESEARCH_GAP_CORPORA_DIR environment variable.
 
 import os
 from collections.abc import Callable
+from datetime import datetime, timezone
 from pathlib import Path
 
 import streamlit as st
@@ -28,6 +29,7 @@ from research_gap_dashboard.analytics import (
 from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard.chat_history import (
   ChatTurn,
+  Role,
   append_turn,
   clear_chat_history,
   load_chat_history,
@@ -66,7 +68,12 @@ from research_gap_dashboard.dashboard.coverage import (
   build_trends,
   build_trends_figure,
 )
-from research_gap_dashboard.dashboard.gaps import GapCard, GapCardsData, build_gap_cards
+from research_gap_dashboard.dashboard.gaps import (
+  GapCard,
+  GapCardsData,
+  build_gap_cards,
+  scope_context_to_gap,
+)
 from research_gap_dashboard.dashboard.judgments import (
   clear_judgment,
   load_judgments,
@@ -138,6 +145,27 @@ def _select_corpus(choices: list[CorpusChoice]) -> CorpusChoice:
   return chosen
 
 
+# Session-state keys. The nav radio carries a key so a gap card can switch the
+# page to Conversational Analytics programmatically; the discuss key names the
+# gap a scoped chat is focused on (issue #48).
+NAV_PAGE_KEY = "nav_page"
+PENDING_NAV_KEY = "pending_nav_page"
+DISCUSS_GAP_KEY = "discuss_gap_id"
+
+
+def _apply_pending_nav() -> None:
+  """
+  Honour a page switch requested last run, before the nav radio is built.
+
+  A widget's state key can't be set once its widget exists, so a card's "Discuss
+  this gap" button records the target page here and this runs before the radio is
+  instantiated (issue #48).
+  """
+  pending = st.session_state.pop(PENDING_NAV_KEY, None)
+  if pending is not None:
+    st.session_state[NAV_PAGE_KEY] = pending
+
+
 def _select_page() -> str:
   """Render the sidebar page picker and return the chosen page."""
   return st.sidebar.radio(
@@ -154,7 +182,7 @@ def _select_page() -> str:
       text.PAGE_VERIFY,
       text.PAGE_ATTENTION,
     ],
-    index=0,
+    key=NAV_PAGE_KEY,
     label_visibility="collapsed",
   )
 
@@ -389,6 +417,13 @@ def _render_gap_card(card: GapCard, corpus_root: Path) -> None:
       text.GAP_CLEAR_BUTTON, key=f"clear-{card.gap_id}", width="stretch"
     ):
       clear_judgment(corpus_root, card.gap_id)
+      st.rerun()
+
+    if st.button(
+      text.GAP_DISCUSS_BUTTON, key=f"discuss-{card.gap_id}", width="stretch"
+    ):
+      st.session_state[DISCUSS_GAP_KEY] = card.gap_id
+      st.session_state[PENDING_NAV_KEY] = text.PAGE_ANALYTICS
       st.rerun()
 
 
@@ -645,6 +680,7 @@ def main() -> None:
 
   chosen = _select_corpus(choices)
   _render_incompleteness_banner(chosen.root)
+  _apply_pending_nav()
   page = _select_page()
   _PAGE_RENDERERS.get(page, _render_overview_page)(chosen)
 
@@ -843,8 +879,85 @@ def _render_analytics_page(corpus_root: Path) -> None:
   has_gaps = has_candidate_gaps(corpus_root)
   context = _grounding_context(corpus_root, manifest, has_gaps)
 
+  if _render_scoped_gap_chat(corpus_root, context, client):
+    return
   _render_narrative_summary(context, client, has_gaps)
   _render_chat(corpus_root, context, client)
+
+
+def _scoped_history_key(gap_id: str) -> str:
+  """Session-state key for one gap's ephemeral scoped-chat transcript."""
+  return f"scoped_chat_{gap_id}"
+
+
+def _scoped_gap_card(corpus_root: Path, gap_id: str) -> GapCard | None:
+  """Find the card a scoped chat is focused on, or None when it is gone."""
+  if not has_candidate_gaps(corpus_root):
+    return None
+  data = build_gap_cards(
+    load_candidate_gaps(corpus_root), load_judgments(corpus_root), corpus_root
+  )
+  return next((card for card in data.cards if card.gap_id == gap_id), None)
+
+
+def _render_scoped_gap_chat(
+  corpus_root: Path, context: GroundingContext, client: LlmClient
+) -> bool:
+  """
+  Render the one-click chat scoped to a single Candidate Gap (issue #48).
+
+  Returns True when a scoped chat was shown, so the page skips the whole-Corpus
+  chat and narrative summary. The scoped conversation is ephemeral in session
+  state; per-gap persistent conversations are a separate v2 feature (issue #44).
+  """
+  gap_id = st.session_state.get(DISCUSS_GAP_KEY)
+  if not gap_id:
+    return False
+  card = _scoped_gap_card(corpus_root, gap_id)
+  if card is None:
+    st.session_state.pop(DISCUSS_GAP_KEY, None)
+    st.info(text.ANALYTICS_SCOPED_GAP_MISSING)
+    return False
+
+  scoped = scope_context_to_gap(card, context)
+  st.subheader(text.ANALYTICS_SCOPED_HEADING.format(title=card.title))
+  st.info(text.ANALYTICS_SCOPED_INTRO)
+  if st.button(text.ANALYTICS_SCOPED_EXIT_BUTTON):
+    st.session_state.pop(DISCUSS_GAP_KEY, None)
+    st.session_state.pop(_scoped_history_key(gap_id), None)
+    st.rerun()
+
+  turns: list[ChatTurn] = st.session_state.get(_scoped_history_key(gap_id), [])
+  for turn in turns:
+    _render_chat_turn(turn)
+
+  question = st.chat_input(
+    text.ANALYTICS_SCOPED_CHAT_INPUT_LABEL, key=f"scoped-input-{gap_id}"
+  )
+  if not question:
+    return True
+  transcript = [f"{turn.role}: {turn.content}" for turn in turns]
+  with st.spinner(text.ANALYTICS_THINKING):
+    answer = answer_question(question, scoped, client, history=transcript)
+  st.session_state[_scoped_history_key(gap_id)] = [
+    *turns,
+    _ephemeral_turn("user", question),
+    _ephemeral_turn("assistant", answer.answer, answer.citations),
+  ]
+  _render_grounding_flags(answer.dropped_citations)
+  st.rerun()
+
+
+def _ephemeral_turn(
+  role: Role, content: str, citations: list[str] | None = None
+) -> ChatTurn:
+  """Build one in-memory scoped-chat turn (not persisted to disk; see issue #44)."""
+  return ChatTurn(
+    role=role,
+    content=content,
+    citations=list(citations or []),
+    at=datetime.now(timezone.utc),
+  )
 
 
 def _grounding_context(

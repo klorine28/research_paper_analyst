@@ -173,6 +173,10 @@ GAP_EVIDENCE_SOURCE = "{citation_key} — {section}"
 # Evidence-window expansion (issue #47): the anchor quote shown in its paragraph.
 EVIDENCE_POINTERS_LABEL = "Points to: {pointers}"
 EVIDENCE_SHOW_FULL_SECTION = "Show full section"
+# One-click scoped-context chat (issue #48): each card can seed a chat narrowed
+# to that gap's source Papers and Evidence, over on the Conversational Analytics
+# page. It stays a Candidate Gap, never a verdict.
+GAP_DISCUSS_BUTTON = "\U0001f4ac Discuss this gap"
 GAP_STATUS_ACCEPTED = "Accepted"
 GAP_STATUS_REJECTED = "Rejected"
 GAP_STATUS_UNDECIDED = "Undecided"
@@ -427,3 +431,20 @@ ANALYTICS_SUMMARY_NEEDS_GAPS = (
   "`detect` to generate a narrative summary."
 )
 ANALYTICS_GENERATE_SUMMARY_BUTTON = "Generate narrative summary"
+
+# Scoped-to-one-gap chat (issue #48). Reached from a gap card's "Discuss this gap"
+# button; the chat is grounded in just that gap's source Papers and Evidence. The
+# conversation is ephemeral for now \u2014 per-gap persistent conversations are a
+# separate v2 feature (issue #44).
+ANALYTICS_SCOPED_HEADING = "Discuss one gap: {title}"
+ANALYTICS_SCOPED_INTRO = (
+  "This chat is scoped to a single Candidate Gap \u2014 only its source Papers "
+  "and Evidence \u2014 so it answers 'why is this a gap, and what would close "
+  "it?' from just that slice. It remains a candidate for human judgment, not a "
+  "verdict, and this conversation is not saved."
+)
+ANALYTICS_SCOPED_CHAT_INPUT_LABEL = "Ask about this gap"
+ANALYTICS_SCOPED_EXIT_BUTTON = "\u2190 Back to the whole-Corpus chat"
+ANALYTICS_SCOPED_GAP_MISSING = (
+  "That Candidate Gap is no longer available. Showing the whole-Corpus chat."
+)
