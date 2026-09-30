@@ -87,6 +87,8 @@ class GraphEdge(BaseModel):
 class MissingPair(BaseModel):
   """A category pair no Paper in the Corpus combines: a candidate gap, as text."""
 
+  source_id: str
+  target_id: str
   source_label: str
   target_label: str
 
@@ -102,6 +104,7 @@ class NetworkGraph(BaseModel):
   """
 
   kind: GraphKind
+  slug: str
   title: str
   question: str
   caveat: str
@@ -131,6 +134,21 @@ class NetworkGraph(BaseModel):
   def is_sparse(self) -> bool:
     """Whether the graph has fewer edges than nodes (a thin structure)."""
     return bool(self.nodes) and self.edge_count < len(self.nodes)
+
+  @property
+  def node_ids(self) -> set[str]:
+    """The set of node ids this graph holds, for validating a click selection."""
+    return {node.node_id for node in self.nodes}
+
+  def neighbors(self, node_id: str) -> set[str]:
+    """Return the ids of nodes an edge joins to ``node_id`` (either direction)."""
+    found: set[str] = set()
+    for edge in self.edges:
+      if edge.source == node_id:
+        found.add(edge.target)
+      elif edge.target == node_id:
+        found.add(edge.source)
+    return found
 
 
 class SankeyFlow(BaseModel):
@@ -237,6 +255,7 @@ def build_citation_network(manifest: ManifestArtifact) -> NetworkGraph:
 
   return NetworkGraph(
     kind="citation",
+    slug="citation",
     title=text.META_CITATION_TITLE,
     question=text.META_CITATION_QUESTION,
     caveat=text.META_CAVEAT,
@@ -306,7 +325,12 @@ def build_cooccurrence(
     for pair, keys in pair_papers.items()
   ]
   missing = [
-    MissingPair(source_label=labels[left], target_label=labels[right])
+    MissingPair(
+      source_id=left,
+      target_id=right,
+      source_label=labels[left],
+      target_label=labels[right],
+    )
     for left, right in combinations(kept, 2)
     if frozenset((left, right)) not in pair_papers
   ]
@@ -321,6 +345,7 @@ def build_cooccurrence(
 
   return NetworkGraph(
     kind="cooccurrence",
+    slug=f"{axis}-cooccurrence",
     title=_axis_field(axis, text.META_TOPIC_TITLE, text.META_METHOD_TITLE),
     question=_axis_field(axis, text.META_TOPIC_QUESTION, text.META_METHOD_QUESTION),
     caveat=text.META_CAVEAT,
@@ -438,6 +463,7 @@ def build_author_collaboration(manifest: ManifestArtifact) -> NetworkGraph:
 
   return NetworkGraph(
     kind="collaboration",
+    slug="collaboration",
     title=text.META_COLLABORATION_TITLE,
     question=text.META_COLLABORATION_QUESTION,
     caveat=text.META_CAVEAT,
@@ -525,37 +551,80 @@ def _layout(graph: NetworkGraph) -> dict[str, tuple[float, float]]:
   }
 
 
-def build_network_figure(graph: NetworkGraph) -> go.Figure:
+def node_role(graph: NetworkGraph, node: GraphNode, selected_id: str | None) -> str:
+  """
+  Classify a node for rendering, given the clicked selection (if any).
+
+  With no selection a node reads as ``isolated`` or ``connected`` (its gap
+  signal). With a selection the clicked node is ``selected``, its edge-neighbours
+  are ``neighbor``, and everything else is ``faded`` so the click-to-highlight
+  interaction makes the selected node's neighbourhood legible.
+  """
+  if selected_id is None or selected_id not in graph.node_ids:
+    return "isolated" if node.isolated else "connected"
+  if node.node_id == selected_id:
+    return "selected"
+  if node.node_id in graph.neighbors(selected_id):
+    return "neighbor"
+  return "faded"
+
+
+# Per-role marker styling: fill colour, legend name, symbol, and opacity.
+_ROLE_STYLE: dict[str, tuple[str, str, str, float]] = {
+  "connected": (text.META_CONNECTED_COLOR, text.META_CONNECTED_LEGEND, "circle", 1.0),
+  "isolated": (text.META_ISOLATED_COLOR, text.META_ISOLATED_LEGEND, "diamond", 1.0),
+  "selected": (text.META_SELECTED_COLOR, text.META_SELECTED_LEGEND, "star", 1.0),
+  "neighbor": (text.META_CONNECTED_COLOR, text.META_NEIGHBOR_LEGEND, "circle", 1.0),
+  "faded": ("rgba(150,150,150,0.35)", text.META_FADED_LEGEND, "circle", 0.35),
+}
+
+
+def build_network_figure(
+  graph: NetworkGraph, *, selected_id: str | None = None
+) -> go.Figure:
   """
   Render a network graph as a Plotly figure: edges behind, nodes in front.
 
   Isolated nodes (and, for the citation network, nodes with no in-Corpus edge)
   are drawn in a distinct colour so the eye catches the gap signal. Edge width
   scales with weight so a co-occurrence backed by many Papers reads as heavier
-  than a one-Paper link. Hover carries each node's and edge's metadata; the
+  than a one-Paper link. When ``selected_id`` names a clicked node, that node and
+  its neighbours stay vivid while the rest fade, so click-to-highlight reveals a
+  node's neighbourhood. Hover carries each node's and edge's metadata; the
   accessible data table the layout shows alongside is the non-interactive
   fallback (the figure is never the only way to read the numbers).
   """
   positions = _layout(graph)
   figure = go.Figure()
+  active = selected_id if selected_id in graph.node_ids else None
 
   for edge in graph.edges:
     x0, y0 = positions[edge.source]
     x1, y1 = positions[edge.target]
+    incident = active is not None and active in (edge.source, edge.target)
+    if active is not None and not incident:
+      colour = "rgba(120,120,120,0.10)"
+    elif incident:
+      colour = text.META_SELECTED_COLOR
+    else:
+      colour = "rgba(120,120,120,0.45)"
     figure.add_trace(
       go.Scatter(
         x=[x0, x1],
         y=[y0, y1],
         mode="lines",
-        line={"width": min(1 + edge.weight, 8), "color": "rgba(120,120,120,0.45)"},
+        line={"width": min(1 + edge.weight, 8), "color": colour},
         hoverinfo="text",
         text=edge.hover,
         showlegend=False,
       )
     )
 
-  _add_node_trace(figure, graph, positions, isolated=False)
-  _add_node_trace(figure, graph, positions, isolated=True)
+  roles: dict[str, list[GraphNode]] = {}
+  for node in graph.nodes:
+    roles.setdefault(node_role(graph, node, active), []).append(node)
+  for role in ("faded", "connected", "isolated", "neighbor", "selected"):
+    _add_node_trace(figure, roles.get(role, []), positions, role=role)
 
   figure.update_layout(
     showlegend=True,
@@ -569,17 +638,15 @@ def build_network_figure(graph: NetworkGraph) -> go.Figure:
 
 def _add_node_trace(
   figure: go.Figure,
-  graph: NetworkGraph,
+  nodes: list[GraphNode],
   positions: dict[str, tuple[float, float]],
   *,
-  isolated: bool,
+  role: str,
 ) -> None:
-  """Add one node trace (isolated or connected) so the two colour distinctly."""
-  nodes = [node for node in graph.nodes if node.isolated == isolated]
+  """Add one node trace for a rendering role, carrying node ids as customdata."""
   if not nodes:
     return
-  colour = text.META_ISOLATED_COLOR if isolated else text.META_CONNECTED_COLOR
-  name = text.META_ISOLATED_LEGEND if isolated else text.META_CONNECTED_LEGEND
+  colour, name, symbol, opacity = _ROLE_STYLE[role]
   figure.add_trace(
     go.Scatter(
       x=[positions[node.node_id][0] for node in nodes],
@@ -588,13 +655,15 @@ def _add_node_trace(
       marker={
         "size": [min(12 + 4 * node.weight, 40) for node in nodes],
         "color": colour,
+        "opacity": opacity,
         "line": {"width": 1, "color": "white"},
-        "symbol": "diamond" if isolated else "circle",
+        "symbol": symbol,
       },
       text=[node.label for node in nodes],
       textposition="top center",
       hoverinfo="text",
       hovertext=[node.hover for node in nodes],
+      customdata=[node.node_id for node in nodes],
       name=name,
     )
   )

@@ -32,6 +32,7 @@ from research_gap_dashboard.dashboard.meta_analysis import (
   build_limitation_flow,
   build_network_figure,
   build_sankey_figure,
+  node_role,
 )
 
 
@@ -282,6 +283,76 @@ def test_every_graph_carries_a_question_and_the_incomplete_corpus_caveat():
   sankey = build_limitation_flow(_limitations())
   assert sankey.question
   assert "only over the Papers in this Corpus" in sankey.caveat
+
+
+# --- Click-to-highlight interaction -------------------------------------------
+
+
+def _topic_graph():
+  """Build a small topic co-occurrence graph: a-b co-occur, c stands apart."""
+  normalized = _normalized(
+    {
+      "p01": [("topic", "a", "Alpha"), ("topic", "b", "Beta")],
+      "p02": [("topic", "c", "Gamma")],
+    }
+  )
+  manifest = _manifest([PaperRecord(citation_key=k, doi=k) for k in ("p01", "p02")])
+  return build_cooccurrence(normalized, manifest, axis="topic")
+
+
+def test_neighbors_reports_edge_adjacency_in_either_direction():
+  """A node's neighbours are every node an edge joins it to."""
+  graph = _topic_graph()
+
+  assert graph.neighbors("a") == {"b"}
+  assert graph.neighbors("b") == {"a"}
+  assert graph.neighbors("c") == set()
+
+
+def test_node_role_without_selection_reads_connected_or_isolated():
+  """With nothing clicked, a node keeps its gap-signal role."""
+  graph = _topic_graph()
+  by_id = {n.node_id: n for n in graph.nodes}
+
+  assert node_role(graph, by_id["a"], None) == "connected"
+  assert node_role(graph, by_id["c"], None) == "isolated"
+
+
+def test_node_role_with_selection_splits_selected_neighbor_and_faded():
+  """Clicking a node makes it selected, its neighbours vivid, the rest faded."""
+  graph = _topic_graph()
+  by_id = {n.node_id: n for n in graph.nodes}
+
+  assert node_role(graph, by_id["a"], "a") == "selected"
+  assert node_role(graph, by_id["b"], "a") == "neighbor"
+  assert node_role(graph, by_id["c"], "a") == "faded"
+
+
+def test_node_role_ignores_a_stale_selection_not_in_the_graph():
+  """A selected id no longer in the graph falls back to the no-selection roles."""
+  graph = _topic_graph()
+  by_id = {n.node_id: n for n in graph.nodes}
+
+  assert node_role(graph, by_id["a"], "ghost") == "connected"
+
+
+def test_missing_pairs_carry_ids_for_gap_linking():
+  """Each missing pair keeps its category ids so the layout can link to a gap."""
+  graph = _topic_graph()
+
+  pair = next(
+    m for m in graph.missing_pairs if {m.source_id, m.target_id} == {"a", "c"}
+  )
+  assert pair.source_label in ("Alpha", "Gamma")
+
+
+def test_selected_figure_still_builds_with_a_highlighted_node():
+  """The figure renders when a node is selected (neighbour highlight path)."""
+  graph = _topic_graph()
+  figure = build_network_figure(graph, selected_id="a")
+
+  assert isinstance(figure, go.Figure)
+  assert figure.data
 
 
 # --- Figures render ------------------------------------------------------------

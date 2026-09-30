@@ -937,28 +937,84 @@ def render_network_graph(graph: NetworkGraph) -> None:
     for note in graph.notes:
       st.caption(note)
     return
-  st.plotly_chart(
-    build_network_figure(graph),
-    use_container_width=True,
-    key=f"meta-{graph.kind}-{graph.title}",
-  )
+  st.caption(text.META_CLICK_HINT)
+  _render_interactive_network(graph)
   for note in graph.notes:
     st.caption(note)
   if graph.isolated_labels:
     st.caption(text.META_ISOLATED_LEGEND + ": " + ", ".join(graph.isolated_labels))
-  if graph.missing_pairs:
-    with st.expander(f"{text.META_MISSING_PAIRS_LABEL} ({len(graph.missing_pairs)})"):
-      for pair in graph.missing_pairs:
-        st.markdown(
-          "- "
-          + text.META_MISSING_PAIR_ROW.format(
-            source=pair.source_label, target=pair.target_label
-          )
-        )
-  elif graph.kind == "cooccurrence":
-    st.caption(text.META_NO_MISSING_PAIRS)
+  _render_missing_pairs(graph)
   st.caption(graph.caveat)
   _render_graph_data_table(graph)
+
+
+def _render_interactive_network(graph: NetworkGraph) -> None:
+  """Draw the network, handle a node click, and show the selection controls."""
+  select_key = f"meta_sel_{graph.slug}"
+  selected = st.session_state.get(select_key)
+  event = st.plotly_chart(
+    build_network_figure(graph, selected_id=selected),
+    use_container_width=True,
+    key=f"meta-{graph.slug}",
+    on_select="rerun",
+    selection_mode="points",
+  )
+  clicked = _clicked_node_id(event)
+  if clicked != selected:
+    st.session_state[select_key] = clicked
+    st.rerun()
+  if selected and selected in graph.node_ids:
+    node = next(n for n in graph.nodes if n.node_id == selected)
+    neighbours = sorted(graph.neighbors(selected))
+    if neighbours:
+      st.caption(
+        text.META_SELECTED_CAPTION.format(
+          label=node.label, count=len(neighbours), neighbours=", ".join(neighbours)
+        )
+      )
+    else:
+      st.caption(text.META_SELECTED_NONE.format(label=node.label))
+    if st.button(text.META_CLEAR_SELECTION, key=f"meta-clear-{graph.slug}"):
+      st.session_state[select_key] = None
+      st.rerun()
+
+
+def _clicked_node_id(event: object) -> str | None:
+  """Read the clicked node id out of a plotly selection event, or None."""
+  selection = getattr(event, "selection", None)
+  if selection is None and isinstance(event, dict):
+    selection = event.get("selection")
+  points = (selection or {}).get("points") if selection else None
+  if not points:
+    return None
+  custom = points[0].get("customdata")
+  if isinstance(custom, list):
+    return str(custom[0]) if custom else None
+  return str(custom) if custom is not None else None
+
+
+def _render_missing_pairs(graph: NetworkGraph) -> None:
+  """List the graph's absent edges, each a button jumping to the Gap Cards page."""
+  if not graph.missing_pairs:
+    if graph.kind == "cooccurrence":
+      st.caption(text.META_NO_MISSING_PAIRS)
+    return
+  with st.expander(f"{text.META_MISSING_PAIRS_LABEL} ({len(graph.missing_pairs)})"):
+    st.caption(text.META_MISSING_PAIRS_HINT)
+    for index, pair in enumerate(graph.missing_pairs):
+      label_col, button_col = st.columns([4, 1])
+      label_col.markdown(
+        text.META_MISSING_PAIR_ROW.format(
+          source=pair.source_label, target=pair.target_label
+        )
+      )
+      if button_col.button(
+        text.META_MISSING_PAIR_JUMP,
+        key=f"meta-jump-{graph.slug}-{index}",
+        width="stretch",
+      ):
+        st.session_state[PENDING_NAV_KEY] = text.PAGE_GAP_CARDS
+        st.rerun()
 
 
 def _render_graph_data_table(graph: NetworkGraph) -> None:
