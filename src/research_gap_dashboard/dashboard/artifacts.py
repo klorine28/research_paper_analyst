@@ -42,6 +42,9 @@ class PaperRecord(_ReadModel):
   year: int | None = None
   journal: str = ""
   pdf_path: Path | None = None
+  authors: list[str] = []
+  openalex_id: str = ""
+  referenced_works: list[str] = []
 
 
 class UnmatchedEntryRecord(_ReadModel):

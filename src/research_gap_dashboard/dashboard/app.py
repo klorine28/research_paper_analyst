@@ -10,6 +10,7 @@ corpus directories with the RESEARCH_GAP_CORPORA_DIR environment variable.
 
 import os
 from collections.abc import Callable
+from typing import Literal
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -68,6 +69,18 @@ from research_gap_dashboard.dashboard.coverage import (
   build_heatmap_figure,
   build_trends,
   build_trends_figure,
+)
+from research_gap_dashboard.dashboard.meta_analysis import (
+  MISSING_PAIRS_SHOWN,
+  AuthorCollaborationTable,
+  NetworkGraph,
+  SankeyGraph,
+  build_author_table,
+  build_citation_network,
+  build_cooccurrence,
+  build_limitation_flow,
+  build_network_figure,
+  build_sankey_figure,
 )
 from research_gap_dashboard.dashboard.gaps import (
   GapCard,
@@ -158,6 +171,9 @@ def _select_corpus(choices: list[CorpusChoice]) -> CorpusChoice:
 NAV_PAGE_KEY = "nav_page"
 PENDING_NAV_KEY = "pending_nav_page"
 DISCUSS_GAP_KEY = "discuss_gap_id"
+# A citation-network node click records the Paper it wants the Explainer to open
+# here, so the Explainer page can preselect it after the nav switch (issue #49).
+EXPLAINER_PAPER_KEY = "explainer_paper_key"
 
 
 def _apply_pending_nav() -> None:
@@ -180,6 +196,7 @@ def _select_page() -> str:
     [
       text.PAGE_OVERVIEW,
       text.PAGE_COVERAGE,
+      text.PAGE_META,
       text.PAGE_GAP_CARDS,
       text.PAGE_LIMITATIONS,
       text.PAGE_RETRIEVAL,
@@ -888,6 +905,269 @@ def _render_coverage_page(chosen: CorpusChoice) -> None:
   render_coverage(matrices, trends)
 
 
+def _render_meta_page(chosen: CorpusChoice) -> None:
+  """Render the Field Meta-Analysis page for the chosen Corpus."""
+  st.header(text.META_HEADING)
+  if not has_manifest(chosen.root):
+    st.warning(text.META_NO_MANIFEST)
+    return
+  st.info(text.META_INTRO)
+  manifest = load_manifest(chosen.root)
+
+  render_network_graph(build_citation_network(manifest))
+
+  if has_normalized_facts(chosen.root):
+    normalized = load_normalized_facts(chosen.root)
+    _render_cooccurrence(normalized, manifest, axis="topic")
+    _render_cooccurrence(normalized, manifest, axis="method")
+    st.subheader(text.TRENDS_HEADING)
+    _render_trends(build_trends(normalized, manifest))
+  else:
+    st.info(text.META_NO_NORMALIZED)
+
+  render_author_table(build_author_table(manifest))
+
+  if has_candidate_gaps(chosen.root):
+    render_limitation_flow(
+      build_limitation_flow(build_limitations(load_candidate_gaps(chosen.root)))
+    )
+  else:
+    st.subheader(text.META_LIMITATION_TITLE)
+    st.info(text.NO_CANDIDATE_GAPS_ARTIFACT_LIMITATIONS)
+
+
+def _render_cooccurrence(  # noqa: ANN001
+  normalized, manifest, *, axis: Literal["topic", "method"]
+) -> None:
+  """Render one co-occurrence graph with its min-weight and node-count controls."""
+  weight_key = f"meta_minw_{axis}"
+  nodes_key = f"meta_maxn_{axis}"
+  st.session_state.setdefault(weight_key, 1)
+  st.session_state.setdefault(nodes_key, 25)
+  # Build once unfiltered to learn the heaviest link, so the threshold slider's
+  # range stays stable even after the filter thins the visible edges.
+  base = build_cooccurrence(
+    normalized, manifest, axis=axis, max_nodes=st.session_state[nodes_key]
+  )
+  peak = max((edge.weight for edge in base.edges), default=1)
+  if st.session_state[weight_key] > peak:
+    st.session_state[weight_key] = peak
+  graph = build_cooccurrence(
+    normalized,
+    manifest,
+    axis=axis,
+    max_nodes=st.session_state[nodes_key],
+    min_edge_weight=st.session_state[weight_key],
+  )
+  render_network_graph(graph, axis=axis, peak=peak)
+
+
+def _render_graph_controls(peak: int, axis: str) -> None:
+  """Draw the min-weight and max-node sliders for a co-occurrence graph."""
+  with st.expander(text.META_COOCCURRENCE_CONTROLS_LABEL):
+    if peak > 1:
+      st.slider(
+        text.META_MIN_EDGE_LABEL, min_value=1, max_value=peak, key=f"meta_minw_{axis}"
+      )
+    st.slider(
+      text.META_MAX_NODES_LABEL, min_value=5, max_value=25, key=f"meta_maxn_{axis}"
+    )
+
+
+def render_network_graph(
+  graph: NetworkGraph, *, axis: str | None = None, peak: int = 1
+) -> None:
+  """Render one meta-analysis network graph with its question, caveat, and table."""
+  st.subheader(graph.title)
+  st.caption(f"**{text.META_QUESTION_LABEL}:** {graph.question}")
+  st.caption(f"**{text.META_GAP_LENS_LABEL}:** {graph.gap_lens}")
+  if graph.is_empty:
+    if axis is not None:
+      st.info(text.META_COOCCURRENCE_EMPTY_REASON.format(axis=axis))
+    else:
+      st.info(text.META_EMPTY_GRAPH)
+    for note in graph.notes:
+      st.caption(note)
+    return
+  if axis is not None:
+    _render_graph_controls(peak, axis)
+  st.caption(text.META_CLICK_HINT)
+  _render_interactive_network(graph)
+  st.caption(
+    text.META_FIGURE_SUMMARY.format(
+      nodes=len(graph.nodes),
+      edges=graph.edge_count,
+      isolated=len(graph.isolated_labels),
+    )
+  )
+  for note in graph.notes:
+    st.caption(note)
+  if graph.isolated_labels:
+    st.caption(text.META_ISOLATED_LEGEND + ": " + ", ".join(graph.isolated_labels))
+  _render_missing_pairs(graph)
+  st.caption(graph.caveat)
+  _render_graph_data_table(graph)
+
+
+def _render_interactive_network(graph: NetworkGraph) -> None:
+  """Draw the network, handle a node click, and show the selection controls."""
+  select_key = f"meta_sel_{graph.slug}"
+  selected = st.session_state.get(select_key)
+  event = st.plotly_chart(
+    build_network_figure(graph, selected_id=selected),
+    use_container_width=True,
+    key=f"meta-{graph.slug}",
+    on_select="rerun",
+    selection_mode="points",
+  )
+  clicked = _clicked_node_id(event)
+  if clicked != selected:
+    st.session_state[select_key] = clicked
+    st.rerun()
+  if selected and selected in graph.node_ids:
+    _render_node_selection(graph, selected)
+
+
+def _render_node_selection(graph: NetworkGraph, selected: str) -> None:
+  """Show the selected node's neighbours, a clear button, and any Paper jump."""
+  node = next(n for n in graph.nodes if n.node_id == selected)
+  neighbours = sorted(graph.neighbors(selected))
+  if neighbours:
+    st.caption(
+      text.META_SELECTED_CAPTION.format(
+        label=node.label, count=len(neighbours), neighbours=", ".join(neighbours)
+      )
+    )
+  else:
+    st.caption(text.META_SELECTED_NONE.format(label=node.label))
+  clear_col, jump_col = st.columns(2)
+  if clear_col.button(text.META_CLEAR_SELECTION, key=f"meta-clear-{graph.slug}"):
+    st.session_state[f"meta_sel_{graph.slug}"] = None
+    st.rerun()
+  # A citation-network node *is* a Corpus Paper (node id is its citation key), so
+  # it can open that Paper's Explainer; co-occurrence nodes are categories, not
+  # Papers, and offer the missing-pair jump instead.
+  if graph.kind == "citation" and jump_col.button(
+    text.META_OPEN_NODE_JUMP, key=f"meta-open-{graph.slug}"
+  ):
+    st.session_state[EXPLAINER_PAPER_KEY] = selected
+    st.session_state[PENDING_NAV_KEY] = text.PAGE_EXPLAINER
+    st.rerun()
+
+
+def _clicked_node_id(event: object) -> str | None:
+  """Read the clicked node id out of a plotly selection event, or None."""
+  selection = getattr(event, "selection", None)
+  if selection is None and isinstance(event, dict):
+    selection = event.get("selection")
+  points = (selection or {}).get("points") if selection else None
+  if not points:
+    return None
+  custom = points[0].get("customdata")
+  if isinstance(custom, list):
+    return str(custom[0]) if custom else None
+  return str(custom) if custom is not None else None
+
+
+def _render_missing_pairs(graph: NetworkGraph) -> None:
+  """List the strongest absent edges, each a button jumping to the Gap Cards page."""
+  if not graph.missing_pairs:
+    if graph.kind == "cooccurrence":
+      st.caption(text.META_NO_MISSING_PAIRS)
+    return
+  shown = graph.missing_pairs[:MISSING_PAIRS_SHOWN]
+  label = f"{text.META_MISSING_PAIRS_LABEL} ({len(graph.missing_pairs)})"
+  with st.expander(label):
+    st.caption(text.META_MISSING_PAIRS_HINT)
+    for index, pair in enumerate(shown):
+      label_col, button_col = st.columns([4, 1])
+      strength = (
+        "  \u00b7  " + text.META_MISSING_STRENGTH.format(strength=pair.strength)
+        if pair.strength > 1
+        else ""
+      )
+      label_col.markdown(
+        text.META_MISSING_PAIR_ROW.format(
+          source=pair.source_label, target=pair.target_label
+        )
+        + strength
+      )
+      if button_col.button(
+        text.META_MISSING_PAIR_JUMP,
+        key=f"meta-jump-{graph.slug}-{index}",
+        width="stretch",
+      ):
+        st.session_state[PENDING_NAV_KEY] = text.PAGE_GAP_CARDS
+        st.rerun()
+    if len(graph.missing_pairs) > len(shown):
+      st.caption(
+        text.META_MISSING_MORE.format(more=len(graph.missing_pairs) - len(shown))
+      )
+
+
+def render_author_table(table: AuthorCollaborationTable) -> None:
+  """Render the author collaboration view as a ranked table, not a hairball."""
+  st.subheader(table.title)
+  st.caption(f"**{text.META_QUESTION_LABEL}:** {table.question}")
+  st.caption(f"**{text.META_GAP_LENS_LABEL}:** {table.gap_lens}")
+  if table.is_empty:
+    st.info(text.META_EMPTY_GRAPH)
+    for note in table.notes:
+      st.caption(note)
+    return
+  st.dataframe(
+    [
+      {
+        text.META_COLLABORATION_COL_AUTHOR: row.author,
+        text.META_COLLABORATION_COL_PAPERS: row.paper_count,
+        text.META_COLLABORATION_COL_COLLABORATORS: row.collaborator_count,
+      }
+      for row in table.rows
+    ],
+    use_container_width=True,
+    hide_index=True,
+  )
+  for note in table.notes:
+    st.caption(note)
+  st.caption(table.caveat)
+
+
+def _render_graph_data_table(graph: NetworkGraph) -> None:
+  """Show the graph's edges as a table: the accessible, non-interactive fallback."""
+  rows = [
+    {"Source": edge.source, "Target": edge.target, "Papers": edge.weight}
+    for edge in graph.edges
+  ]
+  with st.expander(text.META_DATA_TABLE_LABEL):
+    if rows:
+      st.dataframe(rows, use_container_width=True, hide_index=True)
+    else:
+      st.caption(text.META_EMPTY_GRAPH)
+
+
+def render_limitation_flow(graph: SankeyGraph) -> None:
+  """Render the limitation follow-up Sankey with its question and caveat."""
+  st.subheader(graph.title)
+  st.caption(f"**{text.META_QUESTION_LABEL}:** {graph.question}")
+  st.caption(f"**{text.META_GAP_LENS_LABEL}:** {graph.gap_lens}")
+  if graph.is_empty:
+    st.info(text.META_LIMITATION_NO_DATA)
+    return
+  st.plotly_chart(
+    build_sankey_figure(graph), use_container_width=True, key="meta-sankey"
+  )
+  st.caption(
+    text.META_LIMITATION_SUMMARY.format(
+      open=graph.unanswered_count,
+      total=graph.unanswered_count + graph.addressed_count,
+      addressed=graph.addressed_count,
+    )
+  )
+  if graph.all_open:
+    st.info(text.META_LIMITATION_ALL_OPEN_NOTE.format(no_later=graph.no_later_count))
+  st.caption(graph.caveat)
+
+
 def _render_gap_cards_page(chosen: CorpusChoice) -> None:
   """Render the Gap Cards page for the chosen Corpus."""
   if not has_candidate_gaps(chosen.root):
@@ -938,6 +1218,7 @@ def _render_overview_page(chosen: CorpusChoice) -> None:
 # so `main` just dispatches instead of growing a return per page.
 _PAGE_RENDERERS: dict[str, Callable[[CorpusChoice], None]] = {
   text.PAGE_COVERAGE: _render_coverage_page,
+  text.PAGE_META: _render_meta_page,
   text.PAGE_GAP_CARDS: _render_gap_cards_page,
   text.PAGE_LIMITATIONS: _render_limitations_page,
   text.PAGE_RETRIEVAL: _render_retrieval_page,
@@ -1000,9 +1281,17 @@ def _render_explainer_page(corpus_root: Path) -> None:
     st.warning(text.EXPLAINER_NO_PAPERS)
     return
 
+  pending_key = st.session_state.pop(EXPLAINER_PAPER_KEY, None)
+  default_index = 0
+  if pending_key is not None:
+    default_index = next(
+      (i for i, entry in enumerate(menu.entries) if entry.citation_key == pending_key),
+      0,
+    )
   chosen_paper = st.selectbox(
     text.EXPLAINER_PAPER_PICKER_LABEL,
     menu.entries,
+    index=default_index,
     format_func=lambda entry: entry.label,
   )
   view = _load_explainer_view(corpus_root, manifest, chosen_paper)
