@@ -27,6 +27,7 @@ from research_gap_dashboard.analytics import (
   build_analytics_client,
   summarize_gaps,
 )
+from research_gap_dashboard.env import load_env
 from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard import conversations as convo
 from research_gap_dashboard.dashboard.chat_history import ChatTurn
@@ -1238,6 +1239,7 @@ LLM_CACHE_DIR = ".llm-cache"
 
 def main() -> None:
   """Run the dashboard: pick a corpus and page, then render it."""
+  load_env()
   st.set_page_config(page_title=text.APP_TITLE, layout="wide")
   st.title(text.APP_TITLE)
 

@@ -23,7 +23,10 @@ just init
 ## Configuration
 
 Settings are read from the project-root `.env` (never committed); copy
-`.env.example` and fill it in. The LLM boundary (see
+`.env.example` and fill it in. To change a key, edit that one line in `.env` —
+nothing else. Every entry point (the `just` recipes, the `research-gap-dashboard`
+CLI, and `streamlit run`) loads `.env` automatically, and a real environment
+variable always overrides the file. The LLM boundary (see
 [`docs/adr/0001-llm-extraction-with-anthropic.md`](docs/adr/0001-llm-extraction-with-anthropic.md))
 reads:
 

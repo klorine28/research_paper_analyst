@@ -18,6 +18,7 @@ from research_gap_dashboard.dashboard.extraction_review import (
 from research_gap_dashboard.apply_corrections import apply_parse_corrections
 from research_gap_dashboard.detect import detect_corpus
 from research_gap_dashboard.diagnose import diagnose_corpus, render_funnel
+from research_gap_dashboard.env import load_env
 from research_gap_dashboard.explain import explain_corpus
 from research_gap_dashboard.extract import extract_corpus
 from research_gap_dashboard.ingest import (
@@ -220,6 +221,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
   """Run one pipeline command; return the process exit code."""
+  load_env()
   logging.basicConfig(level=logging.INFO, format="%(message)s")
   arguments = build_parser().parse_args(argv)
 
