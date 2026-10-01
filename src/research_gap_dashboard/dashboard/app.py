@@ -10,8 +10,8 @@ corpus directories with the RESEARCH_GAP_CORPORA_DIR environment variable.
 
 import os
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Literal
-from datetime import datetime, timezone
 from pathlib import Path
 
 import plotly.graph_objects as go
@@ -28,13 +28,16 @@ from research_gap_dashboard.analytics import (
   build_analytics_client,
   summarize_gaps,
 )
+from research_gap_dashboard.env import load_env
 from research_gap_dashboard.dashboard import text
-from research_gap_dashboard.dashboard.chat_history import (
-  ChatTurn,
-  Role,
-  append_turn,
-  clear_chat_history,
-  load_chat_history,
+from research_gap_dashboard.dashboard import conversations as convo
+from research_gap_dashboard.dashboard.chat_history import ChatTurn
+from research_gap_dashboard.dashboard.conversations import Conversation
+from research_gap_dashboard.dashboard.journal import (
+  delete_entry,
+  load_journal,
+  promote_to_journal,
+  render_notes_for_context,
 )
 from research_gap_dashboard.dashboard.artifacts import (
   CorpusChoice,
@@ -63,24 +66,21 @@ from research_gap_dashboard.dashboard.comparison import (
   selection_error,
 )
 from research_gap_dashboard.dashboard.coverage import (
-  CoverageMatrixView,
   TrendsData,
-  build_coverage_matrices,
-  build_heatmap_figure,
   build_trends,
   build_trends_figure,
 )
 from research_gap_dashboard.dashboard.meta_analysis import (
   MISSING_PAIRS_SHOWN,
   AuthorCollaborationTable,
+  LimitationFollowUpView,
   NetworkGraph,
-  SankeyGraph,
   build_author_table,
   build_citation_network,
   build_cooccurrence,
+  build_limitation_bar_figure,
   build_limitation_flow,
   build_network_figure,
-  build_sankey_figure,
 )
 from research_gap_dashboard.dashboard.gaps import (
   GapCard,
@@ -195,7 +195,6 @@ def _select_page() -> str:
     text.NAV_LABEL,
     [
       text.PAGE_OVERVIEW,
-      text.PAGE_COVERAGE,
       text.PAGE_META,
       text.PAGE_GAP_CARDS,
       text.PAGE_LIMITATIONS,
@@ -359,33 +358,58 @@ def _render_overview_gallery(overview: OverviewData) -> None:
   """Render the 2x2 grid of coloured preview tiles and the expanded panels."""
   st.subheader(text.OVERVIEW_GALLERY_HEADING)
   st.caption(text.OVERVIEW_GALLERY_HINT)
-  _inject_tile_styles()
+  _render_tile_gallery(
+    "ovtile",
+    _OVERVIEW_TILES,
+    OVERVIEW_OPEN_KEY,
+    lambda chart_id: _render_tile_preview(chart_id, overview),
+    lambda chart_id: _render_overview_panel_body(chart_id, overview),
+  )
 
-  # Every tile starts collapsed to a miniature; the researcher expands the ones
-  # they want full size (issue #45 follow-up).
-  open_charts: set[str] = st.session_state.setdefault(OVERVIEW_OPEN_KEY, set())
-  for row_start in range(0, len(_OVERVIEW_TILES), 2):
-    columns = st.columns(2)
+
+def _render_tile_gallery(
+  prefix: str,
+  tiles: list[tuple[str, str, str]],
+  open_key: str,
+  render_preview: Callable[[str], None],
+  render_panel: Callable[[str], None],
+  *,
+  columns: int = 2,
+) -> None:
+  """
+  Render a grid of coloured preview tiles, expanding the ones the reader opens.
+
+  The one gallery idiom the Corpus Overview and the Field Meta-Analysis share:
+  each chart is a collapsed, tinted tile with a miniature, and clicking it opens
+  the full chart below the grid. `prefix` namespaces the widget keys and the CSS
+  so two galleries on different pages never collide; `render_preview` and
+  `render_panel` supply the page-specific thumbnail and full chart for a tile id.
+  """
+  _inject_gallery_styles(prefix, tiles)
+  open_charts: set[str] = st.session_state.setdefault(open_key, set())
+  for row_start in range(0, len(tiles), columns):
+    row = st.columns(columns)
     for (chart_id, title, _shade), column in zip(
-      _OVERVIEW_TILES[row_start : row_start + 2], columns
+      tiles[row_start : row_start + columns], row
     ):
-      with column, st.container(key=f"ovtile_{chart_id}", border=True):
+      with column, st.container(key=f"{prefix}_{chart_id}", border=True):
         st.markdown(f"**{title}**")
-        _render_tile_preview(chart_id, overview)
+        render_preview(chart_id)
         is_open = chart_id in open_charts
         label = text.OVERVIEW_TILE_COLLAPSE if is_open else text.OVERVIEW_TILE_EXPAND
-        if st.button(label, key=f"ovtile_btn_{chart_id}", use_container_width=True):
+        if st.button(label, key=f"{prefix}_btn_{chart_id}", use_container_width=True):
           open_charts.symmetric_difference_update({chart_id})
           st.rerun()
 
-  for chart_id, title, shade in _OVERVIEW_TILES:
+  for chart_id, title, shade in tiles:
     if chart_id in open_charts:
-      _render_overview_panel(chart_id, title, shade, overview)
+      _render_tile_panel_header(title, shade)
+      render_panel(chart_id)
 
 
-def _inject_tile_styles() -> None:
+def _inject_gallery_styles(prefix: str, tiles: list[tuple[str, str, str]]) -> None:
   """
-  Tint each overview tile its own shade of blue, keeping its text readable.
+  Tint each gallery tile its own shade of blue, keeping its text readable.
 
   The tile background is a light blue, but Streamlit text inherits the active
   theme's font colour (light in dark mode), which would vanish on a light tile.
@@ -393,8 +417,8 @@ def _inject_tile_styles() -> None:
   light background, making both legible on every shade and in either theme.
   """
   blocks = []
-  for chart_id, _title, shade in _OVERVIEW_TILES:
-    key = f".st-key-ovtile_{chart_id}"
+  for chart_id, _title, shade in tiles:
+    key = f".st-key-{prefix}_{chart_id}"
     blocks.append(
       f"{key}{{background:{shade};border-radius:0.6rem;}}"
       f"{key} p,{key} label,{key} strong,{key} span,"
@@ -406,6 +430,16 @@ def _inject_tile_styles() -> None:
       f"color:{_OVERVIEW_TILE_TEXT} !important;}}"
     )
   st.markdown(f"<style>{''.join(blocks)}</style>", unsafe_allow_html=True)
+
+
+def _render_tile_panel_header(title: str, shade: str) -> None:
+  """Render the coloured header that opens an expanded gallery panel."""
+  st.markdown(
+    f"<div style='background:{shade};color:{_OVERVIEW_TILE_TEXT};"
+    "padding:0.45rem 0.9rem;border-radius:0.4rem;font-weight:600;"
+    f"margin-top:0.6rem;'>{title}</div>",
+    unsafe_allow_html=True,
+  )
 
 
 def _render_tile_preview(chart_id: str, overview: OverviewData) -> None:
@@ -507,16 +541,8 @@ def _render_mini_bar(labels: list[str], values: list[int], *, key: str) -> None:
   )
 
 
-def _render_overview_panel(
-  chart_id: str, title: str, shade: str, overview: OverviewData
-) -> None:
-  """Render one expanded chart panel: coloured header, how-to-read, the chart."""
-  st.markdown(
-    f"<div style='background:{shade};color:{_OVERVIEW_TILE_TEXT};"
-    "padding:0.45rem 0.9rem;border-radius:0.4rem;font-weight:600;"
-    f"margin-top:0.6rem;'>{title}</div>",
-    unsafe_allow_html=True,
-  )
+def _render_overview_panel_body(chart_id: str, overview: OverviewData) -> None:
+  """Render one expanded overview chart (the coloured header is drawn generically)."""
   if chart_id == "papers_year":
     _render_papers_per_year(overview)
   elif chart_id == "venues":
@@ -591,29 +617,6 @@ def _render_fact_density(density: FactDensity | None) -> None:
   st.bar_chart(
     {text.COLUMN_FACTS: {paper.label: paper.count for paper in density.papers}}
   )
-
-
-def render_coverage(matrices: list[CoverageMatrixView], trends: TrendsData) -> None:
-  """Render the Coverage Matrix heatmap and the Trends chart from finished data."""
-  st.header(text.COVERAGE_HEADING)
-  st.info(text.COVERAGE_INTRO)
-
-  st.subheader(text.HEATMAP_HEADING)
-  if not matrices:
-    st.warning(text.HEATMAP_NO_MATRICES)
-  else:
-    with st.expander(text.HOW_TO_READ_LABEL):
-      st.markdown(text.HEATMAP_EXPLAINER)
-    chosen = st.selectbox(
-      text.HEATMAP_AXIS_LABEL,
-      matrices,
-      format_func=lambda view: view.option_label,
-    )
-    st.caption(text.HEATMAP_DENOMINATOR.format(total=chosen.corpus_paper_count))
-    st.plotly_chart(build_heatmap_figure(chosen), use_container_width=True)
-
-  st.subheader(text.TRENDS_HEADING)
-  _render_trends(trends)
 
 
 def _render_trends(trends: TrendsData) -> None:
@@ -891,53 +894,165 @@ def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
     _render_gap_card(card, corpus_root)
 
 
-def _render_coverage_page(chosen: CorpusChoice) -> None:
-  """Render the Coverage & Trends page for the chosen Corpus."""
-  st.header(text.COVERAGE_HEADING)
-  if not has_candidate_gaps(chosen.root):
-    st.warning(text.NO_CANDIDATE_GAPS_ARTIFACT_COVERAGE)
-    return
-  if not has_normalized_facts(chosen.root):
-    st.warning(text.NO_NORMALIZED_FACTS_ARTIFACT)
-    return
-  matrices = build_coverage_matrices(load_candidate_gaps(chosen.root))
-  trends = build_trends(load_normalized_facts(chosen.root), load_manifest(chosen.root))
-  render_coverage(matrices, trends)
+# The Field Meta-Analysis gallery: the six graphs as the same collapsible tiles
+# the Corpus Overview uses, so a reader scans thumbnails and opens the ones they
+# want full size instead of scrolling six interactive charts (shared idiom).
+_META_TILES: list[tuple[str, str, str]] = [
+  ("citation", text.META_CITATION_TITLE, "#e8f1fc"),
+  ("topic", text.META_TOPIC_TITLE, "#cfe3f8"),
+  ("method", text.META_METHOD_TITLE, "#b6d4f2"),
+  ("trends", text.TRENDS_HEADING, "#9dc4ec"),
+  ("authors", text.META_COLLABORATION_TITLE, "#86b4e6"),
+  ("limitation", text.META_LIMITATION_TITLE, "#6fa4df"),
+]
+META_OPEN_KEY = "meta_open_charts"
+_META_THUMB_HEIGHT = 170
 
 
 def _render_meta_page(chosen: CorpusChoice) -> None:
-  """Render the Field Meta-Analysis page for the chosen Corpus."""
+  """Render the Field Meta-Analysis page as a gallery of the six graph tiles."""
   st.header(text.META_HEADING)
   if not has_manifest(chosen.root):
     st.warning(text.META_NO_MANIFEST)
     return
   st.info(text.META_INTRO)
+  st.caption(text.META_GALLERY_HINT)
   manifest = load_manifest(chosen.root)
+  normalized = (
+    load_normalized_facts(chosen.root) if has_normalized_facts(chosen.root) else None
+  )
+  has_gaps = has_candidate_gaps(chosen.root)
 
-  render_network_graph(build_citation_network(manifest))
-
-  if has_normalized_facts(chosen.root):
-    normalized = load_normalized_facts(chosen.root)
-    _render_cooccurrence(normalized, manifest, axis="topic")
-    _render_cooccurrence(normalized, manifest, axis="method")
-    st.subheader(text.TRENDS_HEADING)
-    _render_trends(build_trends(normalized, manifest))
-  else:
-    st.info(text.META_NO_NORMALIZED)
-
-  render_author_table(build_author_table(manifest))
-
-  if has_candidate_gaps(chosen.root):
-    render_limitation_flow(
-      build_limitation_flow(build_limitations(load_candidate_gaps(chosen.root)))
+  # Every builder here is a pure read over on-disk artifacts (no LLM), so building
+  # the base graphs up front for the thumbnails is cheap; the panels rebuild the
+  # co-occurrence graphs with the reader's slider state.
+  bundle = _MetaBundle(
+    citation=build_citation_network(manifest),
+    authors=build_author_table(manifest),
+    topic=build_cooccurrence(normalized, manifest, axis="topic", max_nodes=25)
+    if normalized is not None
+    else None,
+    method=build_cooccurrence(normalized, manifest, axis="method", max_nodes=25)
+    if normalized is not None
+    else None,
+    trends=build_trends(normalized, manifest) if normalized is not None else None,
+    limitation=build_limitation_flow(
+      build_limitations(load_candidate_gaps(chosen.root))
     )
-  else:
-    st.subheader(text.META_LIMITATION_TITLE)
-    st.info(text.NO_CANDIDATE_GAPS_ARTIFACT_LIMITATIONS)
+    if has_gaps
+    else None,
+  )
+
+  _render_tile_gallery(
+    "metatile",
+    _META_TILES,
+    META_OPEN_KEY,
+    lambda chart_id: _render_meta_preview(chart_id, bundle),
+    lambda chart_id: _render_meta_panel(
+      chart_id, manifest, normalized, has_gaps, bundle
+    ),
+  )
+
+
+@dataclass
+class _MetaBundle:
+  """The pre-built graphs a meta gallery tile needs for its thumbnail and panel."""
+
+  citation: NetworkGraph
+  authors: AuthorCollaborationTable
+  topic: NetworkGraph | None
+  method: NetworkGraph | None
+  trends: TrendsData | None
+  limitation: LimitationFollowUpView | None
+
+
+def _render_meta_thumb(figure: go.Figure, key: str) -> None:
+  """Render a small, non-interactive thumbnail of a meta graph inside its tile."""
+  figure.update_layout(
+    height=_META_THUMB_HEIGHT,
+    margin={"l": 4, "r": 4, "t": 8, "b": 4},
+    showlegend=False,
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+  )
+  st.plotly_chart(
+    figure,
+    use_container_width=True,
+    config={"displayModeBar": False, "staticPlot": True},
+    key=f"metathumb_{key}",
+  )
+
+
+def _render_meta_preview(chart_id: str, bundle: _MetaBundle) -> None:
+  """Render a tile's thumbnail: a miniature graph with a stat, or why it's empty."""
+  if chart_id == "citation":
+    _render_network_preview(bundle.citation)
+  elif chart_id == "topic":
+    _render_network_preview(bundle.topic)
+  elif chart_id == "method":
+    _render_network_preview(bundle.method)
+  elif chart_id == "trends":
+    if bundle.trends is not None and bundle.trends.has_data:
+      _render_meta_thumb(build_trends_figure(bundle.trends), "trends")
+    else:
+      st.caption(text.META_PREVIEW_EMPTY)
+  elif chart_id == "authors":
+    rows = bundle.authors.rows[:8]
+    if rows:
+      _render_mini_bar(
+        [row.author for row in rows], [row.paper_count for row in rows], key="authors"
+      )
+    else:
+      st.caption(text.META_PREVIEW_EMPTY)
+  elif chart_id == "limitation":
+    if bundle.limitation is not None and not bundle.limitation.is_empty:
+      _render_meta_thumb(build_limitation_bar_figure(bundle.limitation), "limitation")
+    else:
+      st.caption(text.META_PREVIEW_EMPTY)
+
+
+def _render_network_preview(graph: NetworkGraph | None) -> None:
+  """Render a small network thumbnail with its node/edge/isolated counts."""
+  if graph is None or graph.is_empty:
+    st.caption(text.META_PREVIEW_EMPTY)
+    return
+  _render_meta_thumb(build_network_figure(graph, thumbnail=True), graph.slug)
+  st.caption(
+    text.META_FIGURE_SUMMARY.format(
+      nodes=len(graph.nodes),
+      edges=graph.edge_count,
+      isolated=len(graph.isolated_labels),
+    )
+  )
+
+
+def _render_meta_panel(  # noqa: ANN001
+  chart_id: str, manifest, normalized, has_gaps: bool, bundle: _MetaBundle
+) -> None:
+  """Render a tile's full chart below the grid (the coloured header is generic)."""
+  if chart_id == "citation":
+    render_network_graph(bundle.citation, show_title=False)
+  elif chart_id in ("topic", "method"):
+    if normalized is None:
+      st.info(text.META_NO_NORMALIZED)
+    else:
+      _render_cooccurrence(normalized, manifest, axis=chart_id, show_title=False)
+  elif chart_id == "trends":
+    if bundle.trends is None:
+      st.info(text.META_NO_NORMALIZED)
+    else:
+      _render_trends(bundle.trends)
+  elif chart_id == "authors":
+    render_author_table(bundle.authors, show_title=False)
+  elif chart_id == "limitation":
+    if not has_gaps or bundle.limitation is None:
+      st.info(text.NO_CANDIDATE_GAPS_ARTIFACT_LIMITATIONS)
+    else:
+      render_limitation_flow(bundle.limitation, show_title=False)
 
 
 def _render_cooccurrence(  # noqa: ANN001
-  normalized, manifest, *, axis: Literal["topic", "method"]
+  normalized, manifest, *, axis: Literal["topic", "method"], show_title: bool = True
 ) -> None:
   """Render one co-occurrence graph with its min-weight and node-count controls."""
   weight_key = f"meta_minw_{axis}"
@@ -959,7 +1074,7 @@ def _render_cooccurrence(  # noqa: ANN001
     max_nodes=st.session_state[nodes_key],
     min_edge_weight=st.session_state[weight_key],
   )
-  render_network_graph(graph, axis=axis, peak=peak)
+  render_network_graph(graph, axis=axis, peak=peak, show_title=show_title)
 
 
 def _render_graph_controls(peak: int, axis: str) -> None:
@@ -975,10 +1090,15 @@ def _render_graph_controls(peak: int, axis: str) -> None:
 
 
 def render_network_graph(
-  graph: NetworkGraph, *, axis: str | None = None, peak: int = 1
+  graph: NetworkGraph,
+  *,
+  axis: str | None = None,
+  peak: int = 1,
+  show_title: bool = True,
 ) -> None:
   """Render one meta-analysis network graph with its question, caveat, and table."""
-  st.subheader(graph.title)
+  if show_title:
+    st.subheader(graph.title)
   st.caption(f"**{text.META_QUESTION_LABEL}:** {graph.question}")
   st.caption(f"**{text.META_GAP_LENS_LABEL}:** {graph.gap_lens}")
   if graph.is_empty:
@@ -1105,9 +1225,12 @@ def _render_missing_pairs(graph: NetworkGraph) -> None:
       )
 
 
-def render_author_table(table: AuthorCollaborationTable) -> None:
+def render_author_table(
+  table: AuthorCollaborationTable, *, show_title: bool = True
+) -> None:
   """Render the author collaboration view as a ranked table, not a hairball."""
-  st.subheader(table.title)
+  if show_title:
+    st.subheader(table.title)
   st.caption(f"**{text.META_QUESTION_LABEL}:** {table.question}")
   st.caption(f"**{text.META_GAP_LENS_LABEL}:** {table.gap_lens}")
   if table.is_empty:
@@ -1145,27 +1268,35 @@ def _render_graph_data_table(graph: NetworkGraph) -> None:
       st.caption(text.META_EMPTY_GRAPH)
 
 
-def render_limitation_flow(graph: SankeyGraph) -> None:
-  """Render the limitation follow-up Sankey with its question and caveat."""
-  st.subheader(graph.title)
-  st.caption(f"**{text.META_QUESTION_LABEL}:** {graph.question}")
-  st.caption(f"**{text.META_GAP_LENS_LABEL}:** {graph.gap_lens}")
-  if graph.is_empty:
+def render_limitation_flow(
+  view: LimitationFollowUpView, *, show_title: bool = True
+) -> None:
+  """Render the limitation follow-up status bar with its question and caveat."""
+  if show_title:
+    st.subheader(view.title)
+  st.caption(f"**{text.META_QUESTION_LABEL}:** {view.question}")
+  st.caption(f"**{text.META_GAP_LENS_LABEL}:** {view.gap_lens}")
+  if view.is_empty:
     st.info(text.META_LIMITATION_NO_DATA)
     return
   st.plotly_chart(
-    build_sankey_figure(graph), use_container_width=True, key="meta-sankey"
+    build_limitation_bar_figure(view), use_container_width=True, key="meta-limitation"
   )
   st.caption(
     text.META_LIMITATION_SUMMARY.format(
-      open=graph.unanswered_count,
-      total=graph.unanswered_count + graph.addressed_count,
-      addressed=graph.addressed_count,
+      total=view.total,
+      addressed=view.addressed_count,
+      open=view.open_checked_count,
+      no_later=view.no_later_count,
     )
   )
-  if graph.all_open:
-    st.info(text.META_LIMITATION_ALL_OPEN_NOTE.format(no_later=graph.no_later_count))
-  st.caption(graph.caveat)
+  if view.top_addressed:
+    st.caption(text.META_LIMITATION_TOP_ADDRESSED)
+    for label, count in view.top_addressed:
+      st.caption(text.META_LIMITATION_TOP_ROW.format(label=label, count=count))
+  elif view.all_open:
+    st.info(text.META_LIMITATION_ALL_OPEN_NOTE.format(no_later=view.no_later_count))
+  st.caption(view.caveat)
 
 
 def _render_gap_cards_page(chosen: CorpusChoice) -> None:
@@ -1217,7 +1348,6 @@ def _render_overview_page(chosen: CorpusChoice) -> None:
 # Each dashboard page maps to the function that renders it for a chosen Corpus,
 # so `main` just dispatches instead of growing a return per page.
 _PAGE_RENDERERS: dict[str, Callable[[CorpusChoice], None]] = {
-  text.PAGE_COVERAGE: _render_coverage_page,
   text.PAGE_META: _render_meta_page,
   text.PAGE_GAP_CARDS: _render_gap_cards_page,
   text.PAGE_LIMITATIONS: _render_limitations_page,
@@ -1237,6 +1367,7 @@ LLM_CACHE_DIR = ".llm-cache"
 
 def main() -> None:
   """Run the dashboard: pick a corpus and page, then render it."""
+  load_env()
   st.set_page_config(page_title=text.APP_TITLE, layout="wide")
   st.title(text.APP_TITLE)
 
@@ -1437,8 +1568,13 @@ def _render_grounding_flags(dropped: list[str]) -> None:
     )
 
 
+# Which conversation thread the Analytics page is showing. Persisted threads live
+# on disk (issue #50); this only remembers the researcher's current selection.
+ACTIVE_CONVERSATION_KEY = "active_conversation_id"
+
+
 def _render_analytics_page(corpus_root: Path) -> None:
-  """Render the Conversational Analytics page: grounded chat and narrative summary."""
+  """Render Conversational Analytics: named threads, a journal, a narrative summary."""
   st.header(text.ANALYTICS_HEADING)
   st.info(text.ANALYTICS_INTRO)
   if not has_manifest(corpus_root):
@@ -1452,17 +1588,136 @@ def _render_analytics_page(corpus_root: Path) -> None:
 
   manifest = load_manifest(corpus_root)
   has_gaps = has_candidate_gaps(corpus_root)
-  context = _grounding_context(corpus_root, manifest, has_gaps)
 
-  if _render_scoped_gap_chat(corpus_root, context, client):
-    return
-  _render_narrative_summary(context, client, has_gaps)
-  _render_chat(corpus_root, context, client)
+  conversation = _active_conversation(corpus_root)
+  _render_conversation_picker(corpus_root, conversation)
+  context = _conversation_context(corpus_root, manifest, has_gaps, conversation)
+  _render_conversation(corpus_root, conversation, context, client)
+
+  st.divider()
+  _render_narrative_summary(
+    _grounding_context(corpus_root, manifest, has_gaps), client, has_gaps
+  )
+  st.divider()
+  _render_journal(corpus_root)
 
 
-def _scoped_history_key(gap_id: str) -> str:
-  """Session-state key for one gap's ephemeral scoped-chat transcript."""
-  return f"scoped_chat_{gap_id}"
+def _active_conversation(corpus_root: Path) -> Conversation:
+  """
+  Resolve which conversation to show, opening it when it is new (issue #50).
+
+  A pending 'Discuss this gap' click (issue #48) opens or reopens the thread
+  scoped to that Candidate Gap and makes it active; otherwise the thread remembered
+  in session state is shown, defaulting to the general whole-Corpus thread. Both
+  the per-gap and general threads persist across sessions.
+  """
+  pending_gap = st.session_state.pop(DISCUSS_GAP_KEY, None)
+  if pending_gap:
+    card = _scoped_gap_card(corpus_root, pending_gap)
+    if card is not None:
+      cid = convo.conversation_id_for_gap(card.gap_id)
+      convo.get_or_create_conversation(
+        corpus_root,
+        cid,
+        title=text.ANALYTICS_SCOPED_TITLE.format(title=card.title),
+        gap_id=card.gap_id,
+      )
+      st.session_state[ACTIVE_CONVERSATION_KEY] = cid
+
+  convo.get_or_create_conversation(
+    corpus_root,
+    convo.GENERAL_CONVERSATION_ID,
+    title=text.ANALYTICS_GENERAL_TITLE,
+    gap_id=None,
+  )
+  active_id = st.session_state.get(
+    ACTIVE_CONVERSATION_KEY, convo.GENERAL_CONVERSATION_ID
+  )
+  conversation = convo.load_conversation(corpus_root, active_id)
+  if conversation is None:
+    st.session_state[ACTIVE_CONVERSATION_KEY] = convo.GENERAL_CONVERSATION_ID
+    conversation = convo.load_conversation(corpus_root, convo.GENERAL_CONVERSATION_ID)
+  assert conversation is not None  # general is created just above
+  return conversation
+
+
+def _render_conversation_picker(corpus_root: Path, conversation: Conversation) -> None:
+  """Pick, start, rename, or delete a conversation thread (issue #50)."""
+  summaries = convo.list_conversations(corpus_root)
+  ids = [summary.conversation_id for summary in summaries]
+  labels = {
+    summary.conversation_id: text.ANALYTICS_CONVERSATION_OPTION.format(
+      title=summary.title, turns=summary.turn_count
+    )
+    for summary in summaries
+  }
+  index = (
+    ids.index(conversation.conversation_id)
+    if conversation.conversation_id in ids
+    else 0
+  )
+
+  def _label(conversation_id: str) -> str:
+    return labels.get(conversation_id, conversation_id)
+
+  chosen = st.selectbox(
+    text.ANALYTICS_CONVERSATION_PICKER_LABEL,
+    ids,
+    index=index,
+    format_func=_label,
+  )
+  if chosen != conversation.conversation_id:
+    st.session_state[ACTIVE_CONVERSATION_KEY] = chosen
+    st.rerun()
+
+  new_col, delete_col = st.columns(2)
+  if new_col.button(text.ANALYTICS_NEW_CONVERSATION_BUTTON):
+    cid = convo.new_conversation_id()
+    convo.get_or_create_conversation(
+      corpus_root, cid, title=text.ANALYTICS_NEW_CONVERSATION_TITLE, gap_id=None
+    )
+    st.session_state[ACTIVE_CONVERSATION_KEY] = cid
+    st.rerun()
+  if delete_col.button(text.ANALYTICS_DELETE_CONVERSATION_BUTTON):
+    convo.delete_conversation(corpus_root, conversation.conversation_id)
+    st.session_state.pop(ACTIVE_CONVERSATION_KEY, None)
+    st.rerun()
+
+  with st.expander(text.ANALYTICS_RENAME_LABEL):
+    new_title = st.text_input(
+      text.ANALYTICS_RENAME_LABEL,
+      value=conversation.title,
+      key=f"rename-{conversation.conversation_id}",
+      label_visibility="collapsed",
+    )
+    if st.button(text.ANALYTICS_RENAME_BUTTON) and new_title.strip():
+      convo.rename_conversation(
+        corpus_root, conversation.conversation_id, new_title.strip()
+      )
+      st.rerun()
+
+
+def _conversation_context(
+  corpus_root: Path,
+  manifest: ManifestArtifact,
+  has_gaps: bool,
+  conversation: Conversation,
+) -> GroundingContext:
+  """
+  Build the grounded context for one thread, scoped and carrying journal notes.
+
+  A per-gap thread narrows to that gap's slice (issue #48); every thread also
+  carries the researcher's kept journal notes, labelled as their own so grounding
+  still binds the model to cite only Corpus Papers (issue #50).
+  """
+  base = _grounding_context(corpus_root, manifest, has_gaps)
+  notes = render_notes_for_context(load_journal(corpus_root))
+  note_list = [notes] if notes else []
+  if conversation.gap_id:
+    card = _scoped_gap_card(corpus_root, conversation.gap_id)
+    if card is not None:
+      return scope_context_to_gap(card, base).model_copy(update={"notes": note_list})
+  return base.model_copy(update={"notes": note_list})
 
 
 def _scoped_gap_card(corpus_root: Path, gap_id: str) -> GapCard | None:
@@ -1473,66 +1728,6 @@ def _scoped_gap_card(corpus_root: Path, gap_id: str) -> GapCard | None:
     load_candidate_gaps(corpus_root), load_judgments(corpus_root), corpus_root
   )
   return next((card for card in data.cards if card.gap_id == gap_id), None)
-
-
-def _render_scoped_gap_chat(
-  corpus_root: Path, context: GroundingContext, client: LlmClient
-) -> bool:
-  """
-  Render the one-click chat scoped to a single Candidate Gap (issue #48).
-
-  Returns True when a scoped chat was shown, so the page skips the whole-Corpus
-  chat and narrative summary. The scoped conversation is ephemeral in session
-  state; per-gap persistent conversations are a separate v2 feature (issue #44).
-  """
-  gap_id = st.session_state.get(DISCUSS_GAP_KEY)
-  if not gap_id:
-    return False
-  card = _scoped_gap_card(corpus_root, gap_id)
-  if card is None:
-    st.session_state.pop(DISCUSS_GAP_KEY, None)
-    st.info(text.ANALYTICS_SCOPED_GAP_MISSING)
-    return False
-
-  scoped = scope_context_to_gap(card, context)
-  st.subheader(text.ANALYTICS_SCOPED_HEADING.format(title=card.title))
-  st.info(text.ANALYTICS_SCOPED_INTRO)
-  if st.button(text.ANALYTICS_SCOPED_EXIT_BUTTON):
-    st.session_state.pop(DISCUSS_GAP_KEY, None)
-    st.session_state.pop(_scoped_history_key(gap_id), None)
-    st.rerun()
-
-  turns: list[ChatTurn] = st.session_state.get(_scoped_history_key(gap_id), [])
-  for turn in turns:
-    _render_chat_turn(turn)
-
-  question = st.chat_input(
-    text.ANALYTICS_SCOPED_CHAT_INPUT_LABEL, key=f"scoped-input-{gap_id}"
-  )
-  if not question:
-    return True
-  transcript = [f"{turn.role}: {turn.content}" for turn in turns]
-  with st.spinner(text.ANALYTICS_THINKING):
-    answer = answer_question(question, scoped, client, history=transcript)
-  st.session_state[_scoped_history_key(gap_id)] = [
-    *turns,
-    _ephemeral_turn("user", question),
-    _ephemeral_turn("assistant", answer.answer, answer.citations),
-  ]
-  _render_grounding_flags(answer.dropped_citations)
-  st.rerun()
-
-
-def _ephemeral_turn(
-  role: Role, content: str, citations: list[str] | None = None
-) -> ChatTurn:
-  """Build one in-memory scoped-chat turn (not persisted to disk; see issue #44)."""
-  return ChatTurn(
-    role=role,
-    content=content,
-    citations=list(citations or []),
-    at=datetime.now(timezone.utc),
-  )
 
 
 def _grounding_context(
@@ -1588,29 +1783,86 @@ def _render_narrative(narrative: GroundedNarrative) -> None:
   _render_grounding_flags(narrative.dropped_citations)
 
 
-def _render_chat(
-  corpus_root: Path, context: GroundingContext, client: LlmClient
+def _render_conversation(
+  corpus_root: Path,
+  conversation: Conversation,
+  context: GroundingContext,
+  client: LlmClient,
 ) -> None:
-  """Render the grounded chat: prior turns, a fresh answer, and its persistence."""
-  st.subheader(text.ANALYTICS_CHAT_HEADING)
-  history = load_chat_history(corpus_root)
-  if history.turns and st.button(text.ANALYTICS_CLEAR_CHAT_BUTTON):
-    clear_chat_history(corpus_root)
-    st.rerun()
+  """Render one persisted thread: prior turns, a fresh grounded answer, its save."""
+  if conversation.gap_id:
+    st.subheader(text.ANALYTICS_SCOPED_HEADING.format(title=conversation.title))
+    st.info(text.ANALYTICS_SCOPED_INTRO)
+  else:
+    st.subheader(text.ANALYTICS_CHAT_HEADING)
 
-  for turn in history.turns:
-    _render_chat_turn(turn)
+  for index, turn in enumerate(conversation.turns):
+    _render_conversation_turn(corpus_root, conversation, turn, index)
 
-  question = st.chat_input(text.ANALYTICS_CHAT_INPUT_LABEL)
+  question = st.chat_input(
+    text.ANALYTICS_CHAT_INPUT_LABEL, key=f"chat-{conversation.conversation_id}"
+  )
   if not question:
     return
-  transcript = [f"{turn.role}: {turn.content}" for turn in history.turns]
-  append_turn(corpus_root, "user", question)
+  transcript = [f"{turn.role}: {turn.content}" for turn in conversation.turns]
+  convo.append_turn(corpus_root, conversation.conversation_id, "user", question)
   with st.spinner(text.ANALYTICS_THINKING):
     answer = answer_question(question, context, client, history=transcript)
-  append_turn(corpus_root, "assistant", answer.answer, answer.citations)
+  convo.append_turn(
+    corpus_root,
+    conversation.conversation_id,
+    "assistant",
+    answer.answer,
+    answer.citations,
+  )
   _render_answer_flags(answer)
   st.rerun()
+
+
+def _render_conversation_turn(
+  corpus_root: Path, conversation: Conversation, turn: ChatTurn, index: int
+) -> None:
+  """Render a turn, offering to keep an answer in the journal (issues #48, #50)."""
+  _render_chat_turn(turn)
+  if turn.role != "assistant":
+    return
+  key = f"keep-{conversation.conversation_id}-{index}"
+  if st.button(text.ANALYTICS_KEEP_BUTTON, key=key):
+    promote_to_journal(
+      corpus_root,
+      note=turn.content,
+      source_gap_id=conversation.gap_id,
+      source_citation_keys=turn.citations,
+    )
+    st.toast(text.ANALYTICS_KEEP_CONFIRM)
+    st.rerun()
+
+
+def _render_journal(corpus_root: Path) -> None:
+  """
+  Render the curated research journal: kept notes with provenance (issue #50).
+
+  Only snippets the researcher explicitly kept appear here; each shows the gap and
+  Corpus Papers behind it, and the whole journal is injected into every thread as
+  the researcher's own notes (still cite-only-Corpus grounded).
+  """
+  st.subheader(text.ANALYTICS_JOURNAL_HEADING)
+  st.caption(text.ANALYTICS_JOURNAL_INTRO)
+  journal = load_journal(corpus_root)
+  if not journal.entries:
+    st.info(text.ANALYTICS_JOURNAL_EMPTY)
+    return
+  for entry in journal.entries:
+    with st.container(border=True):
+      st.markdown(f"> {entry.note}")
+      st.caption(
+        text.journal_source_label(entry.source_gap_id, entry.source_citation_keys)
+      )
+      if st.button(
+        text.ANALYTICS_JOURNAL_DELETE_BUTTON, key=f"journal-del-{entry.entry_id}"
+      ):
+        delete_entry(corpus_root, entry.entry_id)
+        st.rerun()
 
 
 def _render_answer_flags(answer: GroundedChatAnswer) -> None:

@@ -74,3 +74,15 @@ tmp/
 corpora/
 data/
 outputs/
+
+# ==========================================
+# Presentation & demo (kept local; the repo stays purely technical)
+# ==========================================
+# Slides, screenshots, GIFs and the scripts that generate them are presentation
+# artifacts, not product code \u2014 they live here but are not tracked.
+presentation/
+scripts/capture_app_demo.py
+scripts/build_pitch_deck.py
+scripts/build_demo_gif.py
+scripts/render_pptx_preview.py
+scripts/add_speaker_notes.py

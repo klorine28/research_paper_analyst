@@ -162,11 +162,15 @@ def test_gap_cards_page_renders_and_persists_a_judgment(
   assert load_judgments(corpus).by_gap_id()[gap_id].decision == "accepted"
 
 
-def test_discuss_this_gap_seeds_a_scoped_chat(
+def test_discuss_this_gap_opens_a_persistent_scoped_conversation(
   corpus: Path, monkeypatch: pytest.MonkeyPatch
 ):
-  """Clicking 'Discuss this gap' opens a chat scoped to that gap on Analytics."""
+  """Clicking 'Discuss this gap' opens a saved thread scoped to that gap (#48, #50)."""
   import research_gap_dashboard.analytics as analytics_module
+  from research_gap_dashboard.dashboard.conversations import (
+    conversation_id_for_gap,
+    load_conversation,
+  )
   from research_gap_dashboard.dashboard.text import (
     ANALYTICS_SCOPED_INTRO,
     GAP_DISCUSS_BUTTON,
@@ -189,8 +193,9 @@ def test_discuss_this_gap_seeds_a_scoped_chat(
   discuss.click().run()
 
   assert not app.exception
-  assert app.session_state["discuss_gap_id"] == gap_id
   assert app.session_state["nav_page"] == PAGE_ANALYTICS
+  # The one-click button is consumed to open the gap's persistent thread.
+  assert app.session_state["active_conversation_id"] == conversation_id_for_gap(gap_id)
   intros = [block.value for block in app.info]
   assert ANALYTICS_SCOPED_INTRO in intros
 
@@ -199,3 +204,7 @@ def test_discuss_this_gap_seeds_a_scoped_chat(
   assert not app.exception
   markdown = " ".join(block.value for block in app.markdown)
   assert "Grounded." in markdown
+  # The exchange is saved to the gap's thread, not thrown away with the session.
+  saved = load_conversation(corpus, conversation_id_for_gap(gap_id))
+  assert saved is not None
+  assert [turn.content for turn in saved.turns] == ["Why is this a gap?", "Grounded."]

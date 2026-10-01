@@ -6,7 +6,25 @@ from typing import Any
 
 import pytest
 
+import research_gap_dashboard.env as env_module
+
 FIXTURE_CORPUS_DIR = Path(__file__).parent / "fixtures" / "cardiology-corpus"
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_env(monkeypatch: pytest.MonkeyPatch) -> None:
+  """
+  Keep the suite independent of any developer's `.env` (and its real API key).
+
+  Entry points call `env.load_env()` to populate the environment from `.env`, so
+  without this a local key would leak into tests \u2014 including the ones that
+  assert the CLI fails loudly when no key is set. `load_env` resolves
+  `load_dotenv` from this module's globals at call time, so neutralising it here
+  intercepts every caller (CLI, dashboard) however it imported `load_env`. Tests
+  stay offline and keyless (CODING_STANDARDS.md > Test with fixtures, not live
+  services).
+  """
+  monkeypatch.setattr(env_module, "load_dotenv", lambda *args, **kwargs: False)
 
 
 class StubLlmClient:  # pylint: disable=too-few-public-methods

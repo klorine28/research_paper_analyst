@@ -1,23 +1,17 @@
 """
-Assembling the Coverage Matrix heatmap and the Trends view from the artifacts.
+Assembling the publication-volume Trends view from the artifacts.
 
 These are plain functions with no Streamlit dependency: the layout layer stays
-thin by asking here for finished data and finished Plotly figures. Two things
-this module is careful about, both from CODING_STANDARDS.md > Research integrity:
-
-- An empty Coverage Matrix cell means "no Paper in the Corpus combines these
-  two categories". It is a fact about the Corpus, not a measured value of zero,
-  so the heatmap renders it in its own colour and labels it "no papers" rather
-  than painting it as the low end of the count scale.
-- Every count states the denominator it was computed over, and Papers with no
-  known year are reported, not silently dropped from the Trends view.
+thin by asking here for finished data and finished Plotly figures. From
+CODING_STANDARDS.md > Research integrity: every count states the denominator it
+was computed over, and Papers with no known year are reported, not silently
+dropped from the Trends view.
 
 The Trends view reads which Topics each Paper covers from the NormalizedFacts
 artifact and the Papers' years from the CorpusManifest, so it never imports a
 pipeline stage (ADR 0002).
 """
 
-import math
 from typing import Literal
 
 import plotly.graph_objects as go
@@ -25,134 +19,11 @@ from pydantic import BaseModel
 
 from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard.artifacts import (
-  CandidateGapsArtifact,
-  CoverageMatrixRecord,
   ManifestArtifact,
   NormalizedFactsArtifact,
 )
 
-# The value the heatmap uses for a cell no Paper covers: NaN, so Plotly paints
-# it in the figure background colour instead of at the bottom of the count scale.
-_NO_PAPERS_Z = math.nan
-
 TrendStatus = Literal["emerging", "abandoned", "steady"]
-
-# Human labels for the axes a Coverage Matrix can be built over, so the picker
-# reads "Method" rather than "method" (kept here, not in detect: ADR 0002).
-_AXIS_LABELS: dict[str, str] = {
-  "topic": "Topic",
-  "method": "Method",
-  "population": "Population",
-  "dataset": "Dataset",
-}
-
-
-def _axis_label(axis: str) -> str:
-  """Return the human label for an axis id, falling back to the id itself."""
-  return _AXIS_LABELS.get(axis, axis.capitalize())
-
-
-class CoverageMatrixView(BaseModel):
-  """One Coverage Matrix laid out as a grid the heatmap can render directly."""
-
-  key: str
-  column_axis: str
-  option_label: str
-  row_axis: str
-  row_labels: list[str]
-  column_labels: list[str]
-  counts: list[list[int]]
-  corpus_paper_count: int
-
-  @property
-  def is_empty(self) -> bool:
-    """Whether the matrix has any rows and columns to show."""
-    return not self.row_labels or not self.column_labels
-
-
-def build_coverage_matrices(
-  artifact: CandidateGapsArtifact,
-) -> list[CoverageMatrixView]:
-  """
-  Lay out every Coverage Matrix the CandidateGaps artifact holds as a grid.
-
-  Only matrices that have at least one row and one column are returned, so the
-  axis picker never offers a matrix with nothing to show (an axis this Corpus
-  never touched contributes no rows or columns; see the detect stage).
-  """
-  views = [_matrix_view(matrix) for matrix in artifact.matrices]
-  return [view for view in views if not view.is_empty]
-
-
-def _matrix_view(matrix: CoverageMatrixRecord) -> CoverageMatrixView:
-  """Turn one artifact Coverage Matrix into a dense counts grid for the heatmap."""
-  row_ids = [row.category_id for row in matrix.rows]
-  column_ids = [column.category_id for column in matrix.columns]
-  cell_counts = {
-    (cell.row_id, cell.column_id): cell.paper_count for cell in matrix.cells
-  }
-  counts = [
-    [cell_counts.get((row_id, column_id), 0) for column_id in column_ids]
-    for row_id in row_ids
-  ]
-  column_label = _axis_label(matrix.column_axis)
-  option_label = (
-    text.HEATMAP_TOPIC_PAIR_OPTION
-    if matrix.row_axis == matrix.column_axis
-    else column_label
-  )
-  return CoverageMatrixView(
-    key=f"{matrix.row_axis}x{matrix.column_axis}",
-    column_axis=matrix.column_axis,
-    option_label=option_label,
-    row_axis=matrix.row_axis,
-    row_labels=[row.label or row.category_id for row in matrix.rows],
-    column_labels=[column.label or column.category_id for column in matrix.columns],
-    counts=counts,
-    corpus_paper_count=matrix.corpus_paper_count,
-  )
-
-
-def build_heatmap_figure(view: CoverageMatrixView) -> go.Figure:
-  """
-  Build the Plotly heatmap for one Coverage Matrix.
-
-  Cells no Paper covers carry NaN (painted in the figure background colour) and
-  are labelled "no papers"; covered cells carry their count on a colour scale
-  that starts at one, so a low count never looks the same as no papers at all.
-  """
-  z = [
-    [float(count) if count > 0 else _NO_PAPERS_Z for count in row]
-    for row in view.counts
-  ]
-  cell_text = [
-    [str(count) if count > 0 else text.HEATMAP_NO_PAPERS for count in row]
-    for row in view.counts
-  ]
-  max_count = max((count for row in view.counts for count in row), default=0)
-  figure = go.Figure(
-    data=go.Heatmap(
-      z=z,
-      x=view.column_labels,
-      y=view.row_labels,
-      text=cell_text,
-      texttemplate="%{text}",
-      colorscale="Blues",
-      zmin=1,
-      zmax=max(max_count, 1),
-      hoverongaps=False,
-      colorbar={"title": text.HEATMAP_COLORBAR_TITLE},
-      xgap=2,
-      ygap=2,
-    )
-  )
-  figure.update_layout(
-    xaxis_title=_axis_label(view.column_axis),
-    yaxis_title=_axis_label(view.row_axis),
-    plot_bgcolor=text.HEATMAP_NO_PAPERS_COLOR,
-    yaxis={"autorange": "reversed"},
-  )
-  return figure
 
 
 class TopicTrend(BaseModel):
