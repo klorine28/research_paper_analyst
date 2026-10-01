@@ -73,14 +73,14 @@ from research_gap_dashboard.dashboard.coverage import (
 from research_gap_dashboard.dashboard.meta_analysis import (
   MISSING_PAIRS_SHOWN,
   AuthorCollaborationTable,
+  LimitationFollowUpView,
   NetworkGraph,
-  SankeyGraph,
   build_author_table,
   build_citation_network,
   build_cooccurrence,
+  build_limitation_bar_figure,
   build_limitation_flow,
   build_network_figure,
-  build_sankey_figure,
 )
 from research_gap_dashboard.dashboard.gaps import (
   GapCard,
@@ -963,7 +963,7 @@ class _MetaBundle:
   topic: NetworkGraph | None
   method: NetworkGraph | None
   trends: TrendsData | None
-  limitation: SankeyGraph | None
+  limitation: LimitationFollowUpView | None
 
 
 def _render_meta_thumb(figure: go.Figure, key: str) -> None:
@@ -1006,7 +1006,7 @@ def _render_meta_preview(chart_id: str, bundle: _MetaBundle) -> None:
       st.caption(text.META_PREVIEW_EMPTY)
   elif chart_id == "limitation":
     if bundle.limitation is not None and not bundle.limitation.is_empty:
-      _render_meta_thumb(build_sankey_figure(bundle.limitation), "limitation")
+      _render_meta_thumb(build_limitation_bar_figure(bundle.limitation), "limitation")
     else:
       st.caption(text.META_PREVIEW_EMPTY)
 
@@ -1268,28 +1268,35 @@ def _render_graph_data_table(graph: NetworkGraph) -> None:
       st.caption(text.META_EMPTY_GRAPH)
 
 
-def render_limitation_flow(graph: SankeyGraph, *, show_title: bool = True) -> None:
-  """Render the limitation follow-up Sankey with its question and caveat."""
+def render_limitation_flow(
+  view: LimitationFollowUpView, *, show_title: bool = True
+) -> None:
+  """Render the limitation follow-up status bar with its question and caveat."""
   if show_title:
-    st.subheader(graph.title)
-  st.caption(f"**{text.META_QUESTION_LABEL}:** {graph.question}")
-  st.caption(f"**{text.META_GAP_LENS_LABEL}:** {graph.gap_lens}")
-  if graph.is_empty:
+    st.subheader(view.title)
+  st.caption(f"**{text.META_QUESTION_LABEL}:** {view.question}")
+  st.caption(f"**{text.META_GAP_LENS_LABEL}:** {view.gap_lens}")
+  if view.is_empty:
     st.info(text.META_LIMITATION_NO_DATA)
     return
   st.plotly_chart(
-    build_sankey_figure(graph), use_container_width=True, key="meta-sankey"
+    build_limitation_bar_figure(view), use_container_width=True, key="meta-limitation"
   )
   st.caption(
     text.META_LIMITATION_SUMMARY.format(
-      open=graph.unanswered_count,
-      total=graph.unanswered_count + graph.addressed_count,
-      addressed=graph.addressed_count,
+      total=view.total,
+      addressed=view.addressed_count,
+      open=view.open_checked_count,
+      no_later=view.no_later_count,
     )
   )
-  if graph.all_open:
-    st.info(text.META_LIMITATION_ALL_OPEN_NOTE.format(no_later=graph.no_later_count))
-  st.caption(graph.caveat)
+  if view.top_addressed:
+    st.caption(text.META_LIMITATION_TOP_ADDRESSED)
+    for label, count in view.top_addressed:
+      st.caption(text.META_LIMITATION_TOP_ROW.format(label=label, count=count))
+  elif view.all_open:
+    st.info(text.META_LIMITATION_ALL_OPEN_NOTE.format(no_later=view.no_later_count))
+  st.caption(view.caveat)
 
 
 def _render_gap_cards_page(chosen: CorpusChoice) -> None:

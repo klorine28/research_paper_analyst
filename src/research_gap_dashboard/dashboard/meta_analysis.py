@@ -45,10 +45,7 @@ from research_gap_dashboard.dashboard.artifacts import (
   NormalizedFactsArtifact,
   PaperRecord,
 )
-from research_gap_dashboard.dashboard.limitations import (
-  LimitationGroupView,
-  LimitationsData,
-)
+from research_gap_dashboard.dashboard.limitations import LimitationsData
 
 # The layout seed is fixed so the same Corpus always draws the same graph: a
 # reproducible figure is an honesty requirement, not a convenience.
@@ -166,44 +163,53 @@ class NetworkGraph(BaseModel):
     return found
 
 
-class SankeyFlow(BaseModel):
-  """One flow in the limitation follow-up Sankey: from a source to a target."""
-
-  source: int
-  target: int
-  value: int
-  hover: str = ""
+# How many addressed limitation groups the detail list names before "and N more".
+_TOP_ADDRESSED = 8
 
 
-class SankeyGraph(BaseModel):
+class LimitationFollowUpView(BaseModel):
   """
-  The limitation follow-up flow, as a Sankey: limitations → addressed / open.
+  The limitation follow-up outcome as an aggregate status, not a per-group Sankey.
 
-  Node-link diagrams bury a two-column addressed/unaddressed split; a Sankey
-  keeps the split legible and still honours the honesty controls the other
-  graphs carry.
+  The earlier Sankey drew one node and one ribbon per limitation group, so a
+  Corpus with dozens of groups \u2014 and, on real data, none addressed \u2014
+  collapsed into an unreadable fan of equal-width threads into a single sink, with
+  overlapping labels. The question the meta-analysis layer actually asks is
+  aggregate: of all the limitations this Corpus flagged, how many did a later
+  Paper address, how many are still open after later Papers were checked, and how
+  many have no later Paper to check yet? A small three-bucket segmented bar answers
+  that at a glance and scales to any Corpus size; the verbatim per-group Evidence
+  stays one click away on the Unanswered Limitations page.
   """
 
   title: str
   question: str
   caveat: str
   gap_lens: str
-  node_labels: list[str] = []
-  node_hovers: list[str] = []
-  flows: list[SankeyFlow] = []
-  unanswered_count: int = 0
   addressed_count: int = 0
-  no_later_count: int = 0  # groups whose source Paper had no later Paper to check
+  open_checked_count: int = 0  # open, and later Papers existed to check against
+  no_later_count: int = 0  # open, but no later Paper in the Corpus to check
+  top_addressed: list[tuple[str, int]] = []  # (label, follow-up count), descending
+
+  @property
+  def total(self) -> int:
+    """How many limitation groups the Corpus produced."""
+    return self.addressed_count + self.open_checked_count + self.no_later_count
+
+  @property
+  def unanswered_count(self) -> int:
+    """How many groups are still open (checked or not yet checkable)."""
+    return self.open_checked_count + self.no_later_count
 
   @property
   def is_empty(self) -> bool:
-    """Whether there is any limitation group to flow."""
-    return not self.flows
+    """Whether there is any limitation group to report."""
+    return self.total == 0
 
   @property
   def all_open(self) -> bool:
     """Whether every group is still open (the common degenerate case)."""
-    return bool(self.flows) and self.addressed_count == 0
+    return self.total > 0 and self.addressed_count == 0
 
 
 def _corpus_papers(manifest: ManifestArtifact) -> list[PaperRecord]:
@@ -594,67 +600,42 @@ def build_author_table(
   )
 
 
-def build_limitation_flow(limitations: LimitationsData) -> SankeyGraph:
+def build_limitation_flow(limitations: LimitationsData) -> LimitationFollowUpView:
   """
-  Build the limitation follow-up Sankey from the Unanswered Limitations data.
+  Summarise limitation follow-up as three aggregate buckets, not per-group flows.
 
-  Each limitation group flows to one of two sinks: "addressed by a later Paper"
-  or "still open". The open sink is the Unanswered-Limitation gap signal, kept
-  visually distinct from the addressed flow. A Sankey beats the node-link idiom
-  here because the addressed/open split is the whole point, and a two-column flow
-  reads it at a glance where a force-directed layout would scatter it.
+  Each group is counted as addressed (a later Paper took it up), still open after
+  later Papers were checked, or not yet checkable (no later Paper in the Corpus).
+  The addressed groups that drew the most follow-up are named so the magnitude the
+  Sankey once showed as ribbon width survives as a short ranked list.
   """
-  node_labels = [text.META_LIMITATION_ADDRESSED_NODE, text.META_LIMITATION_OPEN_NODE]
-  node_hovers = ["", ""]
-  flows: list[SankeyFlow] = []
-  for group in limitations.groups:
-    node_hovers.append(
-      text.META_LIMITATION_GROUP_HOVER.format(
-        label=group.label or group.group_id,
-        sources=group.source_paper_count,
-        follow_ups=group.follow_up_count,
-      )
-    )
-    flows.append(_limitation_flow(group, len(node_labels)))
-    node_labels.append(group.label or group.group_id)
-
-  addressed = sum(1 for group in limitations.groups if group.addressed)
-  no_later = sum(1 for group in limitations.groups if group.later_paper_count == 0)
-  return SankeyGraph(
+  addressed = [group for group in limitations.groups if group.addressed]
+  open_checked = sum(
+    1
+    for group in limitations.groups
+    if not group.addressed and group.later_paper_count > 0
+  )
+  no_later = sum(
+    1
+    for group in limitations.groups
+    if not group.addressed and group.later_paper_count == 0
+  )
+  ranked = sorted(
+    addressed, key=lambda group: (-group.follow_up_count, group.label or group.group_id)
+  )
+  top_addressed = [
+    (group.label or group.group_id, group.follow_up_count)
+    for group in ranked[:_TOP_ADDRESSED]
+  ]
+  return LimitationFollowUpView(
     title=text.META_LIMITATION_TITLE,
     question=text.META_LIMITATION_QUESTION,
     caveat=text.META_CAVEAT,
     gap_lens=text.META_LIMITATION_GAP_LENS,
-    node_labels=node_labels,
-    node_hovers=node_hovers,
-    flows=flows,
-    unanswered_count=len(limitations.groups) - addressed,
-    addressed_count=addressed,
+    addressed_count=len(addressed),
+    open_checked_count=open_checked,
     no_later_count=no_later,
-  )
-
-
-# The Sankey's two sinks: flow 0 is "addressed by a later Paper", flow 1 is open.
-_ADDRESSED_SINK, _OPEN_SINK = 0, 1
-
-
-def _limitation_flow(group: LimitationGroupView, group_index: int) -> SankeyFlow:
-  """Build the flow from one limitation group to the addressed or open sink."""
-  label = group.label or group.group_id
-  if group.addressed:
-    return SankeyFlow(
-      source=group_index,
-      target=_ADDRESSED_SINK,
-      value=group.follow_up_count or 1,
-      hover=text.META_LIMITATION_ADDRESSED_FLOW.format(
-        label=label, count=group.follow_up_count
-      ),
-    )
-  return SankeyFlow(
-    source=group_index,
-    target=_OPEN_SINK,
-    value=1,
-    hover=text.META_LIMITATION_OPEN_FLOW.format(label=label),
+    top_addressed=top_addressed,
   )
 
 
@@ -843,38 +824,58 @@ def _add_node_trace(
   )
 
 
-def build_sankey_figure(graph: SankeyGraph) -> go.Figure:
-  """Render the limitation follow-up flow as a Plotly Sankey diagram."""
-  node_colours = [
-    text.META_ISOLATED_COLOR
-    if index == _OPEN_SINK
-    else text.META_CONNECTED_COLOR
-    if index == _ADDRESSED_SINK
-    else "rgba(140,140,140,0.75)"
-    for index in range(len(graph.node_labels))
+# The three follow-up buckets, in the order the segmented bar stacks them: taken
+# up, still open after a check (the gap signal), and not yet checkable.
+_LIMITATION_ADDRESSED_COLOR = "#2ca02c"
+_LIMITATION_NO_LATER_COLOR = "#9aa0a6"
+
+
+def build_limitation_bar_figure(view: LimitationFollowUpView) -> go.Figure:
+  """
+  Render the follow-up outcome as one horizontal segmented bar over three buckets.
+
+  A single stacked bar aggregates every limitation group into addressed / still
+  open / not-yet-checkable, so the whole-Corpus ratio reads at a glance and the
+  figure stays legible whether the Corpus has three groups or three hundred.
+  """
+  segments = [
+    (
+      text.META_LIMITATION_ADDRESSED_LABEL,
+      view.addressed_count,
+      _LIMITATION_ADDRESSED_COLOR,
+    ),
+    (
+      text.META_LIMITATION_OPEN_LABEL,
+      view.open_checked_count,
+      text.META_ISOLATED_COLOR,
+    ),
+    (
+      text.META_LIMITATION_NO_LATER_LABEL,
+      view.no_later_count,
+      _LIMITATION_NO_LATER_COLOR,
+    ),
   ]
-  link_colours = [
-    "rgba(214,39,40,0.35)" if flow.target == _OPEN_SINK else "rgba(44,160,44,0.35)"
-    for flow in graph.flows
-  ]
-  figure = go.Figure(
-    go.Sankey(
-      node={
-        "label": graph.node_labels,
-        "color": node_colours,
-        "customdata": graph.node_hovers,
-        "hovertemplate": "%{customdata}<extra></extra>",
-        "pad": 12,
-      },
-      link={
-        "source": [flow.source for flow in graph.flows],
-        "target": [flow.target for flow in graph.flows],
-        "value": [flow.value for flow in graph.flows],
-        "color": link_colours,
-        "customdata": [flow.hover for flow in graph.flows],
-        "hovertemplate": "%{customdata}<extra></extra>",
-      },
+  figure = go.Figure()
+  for label, count, colour in segments:
+    figure.add_trace(
+      go.Bar(
+        y=[text.META_LIMITATION_BAR_ROW],
+        x=[count],
+        name=label,
+        orientation="h",
+        marker_color=colour,
+        text=[str(count) if count else ""],
+        textposition="inside",
+        insidetextanchor="middle",
+        hovertemplate=f"{label}: %{{x}}<extra></extra>",
+      )
     )
+  figure.update_layout(
+    barmode="stack",
+    height=200,
+    margin={"l": 10, "r": 10, "t": 10, "b": 30},
+    xaxis={"title": text.META_LIMITATION_BAR_X, "rangemode": "tozero"},
+    yaxis={"visible": False},
+    legend={"orientation": "h", "y": -0.3},
   )
-  figure.update_layout(margin={"l": 10, "r": 10, "t": 10, "b": 10})
   return figure

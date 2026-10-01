@@ -514,27 +514,28 @@ META_COLLABORATION_COL_AUTHOR = "Author"
 META_COLLABORATION_COL_PAPERS = "Papers in Corpus"
 META_COLLABORATION_COL_COLLABORATORS = "Distinct co-authors"
 
-# Graph 5: Limitation follow-up (Sankey).
+# Graph 5: Limitation follow-up (segmented status bar, not a per-group Sankey).
 META_LIMITATION_TITLE = "Limitation follow-up"
 META_LIMITATION_QUESTION = (
   "Which stated limitations did a later Paper in this Corpus address?"
 )
 META_LIMITATION_GAP_LENS = (
-  "A limitation flowing to 'still open' is a candidate Unanswered Limitation: "
-  "no later Paper here addressed it."
+  "A limitation still open after later Papers were checked is a candidate "
+  "Unanswered Limitation: no later Paper here addressed it."
 )
-META_LIMITATION_ADDRESSED_NODE = "Addressed by a later Paper"
-META_LIMITATION_OPEN_NODE = "Still open"
-META_LIMITATION_GROUP_HOVER = (
-  "{label}: stated by {sources} Paper(s), {follow_ups} follow-up(s)"
-)
-META_LIMITATION_ADDRESSED_FLOW = "{label}: addressed by {count} later Paper(s)"
-META_LIMITATION_OPEN_FLOW = "{label}: still open"
+META_LIMITATION_ADDRESSED_LABEL = "Addressed by a later Paper"
+META_LIMITATION_OPEN_LABEL = "Still open (later Papers checked)"
+META_LIMITATION_NO_LATER_LABEL = "No later Paper to check yet"
+META_LIMITATION_BAR_ROW = "Limitation groups"
+META_LIMITATION_BAR_X = "Number of limitation groups"
 META_LIMITATION_SUMMARY = (
-  "{open} of {total} limitation group(s) are still open; {addressed} were "
-  "addressed by a later Paper in this Corpus."
+  "Of {total} limitation group(s): {addressed} addressed by a later Paper, "
+  "{open} still open after later Papers were checked, and {no_later} with no "
+  "later Paper in the Corpus to check yet."
 )
-META_LIMITATION_NO_DATA = "This Corpus produced no limitation groups to flow."
+META_LIMITATION_TOP_ADDRESSED = "Most-addressed limitations:"
+META_LIMITATION_TOP_ROW = "\u2022 {label} \u2014 {count} follow-up(s)"
+META_LIMITATION_NO_DATA = "This Corpus produced no limitation groups."
 
 # Unanswered Limitations page. Each group gathers limitation and future-work
 # statements that mean the same thing across Papers; a group is "unanswered"

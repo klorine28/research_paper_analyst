@@ -29,9 +29,9 @@ from research_gap_dashboard.dashboard.meta_analysis import (
   build_author_table,
   build_citation_network,
   build_cooccurrence,
+  build_limitation_bar_figure,
   build_limitation_flow,
   build_network_figure,
-  build_sankey_figure,
   node_role,
   short_paper_label,
 )
@@ -318,7 +318,7 @@ def test_author_table_caps_rows_and_reports_papers_without_authors():
   assert any("most-published" in note for note in table.notes)
 
 
-# --- Graph 5: Limitation follow-up (Sankey) -----------------------------------
+# --- Graph 5: Limitation follow-up (aggregate status) -------------------------
 
 
 def _limitations() -> LimitationsData:
@@ -351,15 +351,19 @@ def _limitations() -> LimitationsData:
 
 
 def test_limitation_flow_splits_addressed_from_open():
-  """Each group flows to the addressed or the open sink, counted honestly."""
-  graph = build_limitation_flow(_limitations())
+  """Groups are bucketed into addressed, still-open, and not-yet-checkable."""
+  view = build_limitation_flow(_limitations())
 
-  assert graph.addressed_count == 1
-  assert graph.unanswered_count == 1
-  # Sink 0 is addressed, sink 1 is open; every group flows to one of them.
-  targets = {flow.target for flow in graph.flows}
-  assert targets == {0, 1}
-  assert "Unanswered Limitation" in graph.gap_lens
+  # One addressed (a later Paper took it up); the other is open with no later
+  # Paper to check, so it counts as not-yet-checkable, not checked-and-open.
+  assert view.addressed_count == 1
+  assert view.open_checked_count == 0
+  assert view.no_later_count == 1
+  assert view.unanswered_count == 1
+  assert view.total == 2
+  # The magnitude the Sankey showed as ribbon width survives as a ranked list.
+  assert view.top_addressed == [("Small samples", 1)]
+  assert "Unanswered Limitation" in view.gap_lens
 
 
 def test_limitation_flow_flags_all_open_and_counts_groups_with_no_later_paper():
@@ -376,12 +380,13 @@ def test_limitation_flow_flags_all_open_and_counts_groups_with_no_later_paper():
     ],
     follow_ups=[],
   )
-  graph = build_limitation_flow(
+  view = build_limitation_flow(
     LimitationsData(groups=[open_no_later], extracted_paper_count=1)
   )
 
-  assert graph.all_open
-  assert graph.no_later_count == 1
+  assert view.all_open
+  assert view.no_later_count == 1
+  assert view.top_addressed == []
 
 
 # --- Honesty controls carried by every graph ----------------------------------
@@ -406,9 +411,9 @@ def test_every_graph_carries_a_question_and_the_incomplete_corpus_caveat():
   assert table.question
   assert "only over the Papers in this Corpus" in table.caveat
 
-  sankey = build_limitation_flow(_limitations())
-  assert sankey.question
-  assert "only over the Papers in this Corpus" in sankey.caveat
+  limitation = build_limitation_flow(_limitations())
+  assert limitation.question
+  assert "only over the Papers in this Corpus" in limitation.caveat
 
 
 # --- Click-to-highlight interaction -------------------------------------------
@@ -484,7 +489,7 @@ def test_selected_figure_still_builds_with_a_highlighted_node():
 # --- Figures render ------------------------------------------------------------
 
 
-def test_network_and_sankey_figures_build():
+def test_network_and_limitation_figures_build():
   """The Plotly builders return figures for a non-trivial Corpus."""
   papers = [
     PaperRecord(
@@ -493,11 +498,12 @@ def test_network_and_sankey_figures_build():
     PaperRecord(citation_key="p02", doi="p02", openalex_id="W2"),
   ]
   network = build_network_figure(build_citation_network(_manifest(papers)))
-  sankey = build_sankey_figure(build_limitation_flow(_limitations()))
+  limitation = build_limitation_bar_figure(build_limitation_flow(_limitations()))
 
   assert isinstance(network, go.Figure)
-  assert isinstance(sankey, go.Figure)
+  assert isinstance(limitation, go.Figure)
   assert network.data  # at least one trace (edges and/or nodes)
+  assert limitation.data  # the three stacked status segments
 
 
 # --- The meta page renders the six graphs as a collapsible tile gallery --------
