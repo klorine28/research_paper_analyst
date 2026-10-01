@@ -11,7 +11,6 @@ corpus directories with the RESEARCH_GAP_CORPORA_DIR environment variable.
 import os
 from collections.abc import Callable
 from typing import Literal
-from datetime import datetime, timezone
 from pathlib import Path
 
 import plotly.graph_objects as go
@@ -29,12 +28,14 @@ from research_gap_dashboard.analytics import (
   summarize_gaps,
 )
 from research_gap_dashboard.dashboard import text
-from research_gap_dashboard.dashboard.chat_history import (
-  ChatTurn,
-  Role,
-  append_turn,
-  clear_chat_history,
-  load_chat_history,
+from research_gap_dashboard.dashboard import conversations as convo
+from research_gap_dashboard.dashboard.chat_history import ChatTurn
+from research_gap_dashboard.dashboard.conversations import Conversation
+from research_gap_dashboard.dashboard.journal import (
+  delete_entry,
+  load_journal,
+  promote_to_journal,
+  render_notes_for_context,
 )
 from research_gap_dashboard.dashboard.artifacts import (
   CorpusChoice,
@@ -1437,8 +1438,13 @@ def _render_grounding_flags(dropped: list[str]) -> None:
     )
 
 
+# Which conversation thread the Analytics page is showing. Persisted threads live
+# on disk (issue #50); this only remembers the researcher's current selection.
+ACTIVE_CONVERSATION_KEY = "active_conversation_id"
+
+
 def _render_analytics_page(corpus_root: Path) -> None:
-  """Render the Conversational Analytics page: grounded chat and narrative summary."""
+  """Render Conversational Analytics: named threads, a journal, a narrative summary."""
   st.header(text.ANALYTICS_HEADING)
   st.info(text.ANALYTICS_INTRO)
   if not has_manifest(corpus_root):
@@ -1452,17 +1458,136 @@ def _render_analytics_page(corpus_root: Path) -> None:
 
   manifest = load_manifest(corpus_root)
   has_gaps = has_candidate_gaps(corpus_root)
-  context = _grounding_context(corpus_root, manifest, has_gaps)
 
-  if _render_scoped_gap_chat(corpus_root, context, client):
-    return
-  _render_narrative_summary(context, client, has_gaps)
-  _render_chat(corpus_root, context, client)
+  conversation = _active_conversation(corpus_root)
+  _render_conversation_picker(corpus_root, conversation)
+  context = _conversation_context(corpus_root, manifest, has_gaps, conversation)
+  _render_conversation(corpus_root, conversation, context, client)
+
+  st.divider()
+  _render_narrative_summary(
+    _grounding_context(corpus_root, manifest, has_gaps), client, has_gaps
+  )
+  st.divider()
+  _render_journal(corpus_root)
 
 
-def _scoped_history_key(gap_id: str) -> str:
-  """Session-state key for one gap's ephemeral scoped-chat transcript."""
-  return f"scoped_chat_{gap_id}"
+def _active_conversation(corpus_root: Path) -> Conversation:
+  """
+  Resolve which conversation to show, opening it when it is new (issue #50).
+
+  A pending 'Discuss this gap' click (issue #48) opens or reopens the thread
+  scoped to that Candidate Gap and makes it active; otherwise the thread remembered
+  in session state is shown, defaulting to the general whole-Corpus thread. Both
+  the per-gap and general threads persist across sessions.
+  """
+  pending_gap = st.session_state.pop(DISCUSS_GAP_KEY, None)
+  if pending_gap:
+    card = _scoped_gap_card(corpus_root, pending_gap)
+    if card is not None:
+      cid = convo.conversation_id_for_gap(card.gap_id)
+      convo.get_or_create_conversation(
+        corpus_root,
+        cid,
+        title=text.ANALYTICS_SCOPED_TITLE.format(title=card.title),
+        gap_id=card.gap_id,
+      )
+      st.session_state[ACTIVE_CONVERSATION_KEY] = cid
+
+  convo.get_or_create_conversation(
+    corpus_root,
+    convo.GENERAL_CONVERSATION_ID,
+    title=text.ANALYTICS_GENERAL_TITLE,
+    gap_id=None,
+  )
+  active_id = st.session_state.get(
+    ACTIVE_CONVERSATION_KEY, convo.GENERAL_CONVERSATION_ID
+  )
+  conversation = convo.load_conversation(corpus_root, active_id)
+  if conversation is None:
+    st.session_state[ACTIVE_CONVERSATION_KEY] = convo.GENERAL_CONVERSATION_ID
+    conversation = convo.load_conversation(corpus_root, convo.GENERAL_CONVERSATION_ID)
+  assert conversation is not None  # general is created just above
+  return conversation
+
+
+def _render_conversation_picker(corpus_root: Path, conversation: Conversation) -> None:
+  """Pick, start, rename, or delete a conversation thread (issue #50)."""
+  summaries = convo.list_conversations(corpus_root)
+  ids = [summary.conversation_id for summary in summaries]
+  labels = {
+    summary.conversation_id: text.ANALYTICS_CONVERSATION_OPTION.format(
+      title=summary.title, turns=summary.turn_count
+    )
+    for summary in summaries
+  }
+  index = (
+    ids.index(conversation.conversation_id)
+    if conversation.conversation_id in ids
+    else 0
+  )
+
+  def _label(conversation_id: str) -> str:
+    return labels.get(conversation_id, conversation_id)
+
+  chosen = st.selectbox(
+    text.ANALYTICS_CONVERSATION_PICKER_LABEL,
+    ids,
+    index=index,
+    format_func=_label,
+  )
+  if chosen != conversation.conversation_id:
+    st.session_state[ACTIVE_CONVERSATION_KEY] = chosen
+    st.rerun()
+
+  new_col, delete_col = st.columns(2)
+  if new_col.button(text.ANALYTICS_NEW_CONVERSATION_BUTTON):
+    cid = convo.new_conversation_id()
+    convo.get_or_create_conversation(
+      corpus_root, cid, title=text.ANALYTICS_NEW_CONVERSATION_TITLE, gap_id=None
+    )
+    st.session_state[ACTIVE_CONVERSATION_KEY] = cid
+    st.rerun()
+  if delete_col.button(text.ANALYTICS_DELETE_CONVERSATION_BUTTON):
+    convo.delete_conversation(corpus_root, conversation.conversation_id)
+    st.session_state.pop(ACTIVE_CONVERSATION_KEY, None)
+    st.rerun()
+
+  with st.expander(text.ANALYTICS_RENAME_LABEL):
+    new_title = st.text_input(
+      text.ANALYTICS_RENAME_LABEL,
+      value=conversation.title,
+      key=f"rename-{conversation.conversation_id}",
+      label_visibility="collapsed",
+    )
+    if st.button(text.ANALYTICS_RENAME_BUTTON) and new_title.strip():
+      convo.rename_conversation(
+        corpus_root, conversation.conversation_id, new_title.strip()
+      )
+      st.rerun()
+
+
+def _conversation_context(
+  corpus_root: Path,
+  manifest: ManifestArtifact,
+  has_gaps: bool,
+  conversation: Conversation,
+) -> GroundingContext:
+  """
+  Build the grounded context for one thread, scoped and carrying journal notes.
+
+  A per-gap thread narrows to that gap's slice (issue #48); every thread also
+  carries the researcher's kept journal notes, labelled as their own so grounding
+  still binds the model to cite only Corpus Papers (issue #50).
+  """
+  base = _grounding_context(corpus_root, manifest, has_gaps)
+  notes = render_notes_for_context(load_journal(corpus_root))
+  note_list = [notes] if notes else []
+  if conversation.gap_id:
+    card = _scoped_gap_card(corpus_root, conversation.gap_id)
+    if card is not None:
+      return scope_context_to_gap(card, base).model_copy(update={"notes": note_list})
+  return base.model_copy(update={"notes": note_list})
 
 
 def _scoped_gap_card(corpus_root: Path, gap_id: str) -> GapCard | None:
@@ -1473,66 +1598,6 @@ def _scoped_gap_card(corpus_root: Path, gap_id: str) -> GapCard | None:
     load_candidate_gaps(corpus_root), load_judgments(corpus_root), corpus_root
   )
   return next((card for card in data.cards if card.gap_id == gap_id), None)
-
-
-def _render_scoped_gap_chat(
-  corpus_root: Path, context: GroundingContext, client: LlmClient
-) -> bool:
-  """
-  Render the one-click chat scoped to a single Candidate Gap (issue #48).
-
-  Returns True when a scoped chat was shown, so the page skips the whole-Corpus
-  chat and narrative summary. The scoped conversation is ephemeral in session
-  state; per-gap persistent conversations are a separate v2 feature (issue #44).
-  """
-  gap_id = st.session_state.get(DISCUSS_GAP_KEY)
-  if not gap_id:
-    return False
-  card = _scoped_gap_card(corpus_root, gap_id)
-  if card is None:
-    st.session_state.pop(DISCUSS_GAP_KEY, None)
-    st.info(text.ANALYTICS_SCOPED_GAP_MISSING)
-    return False
-
-  scoped = scope_context_to_gap(card, context)
-  st.subheader(text.ANALYTICS_SCOPED_HEADING.format(title=card.title))
-  st.info(text.ANALYTICS_SCOPED_INTRO)
-  if st.button(text.ANALYTICS_SCOPED_EXIT_BUTTON):
-    st.session_state.pop(DISCUSS_GAP_KEY, None)
-    st.session_state.pop(_scoped_history_key(gap_id), None)
-    st.rerun()
-
-  turns: list[ChatTurn] = st.session_state.get(_scoped_history_key(gap_id), [])
-  for turn in turns:
-    _render_chat_turn(turn)
-
-  question = st.chat_input(
-    text.ANALYTICS_SCOPED_CHAT_INPUT_LABEL, key=f"scoped-input-{gap_id}"
-  )
-  if not question:
-    return True
-  transcript = [f"{turn.role}: {turn.content}" for turn in turns]
-  with st.spinner(text.ANALYTICS_THINKING):
-    answer = answer_question(question, scoped, client, history=transcript)
-  st.session_state[_scoped_history_key(gap_id)] = [
-    *turns,
-    _ephemeral_turn("user", question),
-    _ephemeral_turn("assistant", answer.answer, answer.citations),
-  ]
-  _render_grounding_flags(answer.dropped_citations)
-  st.rerun()
-
-
-def _ephemeral_turn(
-  role: Role, content: str, citations: list[str] | None = None
-) -> ChatTurn:
-  """Build one in-memory scoped-chat turn (not persisted to disk; see issue #44)."""
-  return ChatTurn(
-    role=role,
-    content=content,
-    citations=list(citations or []),
-    at=datetime.now(timezone.utc),
-  )
 
 
 def _grounding_context(
@@ -1588,29 +1653,86 @@ def _render_narrative(narrative: GroundedNarrative) -> None:
   _render_grounding_flags(narrative.dropped_citations)
 
 
-def _render_chat(
-  corpus_root: Path, context: GroundingContext, client: LlmClient
+def _render_conversation(
+  corpus_root: Path,
+  conversation: Conversation,
+  context: GroundingContext,
+  client: LlmClient,
 ) -> None:
-  """Render the grounded chat: prior turns, a fresh answer, and its persistence."""
-  st.subheader(text.ANALYTICS_CHAT_HEADING)
-  history = load_chat_history(corpus_root)
-  if history.turns and st.button(text.ANALYTICS_CLEAR_CHAT_BUTTON):
-    clear_chat_history(corpus_root)
-    st.rerun()
+  """Render one persisted thread: prior turns, a fresh grounded answer, its save."""
+  if conversation.gap_id:
+    st.subheader(text.ANALYTICS_SCOPED_HEADING.format(title=conversation.title))
+    st.info(text.ANALYTICS_SCOPED_INTRO)
+  else:
+    st.subheader(text.ANALYTICS_CHAT_HEADING)
 
-  for turn in history.turns:
-    _render_chat_turn(turn)
+  for index, turn in enumerate(conversation.turns):
+    _render_conversation_turn(corpus_root, conversation, turn, index)
 
-  question = st.chat_input(text.ANALYTICS_CHAT_INPUT_LABEL)
+  question = st.chat_input(
+    text.ANALYTICS_CHAT_INPUT_LABEL, key=f"chat-{conversation.conversation_id}"
+  )
   if not question:
     return
-  transcript = [f"{turn.role}: {turn.content}" for turn in history.turns]
-  append_turn(corpus_root, "user", question)
+  transcript = [f"{turn.role}: {turn.content}" for turn in conversation.turns]
+  convo.append_turn(corpus_root, conversation.conversation_id, "user", question)
   with st.spinner(text.ANALYTICS_THINKING):
     answer = answer_question(question, context, client, history=transcript)
-  append_turn(corpus_root, "assistant", answer.answer, answer.citations)
+  convo.append_turn(
+    corpus_root,
+    conversation.conversation_id,
+    "assistant",
+    answer.answer,
+    answer.citations,
+  )
   _render_answer_flags(answer)
   st.rerun()
+
+
+def _render_conversation_turn(
+  corpus_root: Path, conversation: Conversation, turn: ChatTurn, index: int
+) -> None:
+  """Render a turn, offering to keep an answer in the journal (issues #48, #50)."""
+  _render_chat_turn(turn)
+  if turn.role != "assistant":
+    return
+  key = f"keep-{conversation.conversation_id}-{index}"
+  if st.button(text.ANALYTICS_KEEP_BUTTON, key=key):
+    promote_to_journal(
+      corpus_root,
+      note=turn.content,
+      source_gap_id=conversation.gap_id,
+      source_citation_keys=turn.citations,
+    )
+    st.toast(text.ANALYTICS_KEEP_CONFIRM)
+    st.rerun()
+
+
+def _render_journal(corpus_root: Path) -> None:
+  """
+  Render the curated research journal: kept notes with provenance (issue #50).
+
+  Only snippets the researcher explicitly kept appear here; each shows the gap and
+  Corpus Papers behind it, and the whole journal is injected into every thread as
+  the researcher's own notes (still cite-only-Corpus grounded).
+  """
+  st.subheader(text.ANALYTICS_JOURNAL_HEADING)
+  st.caption(text.ANALYTICS_JOURNAL_INTRO)
+  journal = load_journal(corpus_root)
+  if not journal.entries:
+    st.info(text.ANALYTICS_JOURNAL_EMPTY)
+    return
+  for entry in journal.entries:
+    with st.container(border=True):
+      st.markdown(f"> {entry.note}")
+      st.caption(
+        text.journal_source_label(entry.source_gap_id, entry.source_citation_keys)
+      )
+      if st.button(
+        text.ANALYTICS_JOURNAL_DELETE_BUTTON, key=f"journal-del-{entry.entry_id}"
+      ):
+        delete_entry(corpus_root, entry.entry_id)
+        st.rerun()
 
 
 def _render_answer_flags(answer: GroundedChatAnswer) -> None:

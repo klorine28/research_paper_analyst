@@ -155,6 +155,22 @@ def test_scoped_chat_prompt_carries_the_gap_evidence():
   assert "No randomized controlled trial was conducted." in client.prompt
 
 
+def test_context_renders_researcher_notes_so_the_model_sees_them():
+  """Promoted journal notes reach the prompt, labelled as the researcher's own."""
+  context = GroundingContext(
+    papers=[CorpusPaper(citation_key="hanna2019", title="Takotsubo", year=2019)],
+    notes=[
+      "RESEARCHER NOTES (the researcher's own saved notes, not Corpus text):\n"
+      "- Beta-blocker trials look like the gap. (from hanna2019)"
+    ],
+  )
+
+  rendered = context.render()
+
+  assert "RESEARCHER NOTES" in rendered
+  assert "Beta-blocker trials look like the gap." in rendered
+
+
 def test_narrative_prompt_carries_the_candidate_gaps():
   """The narrative prompt describes the Candidate Gaps it must summarize."""
   client = _CapturingStub({"paragraphs": ["A summary."], "citations": ["hanna2019"]})

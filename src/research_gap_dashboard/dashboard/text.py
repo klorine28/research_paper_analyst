@@ -725,7 +725,51 @@ ANALYTICS_NO_KEY = (
 )
 ANALYTICS_CHAT_HEADING = "Chat"
 ANALYTICS_CHAT_INPUT_LABEL = "Ask about the Papers, gaps, or data"
-ANALYTICS_CLEAR_CHAT_BUTTON = "Clear conversation"
+
+# Conversation management (issue #50): several persisted threads \u2014 a general one
+# and one per Candidate Gap \u2014 each listable, renamable, and deletable.
+ANALYTICS_GENERAL_TITLE = "General (whole Corpus)"
+ANALYTICS_CONVERSATION_PICKER_LABEL = "Conversation"
+ANALYTICS_CONVERSATION_OPTION = "{title} ({turns} turns)"
+ANALYTICS_NEW_CONVERSATION_BUTTON = "\u2795 New conversation"
+ANALYTICS_NEW_CONVERSATION_TITLE = "New conversation"
+ANALYTICS_DELETE_CONVERSATION_BUTTON = "\U0001f5d1 Delete this conversation"
+ANALYTICS_RENAME_LABEL = "Rename this conversation"
+ANALYTICS_RENAME_BUTTON = "Rename"
+
+# Curated research journal (issue #50): the only cross-conversation channel. Only
+# snippets the researcher explicitly keeps enter it; each records its provenance
+# and is reused labelled as the researcher's own note (CODING_STANDARDS.md >
+# Research integrity).
+ANALYTICS_KEEP_BUTTON = "\U0001f4cc Keep this in the journal"
+ANALYTICS_KEEP_CONFIRM = "Kept in the research journal."
+ANALYTICS_JOURNAL_HEADING = "Research journal"
+ANALYTICS_JOURNAL_INTRO = (
+  "Snippets you chose to keep. They carry across conversations as your own "
+  "notes, and any claim built on them still cites only Papers in this Corpus."
+)
+ANALYTICS_JOURNAL_EMPTY = (
+  "Nothing kept yet. Use 'Keep this in the journal' on an answer to save it "
+  "here with its source gap and Papers."
+)
+ANALYTICS_JOURNAL_DELETE_BUTTON = "Remove from journal"
+ANALYTICS_JOURNAL_SOURCE_GAP = "From gap: {gap}"
+ANALYTICS_JOURNAL_SOURCE_PAPERS = "Papers: {papers}"
+ANALYTICS_JOURNAL_SOURCE_NONE = "Kept from the whole-Corpus chat."
+
+
+def journal_source_label(gap_id: str | None, citation_keys: list[str]) -> str:
+  """Describe a kept note's provenance: the gap and Corpus Papers behind it."""
+  parts: list[str] = []
+  if gap_id:
+    parts.append(ANALYTICS_JOURNAL_SOURCE_GAP.format(gap=gap_id))
+  if citation_keys:
+    parts.append(
+      ANALYTICS_JOURNAL_SOURCE_PAPERS.format(papers=", ".join(citation_keys))
+    )
+  return "  \u00b7  ".join(parts) if parts else ANALYTICS_JOURNAL_SOURCE_NONE
+
+
 ANALYTICS_THINKING = "Grounding an answer in the Corpus\u2026"
 ANALYTICS_CITATIONS_LABEL = "Grounded in: {papers}"
 ANALYTICS_NO_CITATIONS = "This answer cites no Corpus Paper."
@@ -744,19 +788,14 @@ ANALYTICS_SUMMARY_NEEDS_GAPS = (
 )
 ANALYTICS_GENERATE_SUMMARY_BUTTON = "Generate narrative summary"
 
-# Scoped-to-one-gap chat (issue #48). Reached from a gap card's "Discuss this gap"
-# button; the chat is grounded in just that gap's source Papers and Evidence. The
-# conversation is ephemeral for now \u2014 per-gap persistent conversations are a
-# separate v2 feature (issue #44).
+# Scoped-to-one-gap chat (issue #48), now a persisted thread (issue #50). Reached
+# from a gap card's "Discuss this gap" button; the thread is grounded in just that
+# gap's source Papers and Evidence, and persists so it can carry over months.
+ANALYTICS_SCOPED_TITLE = "Gap: {title}"
 ANALYTICS_SCOPED_HEADING = "Discuss one gap: {title}"
 ANALYTICS_SCOPED_INTRO = (
-  "This chat is scoped to a single Candidate Gap \u2014 only its source Papers "
+  "This thread is scoped to a single Candidate Gap \u2014 only its source Papers "
   "and Evidence \u2014 so it answers 'why is this a gap, and what would close "
   "it?' from just that slice. It remains a candidate for human judgment, not a "
-  "verdict, and this conversation is not saved."
-)
-ANALYTICS_SCOPED_CHAT_INPUT_LABEL = "Ask about this gap"
-ANALYTICS_SCOPED_EXIT_BUTTON = "\u2190 Back to the whole-Corpus chat"
-ANALYTICS_SCOPED_GAP_MISSING = (
-  "That Candidate Gap is no longer available. Showing the whole-Corpus chat."
+  "verdict, and this conversation is saved so you can return to it."
 )

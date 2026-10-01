@@ -88,6 +88,7 @@ class GroundingContext(BaseModel):
   papers: list[CorpusPaper]
   gaps: list[GapFact] = []
   evidence: list[GapEvidence] = []
+  notes: list[str] = []
 
   @property
   def allowed_keys(self) -> set[str]:
@@ -124,6 +125,10 @@ class GroundingContext(BaseModel):
       for passage in self.evidence:
         section = f" \u2014 {passage.section}" if passage.section else ""
         lines.append(f"- [{passage.citation_key}{section}] {passage.passage}")
+    for note in self.notes:
+      if note.strip():
+        lines.append("")
+        lines.append(note)
     return "\n".join(lines)
 
 
