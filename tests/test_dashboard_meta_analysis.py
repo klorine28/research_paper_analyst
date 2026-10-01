@@ -498,3 +498,34 @@ def test_network_and_sankey_figures_build():
   assert isinstance(network, go.Figure)
   assert isinstance(sankey, go.Figure)
   assert network.data  # at least one trace (edges and/or nodes)
+
+
+# --- The meta page renders the six graphs as a collapsible tile gallery --------
+
+
+def test_meta_page_shows_the_six_graphs_as_gallery_tiles(tmp_path, monkeypatch):
+  """The Field Meta-Analysis page presents the six graphs as expandable tiles."""
+  from pathlib import Path
+
+  from conftest import StubLlmClient
+  from test_detect import _PLACEMENTS, _write_corpus
+
+  import research_gap_dashboard.dashboard as dashboard_pkg
+  from research_gap_dashboard.detect import detect_corpus
+  from streamlit.testing.v1 import AppTest
+
+  root = _write_corpus(tmp_path / "corpus", _PLACEMENTS)
+  detect_corpus(root, StubLlmClient({}))
+  monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(root.parent))
+  app_path = Path(dashboard_pkg.__file__).parent / "app.py"
+  app = AppTest.from_file(str(app_path), default_timeout=60).run()
+  app.radio[0].set_value("Field Meta-Analysis").run()
+
+  assert not app.exception
+  tile_buttons = [b for b in app.button if (b.key or "").startswith("metatile_btn_")]
+  tile_ids = {b.key.removeprefix("metatile_btn_") for b in tile_buttons}
+  assert tile_ids == {"citation", "topic", "method", "trends", "authors", "limitation"}
+
+  # Opening a tile reveals its full chart below the grid without erroring.
+  next(b for b in tile_buttons if b.key.endswith("citation")).click().run()
+  assert not app.exception

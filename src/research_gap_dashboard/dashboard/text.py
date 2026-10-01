@@ -456,6 +456,12 @@ META_MISSING_PAIRS_LABEL = "Missing pairs (candidate gaps)"
 META_NO_MISSING_PAIRS = "Every pair of shown categories co-occurs in some Paper."
 META_MISSING_PAIR_ROW = "{source} \u00d7 {target}"
 
+# The meta-analysis gallery: the six graphs as collapsible tiles (shared idiom).
+META_GALLERY_HINT = (
+  "Each graph is a tile below; open the ones you want to read full size."
+)
+META_PREVIEW_EMPTY = "No data to preview yet \u2014 open the tile for details."
+
 # Graph 1: Citation network.
 META_CITATION_TITLE = "Citation network (in-Corpus citations)"
 META_CITATION_QUESTION = (

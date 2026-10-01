@@ -10,6 +10,7 @@ corpus directories with the RESEARCH_GAP_CORPORA_DIR environment variable.
 
 import os
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Literal
 from pathlib import Path
 
@@ -361,33 +362,58 @@ def _render_overview_gallery(overview: OverviewData) -> None:
   """Render the 2x2 grid of coloured preview tiles and the expanded panels."""
   st.subheader(text.OVERVIEW_GALLERY_HEADING)
   st.caption(text.OVERVIEW_GALLERY_HINT)
-  _inject_tile_styles()
+  _render_tile_gallery(
+    "ovtile",
+    _OVERVIEW_TILES,
+    OVERVIEW_OPEN_KEY,
+    lambda chart_id: _render_tile_preview(chart_id, overview),
+    lambda chart_id: _render_overview_panel_body(chart_id, overview),
+  )
 
-  # Every tile starts collapsed to a miniature; the researcher expands the ones
-  # they want full size (issue #45 follow-up).
-  open_charts: set[str] = st.session_state.setdefault(OVERVIEW_OPEN_KEY, set())
-  for row_start in range(0, len(_OVERVIEW_TILES), 2):
-    columns = st.columns(2)
+
+def _render_tile_gallery(
+  prefix: str,
+  tiles: list[tuple[str, str, str]],
+  open_key: str,
+  render_preview: Callable[[str], None],
+  render_panel: Callable[[str], None],
+  *,
+  columns: int = 2,
+) -> None:
+  """
+  Render a grid of coloured preview tiles, expanding the ones the reader opens.
+
+  The one gallery idiom the Corpus Overview and the Field Meta-Analysis share:
+  each chart is a collapsed, tinted tile with a miniature, and clicking it opens
+  the full chart below the grid. `prefix` namespaces the widget keys and the CSS
+  so two galleries on different pages never collide; `render_preview` and
+  `render_panel` supply the page-specific thumbnail and full chart for a tile id.
+  """
+  _inject_gallery_styles(prefix, tiles)
+  open_charts: set[str] = st.session_state.setdefault(open_key, set())
+  for row_start in range(0, len(tiles), columns):
+    row = st.columns(columns)
     for (chart_id, title, _shade), column in zip(
-      _OVERVIEW_TILES[row_start : row_start + 2], columns
+      tiles[row_start : row_start + columns], row
     ):
-      with column, st.container(key=f"ovtile_{chart_id}", border=True):
+      with column, st.container(key=f"{prefix}_{chart_id}", border=True):
         st.markdown(f"**{title}**")
-        _render_tile_preview(chart_id, overview)
+        render_preview(chart_id)
         is_open = chart_id in open_charts
         label = text.OVERVIEW_TILE_COLLAPSE if is_open else text.OVERVIEW_TILE_EXPAND
-        if st.button(label, key=f"ovtile_btn_{chart_id}", use_container_width=True):
+        if st.button(label, key=f"{prefix}_btn_{chart_id}", use_container_width=True):
           open_charts.symmetric_difference_update({chart_id})
           st.rerun()
 
-  for chart_id, title, shade in _OVERVIEW_TILES:
+  for chart_id, title, shade in tiles:
     if chart_id in open_charts:
-      _render_overview_panel(chart_id, title, shade, overview)
+      _render_tile_panel_header(title, shade)
+      render_panel(chart_id)
 
 
-def _inject_tile_styles() -> None:
+def _inject_gallery_styles(prefix: str, tiles: list[tuple[str, str, str]]) -> None:
   """
-  Tint each overview tile its own shade of blue, keeping its text readable.
+  Tint each gallery tile its own shade of blue, keeping its text readable.
 
   The tile background is a light blue, but Streamlit text inherits the active
   theme's font colour (light in dark mode), which would vanish on a light tile.
@@ -395,8 +421,8 @@ def _inject_tile_styles() -> None:
   light background, making both legible on every shade and in either theme.
   """
   blocks = []
-  for chart_id, _title, shade in _OVERVIEW_TILES:
-    key = f".st-key-ovtile_{chart_id}"
+  for chart_id, _title, shade in tiles:
+    key = f".st-key-{prefix}_{chart_id}"
     blocks.append(
       f"{key}{{background:{shade};border-radius:0.6rem;}}"
       f"{key} p,{key} label,{key} strong,{key} span,"
@@ -408,6 +434,16 @@ def _inject_tile_styles() -> None:
       f"color:{_OVERVIEW_TILE_TEXT} !important;}}"
     )
   st.markdown(f"<style>{''.join(blocks)}</style>", unsafe_allow_html=True)
+
+
+def _render_tile_panel_header(title: str, shade: str) -> None:
+  """Render the coloured header that opens an expanded gallery panel."""
+  st.markdown(
+    f"<div style='background:{shade};color:{_OVERVIEW_TILE_TEXT};"
+    "padding:0.45rem 0.9rem;border-radius:0.4rem;font-weight:600;"
+    f"margin-top:0.6rem;'>{title}</div>",
+    unsafe_allow_html=True,
+  )
 
 
 def _render_tile_preview(chart_id: str, overview: OverviewData) -> None:
@@ -509,16 +545,8 @@ def _render_mini_bar(labels: list[str], values: list[int], *, key: str) -> None:
   )
 
 
-def _render_overview_panel(
-  chart_id: str, title: str, shade: str, overview: OverviewData
-) -> None:
-  """Render one expanded chart panel: coloured header, how-to-read, the chart."""
-  st.markdown(
-    f"<div style='background:{shade};color:{_OVERVIEW_TILE_TEXT};"
-    "padding:0.45rem 0.9rem;border-radius:0.4rem;font-weight:600;"
-    f"margin-top:0.6rem;'>{title}</div>",
-    unsafe_allow_html=True,
-  )
+def _render_overview_panel_body(chart_id: str, overview: OverviewData) -> None:
+  """Render one expanded overview chart (the coloured header is drawn generically)."""
   if chart_id == "papers_year":
     _render_papers_per_year(overview)
   elif chart_id == "venues":
@@ -907,39 +935,165 @@ def _render_coverage_page(chosen: CorpusChoice) -> None:
   render_coverage(matrices, trends)
 
 
+# The Field Meta-Analysis gallery: the six graphs as the same collapsible tiles
+# the Corpus Overview uses, so a reader scans thumbnails and opens the ones they
+# want full size instead of scrolling six interactive charts (shared idiom).
+_META_TILES: list[tuple[str, str, str]] = [
+  ("citation", text.META_CITATION_TITLE, "#e8f1fc"),
+  ("topic", text.META_TOPIC_TITLE, "#cfe3f8"),
+  ("method", text.META_METHOD_TITLE, "#b6d4f2"),
+  ("trends", text.TRENDS_HEADING, "#9dc4ec"),
+  ("authors", text.META_COLLABORATION_TITLE, "#86b4e6"),
+  ("limitation", text.META_LIMITATION_TITLE, "#6fa4df"),
+]
+META_OPEN_KEY = "meta_open_charts"
+_META_THUMB_HEIGHT = 170
+
+
 def _render_meta_page(chosen: CorpusChoice) -> None:
-  """Render the Field Meta-Analysis page for the chosen Corpus."""
+  """Render the Field Meta-Analysis page as a gallery of the six graph tiles."""
   st.header(text.META_HEADING)
   if not has_manifest(chosen.root):
     st.warning(text.META_NO_MANIFEST)
     return
   st.info(text.META_INTRO)
+  st.caption(text.META_GALLERY_HINT)
   manifest = load_manifest(chosen.root)
+  normalized = (
+    load_normalized_facts(chosen.root) if has_normalized_facts(chosen.root) else None
+  )
+  has_gaps = has_candidate_gaps(chosen.root)
 
-  render_network_graph(build_citation_network(manifest))
-
-  if has_normalized_facts(chosen.root):
-    normalized = load_normalized_facts(chosen.root)
-    _render_cooccurrence(normalized, manifest, axis="topic")
-    _render_cooccurrence(normalized, manifest, axis="method")
-    st.subheader(text.TRENDS_HEADING)
-    _render_trends(build_trends(normalized, manifest))
-  else:
-    st.info(text.META_NO_NORMALIZED)
-
-  render_author_table(build_author_table(manifest))
-
-  if has_candidate_gaps(chosen.root):
-    render_limitation_flow(
-      build_limitation_flow(build_limitations(load_candidate_gaps(chosen.root)))
+  # Every builder here is a pure read over on-disk artifacts (no LLM), so building
+  # the base graphs up front for the thumbnails is cheap; the panels rebuild the
+  # co-occurrence graphs with the reader's slider state.
+  bundle = _MetaBundle(
+    citation=build_citation_network(manifest),
+    authors=build_author_table(manifest),
+    topic=build_cooccurrence(normalized, manifest, axis="topic", max_nodes=25)
+    if normalized is not None
+    else None,
+    method=build_cooccurrence(normalized, manifest, axis="method", max_nodes=25)
+    if normalized is not None
+    else None,
+    trends=build_trends(normalized, manifest) if normalized is not None else None,
+    limitation=build_limitation_flow(
+      build_limitations(load_candidate_gaps(chosen.root))
     )
-  else:
-    st.subheader(text.META_LIMITATION_TITLE)
-    st.info(text.NO_CANDIDATE_GAPS_ARTIFACT_LIMITATIONS)
+    if has_gaps
+    else None,
+  )
+
+  _render_tile_gallery(
+    "metatile",
+    _META_TILES,
+    META_OPEN_KEY,
+    lambda chart_id: _render_meta_preview(chart_id, bundle),
+    lambda chart_id: _render_meta_panel(
+      chart_id, manifest, normalized, has_gaps, bundle
+    ),
+  )
+
+
+@dataclass
+class _MetaBundle:
+  """The pre-built graphs a meta gallery tile needs for its thumbnail and panel."""
+
+  citation: NetworkGraph
+  authors: AuthorCollaborationTable
+  topic: NetworkGraph | None
+  method: NetworkGraph | None
+  trends: TrendsData | None
+  limitation: SankeyGraph | None
+
+
+def _render_meta_thumb(figure: go.Figure, key: str) -> None:
+  """Render a small, non-interactive thumbnail of a meta graph inside its tile."""
+  figure.update_layout(
+    height=_META_THUMB_HEIGHT,
+    margin={"l": 4, "r": 4, "t": 8, "b": 4},
+    showlegend=False,
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+  )
+  st.plotly_chart(
+    figure,
+    use_container_width=True,
+    config={"displayModeBar": False, "staticPlot": True},
+    key=f"metathumb_{key}",
+  )
+
+
+def _render_meta_preview(chart_id: str, bundle: _MetaBundle) -> None:
+  """Render a tile's thumbnail: a miniature graph with a stat, or why it's empty."""
+  if chart_id == "citation":
+    _render_network_preview(bundle.citation)
+  elif chart_id == "topic":
+    _render_network_preview(bundle.topic)
+  elif chart_id == "method":
+    _render_network_preview(bundle.method)
+  elif chart_id == "trends":
+    if bundle.trends is not None and bundle.trends.has_data:
+      _render_meta_thumb(build_trends_figure(bundle.trends), "trends")
+    else:
+      st.caption(text.META_PREVIEW_EMPTY)
+  elif chart_id == "authors":
+    rows = bundle.authors.rows[:8]
+    if rows:
+      _render_mini_bar(
+        [row.author for row in rows], [row.paper_count for row in rows], key="authors"
+      )
+    else:
+      st.caption(text.META_PREVIEW_EMPTY)
+  elif chart_id == "limitation":
+    if bundle.limitation is not None and not bundle.limitation.is_empty:
+      _render_meta_thumb(build_sankey_figure(bundle.limitation), "limitation")
+    else:
+      st.caption(text.META_PREVIEW_EMPTY)
+
+
+def _render_network_preview(graph: NetworkGraph | None) -> None:
+  """Render a small network thumbnail with its node/edge/isolated counts."""
+  if graph is None or graph.is_empty:
+    st.caption(text.META_PREVIEW_EMPTY)
+    return
+  _render_meta_thumb(build_network_figure(graph), graph.slug)
+  st.caption(
+    text.META_FIGURE_SUMMARY.format(
+      nodes=len(graph.nodes),
+      edges=graph.edge_count,
+      isolated=len(graph.isolated_labels),
+    )
+  )
+
+
+def _render_meta_panel(  # noqa: ANN001
+  chart_id: str, manifest, normalized, has_gaps: bool, bundle: _MetaBundle
+) -> None:
+  """Render a tile's full chart below the grid (the coloured header is generic)."""
+  if chart_id == "citation":
+    render_network_graph(bundle.citation, show_title=False)
+  elif chart_id in ("topic", "method"):
+    if normalized is None:
+      st.info(text.META_NO_NORMALIZED)
+    else:
+      _render_cooccurrence(normalized, manifest, axis=chart_id, show_title=False)
+  elif chart_id == "trends":
+    if bundle.trends is None:
+      st.info(text.META_NO_NORMALIZED)
+    else:
+      _render_trends(bundle.trends)
+  elif chart_id == "authors":
+    render_author_table(bundle.authors, show_title=False)
+  elif chart_id == "limitation":
+    if not has_gaps or bundle.limitation is None:
+      st.info(text.NO_CANDIDATE_GAPS_ARTIFACT_LIMITATIONS)
+    else:
+      render_limitation_flow(bundle.limitation, show_title=False)
 
 
 def _render_cooccurrence(  # noqa: ANN001
-  normalized, manifest, *, axis: Literal["topic", "method"]
+  normalized, manifest, *, axis: Literal["topic", "method"], show_title: bool = True
 ) -> None:
   """Render one co-occurrence graph with its min-weight and node-count controls."""
   weight_key = f"meta_minw_{axis}"
@@ -961,7 +1115,7 @@ def _render_cooccurrence(  # noqa: ANN001
     max_nodes=st.session_state[nodes_key],
     min_edge_weight=st.session_state[weight_key],
   )
-  render_network_graph(graph, axis=axis, peak=peak)
+  render_network_graph(graph, axis=axis, peak=peak, show_title=show_title)
 
 
 def _render_graph_controls(peak: int, axis: str) -> None:
@@ -977,10 +1131,15 @@ def _render_graph_controls(peak: int, axis: str) -> None:
 
 
 def render_network_graph(
-  graph: NetworkGraph, *, axis: str | None = None, peak: int = 1
+  graph: NetworkGraph,
+  *,
+  axis: str | None = None,
+  peak: int = 1,
+  show_title: bool = True,
 ) -> None:
   """Render one meta-analysis network graph with its question, caveat, and table."""
-  st.subheader(graph.title)
+  if show_title:
+    st.subheader(graph.title)
   st.caption(f"**{text.META_QUESTION_LABEL}:** {graph.question}")
   st.caption(f"**{text.META_GAP_LENS_LABEL}:** {graph.gap_lens}")
   if graph.is_empty:
@@ -1107,9 +1266,12 @@ def _render_missing_pairs(graph: NetworkGraph) -> None:
       )
 
 
-def render_author_table(table: AuthorCollaborationTable) -> None:
+def render_author_table(
+  table: AuthorCollaborationTable, *, show_title: bool = True
+) -> None:
   """Render the author collaboration view as a ranked table, not a hairball."""
-  st.subheader(table.title)
+  if show_title:
+    st.subheader(table.title)
   st.caption(f"**{text.META_QUESTION_LABEL}:** {table.question}")
   st.caption(f"**{text.META_GAP_LENS_LABEL}:** {table.gap_lens}")
   if table.is_empty:
@@ -1147,9 +1309,10 @@ def _render_graph_data_table(graph: NetworkGraph) -> None:
       st.caption(text.META_EMPTY_GRAPH)
 
 
-def render_limitation_flow(graph: SankeyGraph) -> None:
+def render_limitation_flow(graph: SankeyGraph, *, show_title: bool = True) -> None:
   """Render the limitation follow-up Sankey with its question and caveat."""
-  st.subheader(graph.title)
+  if show_title:
+    st.subheader(graph.title)
   st.caption(f"**{text.META_QUESTION_LABEL}:** {graph.question}")
   st.caption(f"**{text.META_GAP_LENS_LABEL}:** {graph.gap_lens}")
   if graph.is_empty:
