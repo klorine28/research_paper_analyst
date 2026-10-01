@@ -28,7 +28,6 @@ NO_CORPORA = (
 NAV_LABEL = "Page"
 PAGE_OVERVIEW = "Corpus Overview"
 PAGE_GAP_CARDS = "Gap Cards"
-PAGE_COVERAGE = "Coverage & Trends"
 PAGE_META = "Field Meta-Analysis"
 PAGE_LIMITATIONS = "Unanswered Limitations"
 PAGE_RETRIEVAL = "Retrieval Gaps"
@@ -322,50 +321,9 @@ EVIDENCE_ROLE_LABELS: dict[str, str] = {
 }
 EVIDENCE_TERM_DETAIL = "{role} \u201c{term}\u201d"
 
-# Coverage & Trends page. The Coverage Matrix heatmap and the publication-volume
-# Trends chart both read the artifacts the pipeline wrote (ADR 0002). An empty
-# cell is a fact about the Corpus ("no Paper combines these"), never a measured
-# zero (CODING_STANDARDS.md > Research integrity).
-COVERAGE_HEADING = "Coverage & Trends"
-COVERAGE_INTRO = (
-  "Where the Corpus looks thin or silent \u2014 a **signal for human judgment, "
-  "not a verdict**. An empty heatmap cell means no Paper in this Corpus combines "
-  "those two categories; it is not a measured value of zero."
-)
-NO_CANDIDATE_GAPS_ARTIFACT_COVERAGE = (
-  "No Coverage Matrices found for this Corpus. Run the pipeline through `detect` "
-  "against this corpus directory first."
-)
-NO_NORMALIZED_FACTS_ARTIFACT = (
-  "No normalized facts found for this Corpus. Run the pipeline through "
-  "`aggregate` against this corpus directory first."
-)
-
-# Coverage Matrix heatmap.
-HEATMAP_HEADING = "Coverage Matrix"
-HEATMAP_AXIS_LABEL = "Compare Topics against"
-HEATMAP_TOPIC_PAIR_OPTION = "Topic (co-occurrence)"
-HEATMAP_NO_PAPERS = "no papers"
-HEATMAP_NO_PAPERS_COLOR = "#e6e6e6"
-HEATMAP_COLORBAR_TITLE = "Papers"
-HEATMAP_DENOMINATOR = "Counts are over the {total} Papers in the Corpus."
-HEATMAP_NO_MATRICES = (
-  "No Coverage Matrix has both rows and columns to show for this Corpus."
-)
+# The Trends chart reads the artifacts the pipeline wrote (ADR 0002); every count
+# states its denominator (CODING_STANDARDS.md > Research integrity).
 HOW_TO_READ_LABEL = "How to read this chart"
-HEATMAP_EXPLAINER = (
-  "**What it answers:** Which pairs of categories do Papers in this Corpus "
-  "study together?\n\n"
-  "**How to read it:** Rows and columns are categories. Each cell shows how "
-  "many Papers cover *both* its row and its column; the deeper the blue, the "
-  "more Papers. A blank cell labelled '" + HEATMAP_NO_PAPERS + "' means no "
-  "Paper combines that pair \u2014 it is a fact about the Corpus, not a "
-  "measured zero, so it is painted separately from the low end of the scale."
-  "\n\n"
-  "**What a gap looks like here:** An empty cell between two otherwise "
-  "well-studied categories is a candidate Knowledge Gap.\n\n"
-  "**Caveat:** Counts are over the Papers placed on both axes (shown below)."
-)
 
 # Trends chart.
 TRENDS_HEADING = "Publication volume per Topic over time"

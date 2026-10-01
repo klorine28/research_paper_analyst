@@ -66,10 +66,7 @@ from research_gap_dashboard.dashboard.comparison import (
   selection_error,
 )
 from research_gap_dashboard.dashboard.coverage import (
-  CoverageMatrixView,
   TrendsData,
-  build_coverage_matrices,
-  build_heatmap_figure,
   build_trends,
   build_trends_figure,
 )
@@ -198,7 +195,6 @@ def _select_page() -> str:
     text.NAV_LABEL,
     [
       text.PAGE_OVERVIEW,
-      text.PAGE_COVERAGE,
       text.PAGE_META,
       text.PAGE_GAP_CARDS,
       text.PAGE_LIMITATIONS,
@@ -623,29 +619,6 @@ def _render_fact_density(density: FactDensity | None) -> None:
   )
 
 
-def render_coverage(matrices: list[CoverageMatrixView], trends: TrendsData) -> None:
-  """Render the Coverage Matrix heatmap and the Trends chart from finished data."""
-  st.header(text.COVERAGE_HEADING)
-  st.info(text.COVERAGE_INTRO)
-
-  st.subheader(text.HEATMAP_HEADING)
-  if not matrices:
-    st.warning(text.HEATMAP_NO_MATRICES)
-  else:
-    with st.expander(text.HOW_TO_READ_LABEL):
-      st.markdown(text.HEATMAP_EXPLAINER)
-    chosen = st.selectbox(
-      text.HEATMAP_AXIS_LABEL,
-      matrices,
-      format_func=lambda view: view.option_label,
-    )
-    st.caption(text.HEATMAP_DENOMINATOR.format(total=chosen.corpus_paper_count))
-    st.plotly_chart(build_heatmap_figure(chosen), use_container_width=True)
-
-  st.subheader(text.TRENDS_HEADING)
-  _render_trends(trends)
-
-
 def _render_trends(trends: TrendsData) -> None:
   """Render the Trends chart with its denominator and emerging/abandoned lines."""
   with st.expander(text.HOW_TO_READ_LABEL):
@@ -921,20 +894,6 @@ def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
     _render_gap_card(card, corpus_root)
 
 
-def _render_coverage_page(chosen: CorpusChoice) -> None:
-  """Render the Coverage & Trends page for the chosen Corpus."""
-  st.header(text.COVERAGE_HEADING)
-  if not has_candidate_gaps(chosen.root):
-    st.warning(text.NO_CANDIDATE_GAPS_ARTIFACT_COVERAGE)
-    return
-  if not has_normalized_facts(chosen.root):
-    st.warning(text.NO_NORMALIZED_FACTS_ARTIFACT)
-    return
-  matrices = build_coverage_matrices(load_candidate_gaps(chosen.root))
-  trends = build_trends(load_normalized_facts(chosen.root), load_manifest(chosen.root))
-  render_coverage(matrices, trends)
-
-
 # The Field Meta-Analysis gallery: the six graphs as the same collapsible tiles
 # the Corpus Overview uses, so a reader scans thumbnails and opens the ones they
 # want full size instead of scrolling six interactive charts (shared idiom).
@@ -1057,7 +1016,7 @@ def _render_network_preview(graph: NetworkGraph | None) -> None:
   if graph is None or graph.is_empty:
     st.caption(text.META_PREVIEW_EMPTY)
     return
-  _render_meta_thumb(build_network_figure(graph), graph.slug)
+  _render_meta_thumb(build_network_figure(graph, thumbnail=True), graph.slug)
   st.caption(
     text.META_FIGURE_SUMMARY.format(
       nodes=len(graph.nodes),
@@ -1382,7 +1341,6 @@ def _render_overview_page(chosen: CorpusChoice) -> None:
 # Each dashboard page maps to the function that renders it for a chosen Corpus,
 # so `main` just dispatches instead of growing a return per page.
 _PAGE_RENDERERS: dict[str, Callable[[CorpusChoice], None]] = {
-  text.PAGE_COVERAGE: _render_coverage_page,
   text.PAGE_META: _render_meta_page,
   text.PAGE_GAP_CARDS: _render_gap_cards_page,
   text.PAGE_LIMITATIONS: _render_limitations_page,

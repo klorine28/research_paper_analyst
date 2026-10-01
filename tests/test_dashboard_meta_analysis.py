@@ -522,10 +522,15 @@ def test_meta_page_shows_the_six_graphs_as_gallery_tiles(tmp_path, monkeypatch):
   app.radio[0].set_value("Field Meta-Analysis").run()
 
   assert not app.exception
-  tile_buttons = [b for b in app.button if (b.key or "").startswith("metatile_btn_")]
-  tile_ids = {b.key.removeprefix("metatile_btn_") for b in tile_buttons}
+  tile_keys = [
+    b.key or "" for b in app.button if (b.key or "").startswith("metatile_btn_")
+  ]
+  tile_ids = {key.removeprefix("metatile_btn_") for key in tile_keys}
   assert tile_ids == {"citation", "topic", "method", "trends", "authors", "limitation"}
 
   # Opening a tile reveals its full chart below the grid without erroring.
-  next(b for b in tile_buttons if b.key.endswith("citation")).click().run()
+  citation_button = next(
+    b for b in app.button if (b.key or "") == "metatile_btn_citation"
+  )
+  citation_button.click().run()
   assert not app.exception

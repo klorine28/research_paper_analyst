@@ -701,7 +701,7 @@ _ROLE_STYLE: dict[str, tuple[str, str, str, float]] = {
 
 
 def build_network_figure(
-  graph: NetworkGraph, *, selected_id: str | None = None
+  graph: NetworkGraph, *, selected_id: str | None = None, thumbnail: bool = False
 ) -> go.Figure:
   """
   Render a network graph as a Plotly figure: edges behind, nodes in front.
@@ -710,45 +710,52 @@ def build_network_figure(
   are drawn in a distinct colour so the eye catches the gap signal. Edge width
   scales with weight so a co-occurrence backed by many Papers reads as heavier
   than a one-Paper link. When ``selected_id`` names a clicked node, that node and
-  its neighbours stay vivid while the rest fade, so click-to-highlight reveals a
-  node's neighbourhood. Hover carries each node's and edge's metadata; the
-  accessible data table the layout shows alongside is the non-interactive
-  fallback (the figure is never the only way to read the numbers).
+  its neighbours stay vivid while the rest fade, and the edges touching it are
+  drawn last, thicker and in the selected colour, so click-to-highlight makes the
+  connections \u2014 not just the nodes \u2014 stand out. Hover carries each node's
+  and edge's metadata; the accessible data table the layout shows alongside is the
+  non-interactive fallback (the figure is never the only way to read the numbers).
+
+  ``thumbnail`` renders a clean miniature for a gallery tile: no node labels, no
+  legend, smaller markers and thinner edges, so a dense graph reads as a shape at
+  a glance instead of a tangle of overlapping text.
   """
   positions = _layout(graph)
   figure = go.Figure()
   active = selected_id if selected_id in graph.node_ids else None
 
-  for edge in graph.edges:
-    x0, y0 = positions[edge.source]
-    x1, y1 = positions[edge.target]
-    incident = active is not None and active in (edge.source, edge.target)
-    if active is not None and not incident:
-      colour = "rgba(120,120,120,0.10)"
-    elif incident:
-      colour = text.META_SELECTED_COLOR
-    else:
-      colour = "rgba(120,120,120,0.45)"
-    figure.add_trace(
-      go.Scatter(
-        x=[x0, x1],
-        y=[y0, y1],
-        mode="lines",
-        line={"width": min(1 + edge.weight, 8), "color": colour},
-        hoverinfo="text",
-        text=edge.hover,
-        showlegend=False,
-      )
+  # Draw the background edges first and the selected node's edges last, so the
+  # highlighted arcs sit on top of everything rather than behind faded links.
+  background = [
+    e for e in graph.edges if active is None or active not in (e.source, e.target)
+  ]
+  incident = [
+    e for e in graph.edges if active is not None and active in (e.source, e.target)
+  ]
+  for edge in background:
+    faded = active is not None
+    colour = "rgba(120,120,120,0.08)" if faded else "rgba(120,120,120,0.45)"
+    _add_edge_trace(figure, edge, positions, colour=colour, thumbnail=thumbnail)
+  for edge in incident:
+    _add_edge_trace(
+      figure,
+      edge,
+      positions,
+      colour=text.META_SELECTED_COLOR,
+      thumbnail=thumbnail,
+      emphasis=3,
     )
 
   roles: dict[str, list[GraphNode]] = {}
   for node in graph.nodes:
     roles.setdefault(node_role(graph, node, active), []).append(node)
   for role in ("faded", "connected", "isolated", "neighbor", "selected"):
-    _add_node_trace(figure, roles.get(role, []), positions, role=role)
+    _add_node_trace(
+      figure, roles.get(role, []), positions, role=role, thumbnail=thumbnail
+    )
 
   figure.update_layout(
-    showlegend=True,
+    showlegend=not thumbnail,
     legend_title=text.META_LEGEND_TITLE,
     xaxis={"visible": False},
     yaxis={"visible": False},
@@ -757,17 +764,63 @@ def build_network_figure(
   return figure
 
 
+def _add_edge_trace(
+  figure: go.Figure,
+  edge: GraphEdge,
+  positions: dict[str, tuple[float, float]],
+  *,
+  colour: str,
+  thumbnail: bool,
+  emphasis: int = 0,
+) -> None:
+  """Add one edge line, thinner in a thumbnail and thicker when emphasised."""
+  x0, y0 = positions[edge.source]
+  x1, y1 = positions[edge.target]
+  base = 0.6 if thumbnail else min(1 + edge.weight, 8)
+  figure.add_trace(
+    go.Scatter(
+      x=[x0, x1],
+      y=[y0, y1],
+      mode="lines",
+      line={"width": base + emphasis, "color": colour},
+      hoverinfo="skip" if thumbnail else "text",
+      text=None if thumbnail else edge.hover,
+      showlegend=False,
+    )
+  )
+
+
 def _add_node_trace(
   figure: go.Figure,
   nodes: list[GraphNode],
   positions: dict[str, tuple[float, float]],
   *,
   role: str,
+  thumbnail: bool = False,
 ) -> None:
   """Add one node trace for a rendering role, carrying node ids as customdata."""
   if not nodes:
     return
   colour, name, symbol, opacity = _ROLE_STYLE[role]
+  if thumbnail:
+    sizes = [min(5 + 1.5 * node.weight, 14) for node in nodes]
+    figure.add_trace(
+      go.Scatter(
+        x=[positions[node.node_id][0] for node in nodes],
+        y=[positions[node.node_id][1] for node in nodes],
+        mode="markers",
+        marker={
+          "size": sizes,
+          "color": colour,
+          "opacity": opacity,
+          "line": {"width": 0.5, "color": "white"},
+          "symbol": symbol,
+        },
+        hoverinfo="skip",
+        showlegend=False,
+      )
+    )
+    return
   figure.add_trace(
     go.Scatter(
       x=[positions[node.node_id][0] for node in nodes],
