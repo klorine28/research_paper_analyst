@@ -17,13 +17,13 @@ changed.
 | # | Question | Recommendation |
 | --- | --- | --- |
 | 1 | L1 test | One-sided **hypergeometric (Fisher) lower-tail probability** `P(X ≤ observed)`; no lift/PMI, no chi-square; no multiplicity correction because L1 ranks and never claims significance. Buckets: ≤ 0.05 High, ≤ 0.20 Medium, else Low. |
-| 2 | L2 roll-up | Feasible now: `parent` exists in the schema and matches MeSH tree prefixes. Reject only **ancestor × descendant** cells (indexing byproduct). A child cell whose parent cell holds a Paper indexed **only at the parent** is downgraded, not rejected; one filled only by siblings is unaffected. *Refines ADR text: needs sign-off.* |
-| 3 | Embeddings | `NeuML/pubmedbert-base-embeddings` (Apache-2.0) via `sentence-transformers`, as an optional extra with recorded vectors in tests. Serves limitation de-duplication (#54), the two-witness shortlist and chat retrieval (#97). **L3 near-coverage still not adopted**; cell-level L4 merging is L2's job. *Adoption needs sign-off.* |
+| 2 | L2 roll-up | Feasible now: `parent` exists in the schema and matches MeSH tree prefixes. Reject only **ancestor × descendant** cells (indexing byproduct). A child cell whose parent cell holds a Paper indexed **only at the parent** is downgraded, not rejected; one filled only by siblings is unaffected. *Refined ADR text; approved.* |
+| 3 | Embeddings | `NeuML/pubmedbert-base-embeddings` (Apache-2.0) via `sentence-transformers`, as an optional extra with recorded vectors in tests. Serves limitation de-duplication (#54), the two-witness shortlist and chat retrieval (#97). **L3 near-coverage still not adopted**; cell-level L4 merging is L2's job. *Adopted; approved.* |
 | 4 | Sparse threshold | Drop the 25-Paper switch. A cell is a candidate if it is **empty, or holds one Paper where more than one was expected**, at every Corpus size. |
 | 5 | L5 prompt | Draft 3-shot TABI prompt below; run L5 only on candidates at **Medium or High after the deterministic layers**. GAPMAP's unverified figures are now verified (with caveats). |
 | 6 | Small-N display | Plain-language "expected vs observed" on every card, the probability in Tier 3, and a Corpus-level line stating the smallest margins that could ever reach High at this N. |
 | 7 | Bridges | Keep **≥ 2 bridges**, but a bridge needs **≥ 2 Papers on each link** and may not be a near-universal category (≥ 90 % of Papers). Raw common neighbours make the bar meaningless at our N. Adamic–Adar weighting orders bridges in Tier 3 only. |
-| 8 | Two witnesses | Tag each limitation group with a **limitation-type bucket and category ids in one cached LLM pass**, then intersect deterministically. Lexical matching found zero matches on real data. Corroboration boosts one level; **absence should not downgrade**. *Changes ADR text: needs sign-off.* |
+| 8 | Two witnesses | Tag each limitation group with a **limitation-type bucket and category ids in one cached LLM pass**, then intersect deterministically. Lexical matching found zero matches on real data. Corroboration boosts one level; **absence should not downgrade**. *Changed ADR text; approved.* |
 
 The combined confidence rule that falls out of 1, 7 and 8 is in
 [Combining the layers](#combining-the-layers).
