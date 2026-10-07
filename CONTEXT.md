@@ -13,8 +13,14 @@ Papers in v1. Every claim the dashboard makes cites only Papers in the Corpus.
 
 ### Paper
 
-One publication in a Corpus, identified by DOI where available, with both its
-bibliographic record (from a DOI/BibTeX list) and its full-text PDF.
+One publication in a Corpus, with both its bibliographic record (from a
+DOI/BibTeX list) and its full-text PDF. A Paper is identified by its DOI where
+one is available, otherwise by its citation key, so a **DOI is optional** —
+unpublished work (preprints, theses, grey literature) is a first-class Paper. A
+Paper with no DOI cannot be resolved against a scholarly API, so it carries no
+citation-graph metadata and is honestly excluded from the features that need it
+(Retrieval Gap ranking, citation-network edges), reported via each view's
+denominator.
 
 ### Extraction
 

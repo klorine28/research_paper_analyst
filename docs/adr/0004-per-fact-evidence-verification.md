@@ -68,3 +68,15 @@ quote), because a regression fixture must be exact.
 - Fixing the parser artifacts at the source (OCR / a better parser, issue #46
   Step 2) would shrink the dropped-fact tail further; this ADR handles the
   residue that any parser will leave.
+
+## Amendment (2026-10): line-break hyphen joins
+
+Normalization also joins a hyphen at a line break (`in- hospital` →
+`in-hospital`, from a PDF wrapping a hyphenated word) in the parsed text before
+matching. This undoes a parser transformation of the same class as the table
+pipes and `U+FFFD` cases above, so it cannot admit a misquote. Token-overlap or
+similarity-threshold matching stays **rejected**: it cannot tell parser damage
+from an LLM misquote ("reduced mortality" vs "did not reduce mortality" share
+most tokens). Text that multi-column layouts linearized out of order is a parse-quality
+problem for the parser chain (ADR 0005), not something the matcher should
+excuse.
