@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PROTOTYPE · Research Gap Dashboard — guided flow</title>
+<!--
+  THROWAWAY PROTOTYPE. Not production. Not Streamlit. Double-click to open.
+
+  Question it answers: what should the dashboard's navigation STRUCTURE be?
+  Three radically different takes on the target UX in docs/journeys.md
+  (Scope → Build → Trust → Explore → Judge → Grow → Write → Resume),
+  to compare against today's flat 10-page sidebar (UI audit finding #1).
+
+  Switch variants with the floating bar at the bottom, the ← → arrow keys,
+  or ?variant=A|B|C in the URL.
+
+  A — Wizard rail:   a gated stepper; you advance stage by stage, Trust locks Explore.
+  B — Hub + phases:  a "mission control" landing map; phase-grouped nav; tools open from cards.
+  C — Living report: one scrolling document that builds itself; sticky progress; inline trust gate.
+
+  Data is a frozen snapshot of corpora/takotsubo-15 (15 papers, 10 reached the
+  artifact, 301 candidate gaps) so the density is real. Read-only; no backend.
+-->
+<style>
+  :root{
+    --bg:#f4f6fa; --panel:#ffffff; --ink:#0b2545; --muted:#5b6b82;
+    --line:#d9e2ef; --accent:#2c7fb8; --accent-dark:#1b5a86;
+    --good:#1f8a4c; --warn:#b26a00; --bad:#c0392b; --amber:#e6a817;
+    --chip:#eef4fc; --locked:#eef0f4;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg);padding-bottom:84px}
+  h1,h2,h3{margin:0 0 .4em;line-height:1.2}
+  h1{font-size:22px}h2{font-size:18px}h3{font-size:15px}
+  p{margin:.3em 0 .7em}
+  a{color:var(--accent-dark)}
+  code{background:#eef2f7;padding:1px 5px;border-radius:4px;font-size:.88em}
+  .app-title{display:flex;align-items:center;gap:10px;padding:12px 20px;background:var(--panel);
+    border-bottom:1px solid var(--line)}
+  .app-title .logo{width:26px;height:26px;border-radius:6px;background:var(--accent);
+    display:grid;place-items:center;color:#fff;font-weight:700}
+  .app-title .corpus{margin-left:auto;font-size:13px;color:var(--muted)}
+  .app-title .corpus b{color:var(--ink)}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+  .chip{display:inline-block;background:var(--chip);border:1px solid var(--line);border-radius:999px;
+    padding:1px 9px;font-size:12px;color:var(--accent-dark);margin:1px 2px}
+  .pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:600}
+  .pill.good{background:#e3f4ea;color:var(--good)}
+  .pill.warn{background:#fdf1df;color:var(--warn)}
+  .pill.bad{background:#fbe6e3;color:var(--bad)}
+  .pill.low{background:#eef0f4;color:#556}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin:12px 0;
+    box-shadow:0 1px 2px rgba(11,37,69,.04)}
+  .evidence{border-left:3px solid var(--amber);background:#fffdf5;padding:8px 12px;border-radius:0 6px 6px 0;
+    margin:8px 0;font-size:13.5px}
+  .evidence .src{color:var(--muted);font-size:12px;margin-bottom:2px}
+  .btn{display:inline-block;border:1px solid var(--accent);background:var(--accent);color:#fff;
+    border-radius:8px;padding:7px 14px;font-weight:600;cursor:pointer;font-size:14px}
+  .btn.ghost{background:#fff;color:var(--accent-dark)}
+  .btn.sm{padding:4px 10px;font-size:13px}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .grid{display:grid;gap:12px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .metric{flex:1;min-width:120px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .metric .n{font-size:26px;font-weight:700}
+  .metric .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+  .bar{height:12px;border-radius:6px;background:var(--locked);overflow:hidden}
+  .bar>i{display:block;height:100%;background:var(--accent)}
+  .denom{font-size:12px;color:var(--muted);margin-top:4px}
+  .banner{border-radius:10px;padding:10px 14px;margin:10px 0;font-size:14px}
+  .banner.warn{background:#fdf1df;border:1px solid #f0d19a;color:#7a4b00}
+  .banner.info{background:#eaf3fb;border:1px solid #c4ddf1;color:#1b5a86}
+  .banner.good{background:#e7f6ee;border:1px solid #b7e3c9;color:#176b3c}
+
+  /* ---------- Variant A: wizard rail ---------- */
+  .A-wrap{max-width:980px;margin:0 auto;padding:18px}
+  .stepper{display:flex;gap:4px;margin:6px 0 18px;overflow-x:auto}
+  .step{flex:1;min-width:92px;text-align:center;padding:8px 6px;border-radius:8px;font-size:12.5px;
+    background:var(--locked);color:var(--muted);position:relative;cursor:pointer;border:1px solid transparent}
+  .step .no{display:block;font-weight:700;font-size:13px}
+  .step.done{background:#e7f6ee;color:var(--good)}
+  .step.current{background:var(--accent);color:#fff;border-color:var(--accent-dark)}
+  .step.locked{opacity:.6;cursor:not-allowed}
+  .step.locked .no::after{content:" 🔒"}
+  .A-nav{display:flex;justify-content:space-between;margin-top:18px}
+
+  /* ---------- Variant B: hub + phases ---------- */
+  .B-shell{display:grid;grid-template-columns:230px 1fr;min-height:70vh}
+  .B-side{background:var(--panel);border-right:1px solid var(--line);padding:14px 10px}
+  .phase-h{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+    margin:14px 8px 4px}
+  .navitem{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:14px}
+  .navitem:hover{background:var(--chip)}
+  .navitem.active{background:var(--accent);color:#fff}
+  .navitem .dot{width:8px;height:8px;border-radius:50%;background:var(--line)}
+  .navitem.ok .dot{background:var(--good)}
+  .navitem.warnd .dot{background:var(--amber)}
+  .B-main{padding:18px 22px}
+  .hubgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .hubcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;cursor:pointer}
+  .hubcard:hover{border-color:var(--accent)}
+  .hubcard h3{display:flex;align-items:center;gap:8px}
+
+  /* ---------- Variant C: living report ---------- */
+  .C-shell{display:grid;grid-template-columns:1fr 210px;max-width:1040px;margin:0 auto;gap:24px;padding:18px}
+  .C-doc section{scroll-margin-top:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+  .C-doc h2{display:flex;align-items:center;gap:8px}
+  .C-toc{position:sticky;top:16px;align-self:start;font-size:13.5px}
+  .C-toc a{display:block;padding:5px 8px;border-radius:6px;color:var(--ink);text-decoration:none}
+  .C-toc a:hover{background:var(--chip)}
+  .C-toc a .s{font-size:11px;color:var(--muted);display:block}
+  .gate{background:#fdf1df;border:1px dashed #e0a94a;border-radius:10px;padding:14px}
+
+  /* ---------- floating switcher ---------- */
+  #switch{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:999;
+    display:flex;align-items:center;gap:0;background:#0b2545;color:#fff;border-radius:999px;
+    box-shadow:0 6px 24px rgba(11,37,69,.35);font-size:14px;overflow:hidden}
+  #switch button{background:transparent;color:#fff;border:0;padding:10px 16px;cursor:pointer;font-size:16px}
+  #switch button:hover{background:rgba(255,255,255,.12)}
+  #switch .lbl{padding:10px 14px;min-width:230px;text-align:center;border-left:1px solid rgba(255,255,255,.18);
+    border-right:1px solid rgba(255,255,255,.18)}
+  #switch .lbl b{color:var(--amber)}
+  .proto-tag{position:fixed;top:0;right:0;background:var(--bad);color:#fff;font-size:11px;font-weight:700;
+    padding:3px 10px;border-bottom-left-radius:8px;z-index:999;letter-spacing:.05em}
+</style>
+</head>
+<body>
+<div class="proto-tag">PROTOTYPE — throwaway</div>
+<div id="root"></div>
+
+<div id="switch">
+  <button id="prev" title="Previous (←)">‹</button>
+  <div class="lbl"></div>
+  <button id="next" title="Next (→)">›</button>
+</div>
+
+<script>
+/* ---------------- shared frozen data (corpora/takotsubo-15 snapshot) ---------------- */
+const DATA = {
+  corpus:"takotsubo-15",
+  question:"Where are the research gaps in Takotsubo syndrome diagnosis and mechanism?",
+  field:"Cardiology",
+  searched:"OpenAlex, 2013–2026, query \u201ctakotsubo syndrome\u201d — 15 PDFs added by hand",
+  papersTotal:15, reached:10, missing:5, droppedFacts:0,
+  years:[2013,2013,2015,2016,2016,2016,2017,2019,2019,2019,2020,2022,2024,2025,2026],
+  gaps:{total:301, knowledge:106, coverage:181, limitation:14, accepted:3, rejected:1, undecided:297},
+  sampleGaps:[
+    {type:"Unanswered Limitation",conf:"high",title:"Faster quantification of circulating miRNAs is still under development",
+     reason:"Stated by Jaguszewski 2014; no later Paper in the Corpus reports such a method.",
+     cell:"1 of 10 Papers", ev:[{src:"Jaguszewski 2014 · Limitations",
+       q:"Novel faster approaches for the quantification of circulating miRNAs are under development that will likely lead to a fast detection system in the future."}]},
+    {type:"Coverage Gap",conf:"low",title:"Cardiac biomarkers × In-vitro techniques",
+     reason:"No Paper in the Corpus combines cardiac-biomarker work with in-vitro methods.",
+     cell:"0 of 10 Papers", ev:[{src:"Coverage Matrix · Topic×Method",q:"Empty cell: biomarkers (7 Papers) × in-vitro (2 Papers), never together."}]},
+    {type:"Knowledge Gap",conf:"low",title:"Cardiac biomarkers × Emotional-stress triggers",
+     reason:"Two well-studied Topics that no single Paper in the Corpus links.",
+     cell:"0 of 10 Papers", ev:[{src:"Coverage Matrix · Topic×Topic",q:"Empty cell: biomarkers (7 Papers) × emotional-stress triggers (6 Papers)."}]},
+  ],
+  attention:[
+    {k:"Unparsed PDF",p:"laumer2020 — AI echo differentiation",why:"No parser could read the scanned PDF."},
+    {k:"Extraction rejected",p:"ghadri2018 — InterTAK registry",why:"Zero facts passed verbatim-quote verification."},
+  ],
+  retrieval:[
+    {t:"Templin 2015 — Clinical features & outcomes of Takotsubo (NEJM)",overlap:7},
+    {t:"Ghadri 2018 — International Expert Consensus (part I)",overlap:6},
+  ],
+};
+const PH = pct => Math.round(pct*100);
+
+/* ---------------- the stages ---------------- */
+const STAGES = [
+  {k:"scope",  no:"1", name:"Scope",   blurb:"Name the question, record what was searched."},
+  {k:"build",  no:"2", name:"Build",   blurb:"Run the pipeline; watch stages, cost, cache."},
+  {k:"trust",  no:"3", name:"Trust",   blurb:"The denominator. Fix what fell out before exploring."},
+  {k:"explore",no:"4", name:"Explore", blurb:"The map: coverage + meta-analysis, sparse cells lit."},
+  {k:"judge",  no:"5", name:"Judge",   blurb:"Per-gap cards with Evidence inline; accept / reject."},
+  {k:"grow",   no:"6", name:"Grow",    blurb:"Retrieval gaps → add a Paper → incremental run."},
+  {k:"write",  no:"7", name:"Write",   blurb:"Narrative from accepted gaps; export, cite the Corpus."},
+];
+
+/* ---------------- stage content blocks (reused across variants) ---------------- */
+function scopeBlock(){
+  return `
+    <div class="card">
+      <h3>Scope statement <span class="muted small">(written here, shown on every page — I1)</span></h3>
+      <p><b>Question.</b> ${DATA.question}</p>
+      <p><b>Field.</b> ${DATA.field} &nbsp; <b>Searched.</b> ${DATA.searched}</p>
+      <p class="muted small">These gaps are <b>candidates for human judgment, not verdicts</b>. Every claim is computed only over the ${DATA.papersTotal} Papers in this Corpus.</p>
+    </div>
+    <div class="card">
+      <h3>Add Papers <span class="chip">in the app</span></h3>
+      <p class="muted small">Upload PDFs + .bib / DOI list, or search a scholarly API <span class="muted">(open decision, BRIEF item 2)</span>. Pairing check runs here: unmatched entries, orphan PDFs, the 10–75 rule.</p>
+      <div class="banner good">15 entries paired to 15 PDFs · 0 unmatched · 0 orphans · within the 10–75 envelope.</div>
+    </div>`;
+}
+function buildBlock(){
+  const stages=["ingest","parse","extract","explain","aggregate","detect","retrieve"];
+  return `
+    <div class="card">
+      <h3>Pipeline status <span class="pill warn">needs ADR: subprocess runner</span></h3>
+      <p class="muted small">Today this is 6–7 terminal commands (UI-audit H9, the pervasive hand-off). Target: run and watch it here.</p>
+      ${stages.map((s,i)=>`<div style="display:flex;align-items:center;gap:10px;margin:6px 0">
+        <span class="pill ${i<6?'good':'low'}" style="width:90px;text-align:center">${s}</span>
+        <div class="bar" style="flex:1"><i style="width:${i<6?100:0}%"></i></div>
+        <span class="small muted" style="width:120px;text-align:right">${i<6?'done · cached':'not run'}</span></div>`).join("")}
+      <p class="small muted">Est. cost this run: $0.00 (all cache hits) · model + prompt version recorded per call (I7).</p>
+    </div>`;
+}
+function trustBlock(){
+  const frac=DATA.reached/DATA.papersTotal;
+  return `
+    <div class="banner warn"><b>${DATA.reached}/${DATA.papersTotal} Papers reached the artifact with real facts.</b>
+      ${DATA.missing} produced nothing and are missing from every view. Resolve before you trust the gaps below.</div>
+    <div class="card">
+      <h3>Corpus health — the denominator</h3>
+      <div class="bar"><i style="width:${PH(frac)}%"></i></div>
+      <div class="denom">${DATA.reached} of ${DATA.papersTotal} Papers (${PH(frac)}%) parsed → sectioned → extracted.</div>
+    </div>
+    ${DATA.attention.map(a=>`<div class="card">
+      <h3>${a.k} <span class="pill bad">fell out</span></h3>
+      <p class="small"><b>${a.p}</b> — ${a.why}</p>
+      <p class="small muted">Fix inline: paste the correct text / review the extraction, then <span class="chip">re-run affected stages</span>. (Today: back to the terminal — audit finding H9.)</p>
+      <button class="btn ghost sm">Paste correct text</button>
+      <button class="btn ghost sm">Review extraction</button>
+    </div>`).join("")}`;
+}
+function exploreBlock(){
+  return `
+    <div class="card">
+      <h3>The map</h3>
+      <p class="muted small">Coverage Matrix (sparse cells lit) + Meta-Analysis. <span class="pill warn">chart audit C0</span> a real Topic×Method heatmap is the honest encoding and is currently missing.</p>
+      <div class="row">
+        <div class="metric"><div class="n">${DATA.gaps.knowledge}</div><div class="l">Knowledge gaps</div></div>
+        <div class="metric"><div class="n">${DATA.gaps.coverage}</div><div class="l">Coverage gaps</div></div>
+        <div class="metric"><div class="n">${DATA.gaps.limitation}</div><div class="l">Unanswered limitations</div></div>
+      </div>
+      <div class="denom">Computed over the ${DATA.reached} Papers that reached detect (not all ${DATA.papersTotal}).</div>
+    </div>
+    <div class="card">
+      <h3>Ranked gap list</h3>
+      <p class="small muted">Sort by type · confidence · cell count. 301 is a lot — high-confidence first, low-confidence empty cells collapsed.</p>
+      ${DATA.sampleGaps.map(g=>`<div class="small" style="padding:6px 0;border-top:1px solid var(--line)">
+        <span class="pill ${g.conf==='high'?'good':'low'}">${g.conf}</span> <b>${g.type}</b> — ${g.title} <span class="muted">· ${g.cell}</span></div>`).join("")}
+    </div>`;
+}
+function gapCard(g){
+  return `<div class="card">
+    <h3>${g.type} — ${g.title}</h3>
+    <p class="small"><span class="pill ${g.conf==='high'?'good':'low'}">confidence: ${g.conf}</span> · <span class="muted">${g.cell}</span></p>
+    <p class="small">${g.reason}</p>
+    ${g.ev.map(e=>`<div class="evidence"><div class="src">${e.src}</div>${e.q}</div>`).join("")}
+    <div class="row" style="margin-top:8px">
+      <button class="btn sm">Accept</button><button class="btn ghost sm">Reject</button>
+      <button class="btn ghost sm">Explain a Paper</button><button class="btn ghost sm">Compare Papers</button><button class="btn ghost sm">Discuss</button>
+    </div>
+    <p class="small muted" style="margin-top:6px">Explainer, Comparison and Chat open <b>in context</b> — not as separate top-level pages (audit H6).</p>
+  </div>`;
+}
+function judgeBlock(){
+  return `<div class="banner info">${DATA.gaps.accepted} accepted · ${DATA.gaps.rejected} rejected · ${DATA.gaps.undecided} undecided. Triage with keyboard; jump to next undecided.</div>
+    ${DATA.sampleGaps.map(gapCard).join("")}`;
+}
+function growBlock(){
+  return `<div class="card">
+    <h3>Grow the Corpus <span class="pill warn">needs runner + ingest-from-UI ADR</span></h3>
+    <p class="small muted">Retrieval gaps: likely-missing Papers by citation overlap. Out-of-corpus, no in-Corpus Evidence (kept separate — audit strength).</p>
+    ${DATA.retrieval.map(r=>`<div class="small" style="padding:6px 0;border-top:1px solid var(--line);display:flex;align-items:center">
+      <span>${r.t} <span class="muted">· cited by ${r.overlap} Corpus Papers</span></span>
+      <button class="btn ghost sm" style="margin-left:auto">Add to Corpus → re-run</button></div>`).join("")}
+    <p class="small muted" style="margin-top:8px">Today this is a dead end (audit pain #5): adding one means restarting the whole loop by hand.</p>
+  </div>`;
+}
+function writeBlock(){
+  return `<div class="card">
+    <h3>Narrative summary <span class="pill warn">today: built from ALL gaps</span></h3>
+    <p class="small muted">Should be built from the <b>${DATA.gaps.accepted} accepted</b> gaps only, and state its denominator (audit I2 / integrity). Cites only Corpus Papers; ungrounded citations dropped and flagged.</p>
+    <div class="evidence"><div class="src">Draft · from 3 accepted gaps</div>
+      Across the ${DATA.reached} analysed Papers (2013–2026), no study links cardiac biomarkers to emotional-stress triggers, and the faster miRNA-quantification method called for by Jaguszewski 2014 remains unaddressed in this Corpus…</div>
+    <div class="row"><button class="btn sm">Export Markdown</button><button class="btn ghost sm">Export BibTeX (accepted-gap Papers)</button><button class="btn ghost sm">Scope &amp; limits statement</button></div>
+  </div>`;
+}
+const BLOCKS={scope:scopeBlock,build:buildBlock,trust:trustBlock,explore:exploreBlock,judge:judgeBlock,grow:growBlock,write:writeBlock};
+
+/* ---------------- app shell header ---------------- */
+function header(){
+  return `<div class="app-title"><div class="logo">R</div><b>Research Gap Dashboard</b>
+    <span class="muted small">· guided flow prototype</span>
+    <span class="corpus">Corpus: <b>${DATA.corpus}</b> · ${DATA.papersTotal} Papers · <span class="pill warn">${DATA.reached}/${DATA.papersTotal} reached</span></span></div>`;
+}
+
+/* ============ VARIANT A — wizard rail (gated stepper) ============ */
+let A_i = 2; // start at Trust to show the gate
+function renderA(){
+  const canGo = i => i<=3 || A_i>=3; // Explore+ locked until Trust (index 3) visited
+  const steps = STAGES.map((s,i)=>{
+    let cls="step";
+    if(i<A_i) cls+=" done"; else if(i===A_i) cls+=" current";
+    if(i>3 && A_i<3) cls+=" locked";
+    return `<div class="${cls}" data-i="${i}"><span class="no">${s.no}</span>${s.name}</div>`;
+  }).join("");
+  const cur=STAGES[A_i];
+  return header()+`<div class="A-wrap">
+    <h1>${cur.name}</h1><p class="muted">${cur.blurb}</p>
+    <div class="stepper">${steps}</div>
+    ${A_i>3?'':'<div class="banner info">Explore, Judge, Grow and Write stay locked until you clear <b>Trust</b> — you can’t read gaps you haven’t vouched for the denominator of.</div>'}
+    ${BLOCKS[cur.k]()}
+    <div class="A-nav">
+      <button class="btn ghost" id="A-prev" ${A_i===0?'disabled':''}>← ${A_i>0?STAGES[A_i-1].name:''}</button>
+      <button class="btn" id="A-next" ${A_i===STAGES.length-1?'disabled':''}>${A_i<STAGES.length-1?STAGES[A_i+1].name+' →':''}</button>
+    </div>
+    <p class="small muted" style="text-align:center;margin-top:20px">Resume: reopening this Corpus drops you back at the furthest stage you reached, with verdicts and journal intact.</p>
+  </div>`;
+}
+function wireA(){
+  document.querySelectorAll('.step').forEach(el=>el.addEventListener('click',()=>{
+    const i=+el.dataset.i; if(i>3 && A_i<3) return; A_i=i; paint();
+  }));
+  const n=document.getElementById('A-next'),p=document.getElementById('A-prev');
+  if(n)n.onclick=()=>{A_i=Math.min(STAGES.length-1,A_i+1);paint();};
+  if(p)p.onclick=()=>{A_i=Math.max(0,A_i-1);paint();};
+}
+
+/* ============ VARIANT B — hub + phase-grouped nav ============ */
+let B_sel="home";
+const B_PHASES=[
+  {h:"Set up",items:[["scope","Scope","ok"],["build","Build","warnd"]]},
+  {h:"Check",items:[["trust","Trust","warnd"]]},
+  {h:"Analyse",items:[["explore","Explore",""],["judge","Judge",""]]},
+  {h:"Extend",items:[["grow","Grow",""],["write","Write",""]]},
+];
+function renderB(){
+  const nav=B_PHASES.map(ph=>`<div class="phase-h">${ph.h}</div>`+
+    ph.items.map(([k,name,st])=>`<div class="navitem ${B_sel===k?'active':''} ${st}" data-k="${k}">
+      <span class="dot"></span>${name}</div>`).join("")).join("");
+  let main;
+  if(B_sel==="home"){
+    main=`<h1>Mission control</h1>
+      <p class="muted">${DATA.question}</p>
+      <div class="banner warn"><b>${DATA.reached}/${DATA.papersTotal} Papers reached the artifact.</b> Clear <b>Trust</b> before trusting the map. <button class="btn sm" data-k="trust" style="margin-left:8px">Go to Trust →</button></div>
+      <div class="row">
+        <div class="metric"><div class="n">${DATA.papersTotal}</div><div class="l">Papers</div></div>
+        <div class="metric"><div class="n">${DATA.gaps.total}</div><div class="l">Candidate gaps</div></div>
+        <div class="metric"><div class="n">${DATA.gaps.accepted}</div><div class="l">Accepted</div></div>
+        <div class="metric"><div class="n">2013–2026</div><div class="l">Year span</div></div>
+      </div>
+      <h2 style="margin-top:18px">Where to go</h2>
+      <div class="hubgrid">
+        ${STAGES.map(s=>`<div class="hubcard" data-k="${s.k}"><h3>${s.no}. ${s.name}</h3><p class="small muted">${s.blurb}</p></div>`).join("")}
+      </div>
+      <p class="small muted" style="margin-top:14px">Nav is grouped into phases, not 10 flat equally-weighted pages (audit finding #1). The home hub is the landing map. Specialist tools (Explainer, Comparison, Chat) open from a gap card, not from this nav.</p>`;
+  } else {
+    const s=STAGES.find(x=>x.k===B_sel);
+    main=`<h1>${s.name}</h1><p class="muted">${s.blurb}</p>${BLOCKS[s.k]()}
+      <button class="btn ghost sm" data-k="home" style="margin-top:8px">← Back to mission control</button>`;
+  }
+  return header()+`<div class="B-shell">
+    <div class="B-side">
+      <div class="navitem ${B_sel==='home'?'active':''}" data-k="home"><span class="dot ok"></span>Mission control</div>
+      ${nav}
+      <div class="phase-h">Trust gates</div>
+      <p class="small muted" style="padding:0 8px">● green = ready · ● amber = needs attention</p>
+    </div>
+    <div class="B-main">${main}</div>
+  </div>`;
+}
+function wireB(){
+  document.querySelectorAll('[data-k]').forEach(el=>el.addEventListener('click',e=>{
+    e.stopPropagation();B_sel=el.dataset.k;paint();
+  }));
+}
+
+/* ============ VARIANT C — living report (single scroll) ============ */
+function renderC(){
+  const toc=STAGES.map(s=>`<a href="#c-${s.k}"><b>${s.no}. ${s.name}</b><span class="s">${s.blurb}</span></a>`).join("");
+  const sec=(s,inner,gate)=>`<section id="c-${s.k}"><h2>${s.no}. ${s.name}</h2>${gate||''}${inner}</section>`;
+  const trustGate=`<div class="gate"><b>⚠ Checkpoint.</b> ${DATA.reached}/${DATA.papersTotal} Papers reached the artifact.
+    The sections below are built from those ${DATA.reached}. Resolve the ${DATA.missing} that fell out, or acknowledge the denominator, before reading on.
+    <div style="margin-top:8px"><button class="btn sm">Acknowledge & continue</button> <button class="btn ghost sm">Fix inline</button></div></div>`;
+  const body=STAGES.map(s=>{
+    if(s.k==="explore"||s.k==="judge"||s.k==="grow"||s.k==="write")
+      return sec(s, BLOCKS[s.k](), s.k==="explore"?trustGate:"");
+    return sec(s, BLOCKS[s.k]());
+  }).join("");
+  return header()+`<div class="C-shell">
+    <div class="C-doc">
+      <h1>${DATA.corpus} — gap report</h1>
+      <p class="muted">One document that builds itself as you scroll: scope at the top, write-up at the bottom, the trust checkpoint inline before anything interpretive. Minimal nav; the sticky index on the right is the whole navigation.</p>
+      ${body}
+      <p class="small muted" style="padding:14px 0">Resume: the sticky index remembers the furthest section you scrolled to and your verdicts.</p>
+    </div>
+    <nav class="C-toc">${toc}</nav>
+  </div>`;
+}
+function wireC(){/* anchors are native */}
+
+/* ---------------- switcher plumbing ---------------- */
+const VARIANTS={
+  A:{name:"Wizard rail (gated stepper)",render:renderA,wire:wireA},
+  B:{name:"Hub + phase-grouped nav",render:renderB,wire:wireB},
+  C:{name:"Living report (single scroll)",render:renderC,wire:wireC},
+};
+const ORDER=["A","B","C"];
+function current(){const v=(new URLSearchParams(location.search)).get('variant');return ORDER.includes(v)?v:"A";}
+function paint(){
+  const v=current();
+  document.getElementById('root').innerHTML=VARIANTS[v].render();
+  VARIANTS[v].wire();
+  document.querySelector('#switch .lbl').innerHTML=`<b>${v}</b> — ${VARIANTS[v].name}`;
+  document.title=`PROTOTYPE · ${v} ${VARIANTS[v].name}`;
+}
+function go(dir){
+  const i=ORDER.indexOf(current());
+  const n=ORDER[(i+dir+ORDER.length)%ORDER.length];
+  const u=new URL(location);u.searchParams.set('variant',n);history.replaceState({},'',u);
+  A_i=2;B_sel="home";paint();
+}
+document.getElementById('prev').onclick=()=>go(-1);
+document.getElementById('next').onclick=()=>go(1);
+window.addEventListener('keydown',e=>{
+  const t=e.target.tagName;if(t==='INPUT'||t==='TEXTAREA'||e.target.isContentEditable)return;
+  if(e.key==='ArrowLeft')go(-1);if(e.key==='ArrowRight')go(1);
+});
+paint();
+</script>
+</body>
+</html>
