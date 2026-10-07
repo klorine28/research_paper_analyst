@@ -6,7 +6,25 @@ issues — so nothing gets lost between sessions. Promote an entry to a real iss
 
 ---
 
-## Run pipeline commands (detect, etc.) from inside the dashboard
+## Pipeline could use improvement (beyond the dashboard seam)
+
+**Found:** during the ADR 0007 grill. Noted as out of scope for that boundary
+decision. The pipeline itself (not the dashboard↔pipeline seam) has rough
+edges worth a dedicated pass — e.g. the strict evidence verification below,
+the singleton limitation grouping and follow-up recall
+(`docs/research/meta-analysis-graph-audit.md`), and the narrow Method taxonomy.
+Not yet a single issue; promote when scoped.
+
+---
+
+## Run pipeline commands (detect, etc.) from inside the dashboard — RESOLVED by ADR 0007
+
+**Resolved:** the boundary question below is settled in
+`docs/adr/0007-drive-pipeline-and-add-papers-from-dashboard.md` (subprocess
+runner, no imports; blocking run + per-corpus lock; existence+mtime status;
+key pre-check; in-app upload incl. no-DOI Papers; seam commands invokable). The
+sketch below is kept for its design detail; the three implementation slices are
+in the ADR, to become GitHub issues.
 
 **Found:** while demoing the Gap Cards view (#17). Today the app can only *read*
 artifacts. If a corpus was ingested but never had `detect` run, the Gap Cards

@@ -72,22 +72,24 @@ and Conversational Analytics) are resolved and now live in `CONTEXT.md`.
 
 -1. **Sparse-cell threshold (provisional):** empty cells only for corpora
    under 25 Papers; empty-or-single-paper cells at 25+. Gap cards state their
-   cell count. Revisit with a research task on gap-detection thresholds
-   before v2.
-0. **Detect-stage prompt architecture (settled):** v1 keeps detection simple;
-   the AIPOCH-inspired prompt architecture (pseudo-gap rejection, confidence
-   rubric, audit-basis/minimal-study gap-card fields, self-critical review
-   pass — see `docs/research/aipoch-gap-finder-analysis.md`) is deferred
-   to v2.
+   cell count. Now a wide candidate net under confidence filtering
+   (`docs/adr/0008`); exact numbers settled by
+   `docs/research/gap-detection-layers.md`.
+0. **Detect-stage architecture (pulled forward from v2):** layered gap
+   detection — statistical test, taxonomy roll-up, LLM pseudo-gap rejection and
+   self-critical review, Audit Basis/Minimal Study fields, three-tier cards,
+   confidence toggle — is now in scope; see `docs/adr/0008` (Proposed, pending
+   `docs/research/gap-detection-layers.md`).
 1. **What counts as a gap (settled):** v1 detects Knowledge Gaps, Coverage
    Gaps, Unanswered Limitations, and Retrieval Gaps; contradictions and
    theoretical gaps are out of scope (see `CONTEXT.md` > Gap Type).
 2. **Corpus input (partly settled):** a DOI/BibTeX list plus matching
    full-text PDF uploads, stored in a local multimedia data lake; extraction
-   is section-aware over full text. Still open: exact storage layout and
-   whether a scholarly API assists ingestion. Retrieval Gap detection uses
-   OpenAlex (primary) and PubMed, behind a source-adapter interface so more
-   APIs can be added easily later.
+   is section-aware over full text. Papers may be added from the dashboard and
+   may have no DOI (`docs/adr/0007`, `CONTEXT.md` > Paper). Still open: exact
+   storage layout and whether a scholarly API assists ingestion (in-app
+   search). Retrieval Gap detection uses OpenAlex (primary) and PubMed, behind
+   a source-adapter interface so more APIs can be added easily later.
 3. **Extraction method (settled):** LLM-based via Anthropic with disk
    caching; see `docs/adr/0001`. Still open (research task): which Anthropic
    model and which PDF-parsing library — answered in `docs/research/`:
@@ -102,11 +104,24 @@ and Conversational Analytics) are resolved and now live in `CONTEXT.md`.
    database.
 7. **Text language (settled):** English-only for v1 (papers and dashboard
    text); German and Spanish are candidates for later.
-8. **Paper comparison scope (settled):** 2–5 Papers compared directly; a
-   larger selection (up to 15) is split into sets of ≤5, each set
-   summarized, and the summaries compared. Single Corpus only in v1.
-   Comparing the researcher's own planned study against the Corpus is
-   deferred to v2.
+8. **Paper comparison scope (settled, with a v2 feature seed):** 2–5 Papers
+   compared directly; a larger selection (up to 15) is split into sets of ≤5,
+   each set summarized, and the summaries compared. Single Corpus only in v1.
+   Comparing the researcher's own planned or unpublished study against the
+   Corpus "does my work close this gap?" is deferred to v2. `docs/adr/0007`
+   now *enables* it (no-DOI upload + re-run), but the flow itself is
+   unresolved: lean toward a distinct **candidate-contribution** concept that
+   holds the draft apart from the Corpus baseline, since an unpublished draft
+   is not a published Corpus Paper and must not silently alter denominators or
+   be cited as if it were one (research integrity). Needs its own grill.
+
+10. **LLM provider (open, own ADR):** the pipeline's reasoning stages use
+   Anthropic (`docs/adr/0001`). Open: support an **open-source/local model**
+   (e.g. Llama/Mistral/Qwen via Ollama or an OpenAI-compatible endpoint) as an
+   **opt-in** alternative behind a provider seam, with **Anthropic kept as the
+   default failsafe**. Benefits: free per-call, private, offline; cost: lower
+   quality and setup. A provider-seam decision refining ADR 0001, separate from
+   the dashboard boundary (`docs/adr/0007`). Resolve in its own grill.
 9. **Scope of v1 (settled):** the medical field, particularly cardiology, is
    the first end-to-end test case.
 
