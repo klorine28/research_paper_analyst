@@ -248,6 +248,13 @@ flowchart TD
 | Write | Summary covers all gaps | Summary covers **accepted** gaps; export | Small: read `judgments/` in `analytics.py` |
 | Return | Verdicts persist, no resume point | Resume from journal | Small |
 
+**Navigation decided (prototype verdict, 2026-10-04):** a home screen with a
+phase-grouped sidebar (prototype variant B), plus a step bar on every page,
+numbered sidebar items, Previous/Next buttons, a status-driven "Recommended
+next step", and a **soft Trust gate** (later steps unlock once fallout is fixed
+or the denominator is acknowledged). Full verdict: `prototypes/VERDICT.md` on
+the `prototype/guided-flow` branch.
+
 Green nodes already exist and only need to move into the main path. Dashed
 amber nodes cross the ADR 0002/0006 read-only boundary and need an ADR
 decision first (`/skill:domain-modeling`).
