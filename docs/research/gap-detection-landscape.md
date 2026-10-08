@@ -51,9 +51,10 @@ only, not to be cited as fact).
 
 ## Unverified (secondary only; do not cite as fact)
 
-- GAPMAP's author survey (83.3% of gaps judged true, 65% of future directions
-  valid) and "Llama-3.3-70B best F1". These are not in the abstract or README;
-  check the full paper first.
+- ~~GAPMAP's author survey and "Llama-3.3-70B best F1"~~: now **verified**
+  against the full paper, with caveats (18 corresponding authors; best F1 only
+  for explicit gaps without a context limit; TABI's bucket is binary). See
+  `docs/research/gap-detection-layers.md` § 5.
 - Swanson 1986 replication detail (27 bridge terms incl. blood viscosity,
   platelet aggregation). Swanson's Raynaud–fish-oil case is well known, but this
   specific replication was not located.

@@ -2,9 +2,11 @@
 
 ## Status
 
-Proposed (refines the detect stage; promotes `docs/BRIEF.md` decision 0 out of
-v2). Moves to Accepted once `docs/research/gap-detection-layers.md` settles the
-algorithm details marked *pending research* below.
+Accepted (refines the detect stage; promotes `docs/BRIEF.md` decision 0 out of
+v2). The algorithm details were settled by
+`docs/research/gap-detection-layers.md` (research ticket #60); four of its
+answers refined this ADR's original wording and were approved by the user
+(L2 roll-up, two-witness boost-only, a shared embedding capability, L5 scope).
 
 ## Context
 
@@ -24,37 +26,67 @@ that deferral is reversed.
 1. **Layered filtering, cheapest first.** Candidates pass through stacked
    layers. Each layer may downgrade or reject a candidate and must record why:
    - **L1: statistical expected-vs-observed test.** Replace the heuristic
-     confidence with a principled co-occurrence test on the cell's 2×2 table
-     (Fisher's exact test or lift/PMI; *pending research*). Deterministic.
-   - **L2: taxonomy roll-up.** Reject a child-level gap that is filled at
-     parent level, where taxonomies carry a hierarchy (*feasibility pending
-     research*; related to #56). Deterministic.
+     confidence with the one-sided hypergeometric (Fisher exact) lower-tail
+     probability `P(X ≤ observed)` on the cell's 2×2 table. It is a ranking
+     score, not a significance test: no multiplicity correction, and no card
+     claims significance. Starting level: ≤ 0.05 High, ≤ 0.20 Medium, else
+     Low. Lift/PMI and chi-square are rejected (they cannot rank empty cells /
+     are invalid at our expected counts). Deterministic.
+   - **L2: taxonomy roll-up.** Uses the taxonomies' `parent` hierarchy
+     (derivable from MeSH tree numbers; related to #56). A same-axis cell
+     between an ancestor and its descendant is **rejected** as a taxonomy
+     artifact. A child-level cell whose parent-level cell holds a Paper placed
+     *only* on the parent is **downgraded one level** (that Paper may or may
+     not cover the child). A parent cell filled only through sibling children
+     has no effect. Deterministic.
    - **L5: LLM pseudo-gap rejection and self-critical review.** Reject the
      five pseudo-gap classes (generic upgrade, template reuse, pseudo-firstness,
      non-closable, low-value replication) and challenge each survivor against
-     its Evidence. Cached by inputs with model and prompt version recorded (ADR
-     0001), so reruns are free and reproducible.
-   - **L3/L4: semantic near-coverage and duplicate merging** via embeddings are
-     *not* adopted yet. They add a model dependency and wait on the research
-     note.
-   - **Bridges (ABC/AnC).** For an empty A×C cell, find the B categories
-     linked to both. ≥2 bridges (AnC) supports higher confidence, and the
-     bridges go into Audit Basis and Tier 3. Deterministic.
-   - **Two-witness intersection.** A cell gap that limitation groups also
-     point at is corroborated and boosted; an empty cell nobody mentions is
-     downgraded. Depends on cross-Paper limitation grouping (#54) and on
-     limitation-type buckets.
+     its Evidence, plus two Corpus-specific classes (taxonomy artifact, little
+     meaning; after Mine the Gap). Runs only on cell candidates at Medium or
+     High after the deterministic layers, and on Unanswered Limitations. It
+     keeps or rejects and may lower confidence, never raise it. 3-shot prompt
+     with synthetic examples; Grounds cite only the given Evidence ids, so ADR
+     0004 verification applies. Cached by inputs with model and prompt version
+     recorded (ADR 0001), so reruns are free and reproducible.
+   - **L3: semantic near-coverage is not adopted.** Near-misses between
+     categories are a vocabulary problem, fixed at the source by ADR 0010.
+     **L4: duplicate merging** for cell gaps is handled by L2; for limitation
+     statements it uses the shared embedding capability below.
+   - **Shared embedding capability.** One local open-source model
+     (`NeuML/pubmedbert-base-embeddings` via `sentence-transformers`) as an
+     optional extra, with recorded vectors in tests. It shortlists cross-Paper
+     limitation merges (#54) and two-witness matches, and serves chat
+     retrieval (#97). Without it, grouping is LLM-only and chat uses keywords.
+   - **Bridges (ABC/AnC).** For an empty A×C cell, a bridge B is a category on
+     any axis with A–B and B–C each supported by ≥ 2 Papers, excluding A, C,
+     their ancestors/descendants and near-universal categories (≥ 90 % of
+     Papers). ≥ 2 bridges → +1 level. Bridges are ordered by Adamic–Adar weight
+     in Audit Basis and Tier 3. Deterministic.
+   - **Two-witness intersection.** One cached LLM pass tags each limitation
+     group with a limitation-type bucket (study design, population,
+     setting/data, sample size, measurement, follow-up, analysis, open
+     question, other) and the observed categories it concerns; intersection
+     with cells is deterministic. A corroborated cell gains +1 level and the
+     label "also flagged by authors". The layer is **boost-only**: an empty
+     cell nobody mentions is not downgraded, only noted in Tier 3. Depends on
+     cross-Paper limitation grouping (#54).
+   - **Combination.** Start at the L1 level, apply L2, bridges and two
+     witnesses, clamp to Low…High, then L5 (Medium+ only). Each step records
+     its layer and reason.
 
    Because Corpora are small (10–75 Papers), L1 has too little power to gate
    on its own and is used to **rank**. The corroborating layers (bridges, two
    witnesses, L5) decide what surfaces (`docs/research/gap-detection-landscape.md`).
 2. **Confidence-first surfacing.** The sparse threshold stays a wide
    candidate-generation net, and confidence plus the layers decide what
-   surfaces. Tuning the threshold numbers is a research item, not part of this
-   decision.
+   surfaces. The net is one rule at every Corpus size: a cell is a candidate
+   if it is empty, or holds one Paper while more than one was expected. The
+   25-Paper switch (`SPARSE_CORPUS_SIZE`) retires.
 3. **Actionable cards.** A surviving gap carries **Audit Basis** (what the
    Corpus covers around the gap) and **Minimal Study** (the smallest study that
-   would close it), produced by the L5 pass and grounded in Corpus Evidence.
+   would close it), produced by the L5 pass and grounded in Corpus Evidence
+   (so Low-confidence cards, which skip L5, carry neither).
    L5 emits a TABI-style structure (GAPMAP): **Claim** (the gap), **Grounds**
    (Evidence passages), **Warrant** (one inspectable reasoning sentence),
    **Bucket** (confidence), using few-shot prompts, since zero-shot output tends
@@ -64,7 +96,10 @@ that deferral is reversed.
    (headline: statement, confidence, one-line why, cell count) → Tier 2
    (Evidence, Audit Basis, Minimal Study) → Tier 3 ("show the data": the Papers
    in each category, neighbouring cells, the L1 score, and any
-   downgrade/rejection reason). No LLM call at view time. The scoped "Discuss"
+   downgrade/rejection reason). The L1 score is phrased as expected vs
+   observed counts and labelled a ranking score, and the gap list states the
+   smallest category sizes that could rate High at this Corpus's size. No LLM
+   call at view time. The scoped "Discuss"
    chat stays available on every card.
 5. **Demote, never delete.** Rejected and downgraded candidates stay in the
    artifact with their layer and reason. The dashboard lists them in a
@@ -87,6 +122,10 @@ that deferral is reversed.
   full candidate set stays inspectable, so nothing is lost silently.
 - `detect` gains a second LLM use (L5) beyond limitation grouping: more
   first-run cost, no rerun cost (cache).
+- A third LLM use (limitation tagging for two witnesses) is one batched,
+  cached pass per Corpus.
+- An optional `embeddings` extra adds `sentence-transformers` and a ~438 MB
+  model download; `torch` is already pulled in by the `pdf` extra.
 - The candidate-gaps artifact schema grows: a per-candidate layer verdict and
   reason, Audit Basis, Minimal Study, and the L1 score. The dashboard read
   models follow.

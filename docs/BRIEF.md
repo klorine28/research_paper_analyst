@@ -70,16 +70,6 @@ and Conversational Analytics) are resolved and now live in `CONTEXT.md`.
 
 ## Open decisions (resolve during grilling, record as ADRs)
 
--1. **Sparse-cell threshold (provisional):** empty cells only for corpora
-   under 25 Papers; empty-or-single-paper cells at 25+. Gap cards state their
-   cell count. Now a wide candidate net under confidence filtering
-   (`docs/adr/0008`); exact numbers settled by
-   `docs/research/gap-detection-layers.md`.
-0. **Detect-stage architecture (pulled forward from v2):** layered gap
-   detection — statistical test, taxonomy roll-up, LLM pseudo-gap rejection and
-   self-critical review, Audit Basis/Minimal Study fields, three-tier cards,
-   confidence toggle — is now in scope; see `docs/adr/0008` (Proposed, pending
-   `docs/research/gap-detection-layers.md`).
 1. **What counts as a gap (settled):** v1 detects Knowledge Gaps, Coverage
    Gaps, Unanswered Limitations, and Retrieval Gaps; contradictions and
    theoretical gaps are out of scope (see `CONTEXT.md` > Gap Type).
