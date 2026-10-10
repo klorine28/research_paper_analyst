@@ -93,4 +93,13 @@ only Papers in the Corpus and their Evidence.
 ### Coverage Matrix
 
 A two-axis count of Papers per category pair (e.g. Topic × Method), used to
-surface empty or sparse cells as gap signals.
+surface empty or sparse cells as gap signals. Its four axes:
+
+- **Topic:** what a Paper is about, including the procedures and treatments it
+  studies.
+- **Method:** the Paper's study design only (e.g. randomized trial, cohort,
+  case report), never a procedure.
+- **Population:** who was studied (age group, sex, care setting, species).
+- **Dataset:** where the data came from (registry, records, database).
+
+_Avoid_: "method" for a procedure or lab technique.

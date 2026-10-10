@@ -6,7 +6,7 @@ Matrix. There are four axes, each with its own file:
 | Axis | Seed | Fed by Extraction field(s) | Seeded from |
 | --- | --- | --- | --- |
 | `topic` | [`taxonomies/cardiology.toml`](../taxonomies/cardiology.toml) | all seven | MeSH "Heart Diseases" subtree (C14.280) |
-| `method` | [`taxonomies/methods.toml`](../taxonomies/methods.toml) | `methods` | curated MeSH study characteristics and publication types |
+| `method` | [`taxonomies/methods.toml`](../taxonomies/methods.toml) | `methods` | curated MeSH study characteristics and publication types; study design only (ADR 0011) |
 | `population` | [`taxonomies/populations.toml`](../taxonomies/populations.toml) | `populations` | curated MeSH age groups, sex, species, care setting |
 | `dataset` | [`taxonomies/datasets.toml`](../taxonomies/datasets.toml) | `datasets` | curated MeSH records, registries, databases |
 
