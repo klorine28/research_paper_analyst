@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from conftest import StubLlmClient
+from matcher_cases import MATCHER_CASES, MatcherCase
 
 from research_gap_dashboard import cli
 from research_gap_dashboard.cli import main
@@ -256,6 +257,25 @@ def test_markdown_table_pipes_are_ignored_when_matching() -> None:
   )
 
   assert result.unverified == []
+
+
+@pytest.mark.parametrize("case", MATCHER_CASES, ids=lambda case: case.id)
+def test_pipeline_matcher_shared_cases(case: MatcherCase) -> None:
+  """The extract stage verifies exactly the quotes the dashboard matcher does."""
+  anchor = "Anchor sentence."
+  parsed = _parsed_with(f"{anchor}\n\n{case.paper_text}")
+  fields = _one_finding(anchor)
+  fields["key_findings"].append(
+    {
+      "statement": "The case.",
+      "evidence": {"passage": case.passage, "section": "results"},
+    }
+  )
+
+  result = extract_paper("p", parsed, StubLlmClient(fields))
+
+  dropped = [u.statement for u in result.unverified]
+  assert dropped == ([] if case.verifies else ["The case."])
 
 
 def test_a_typo_is_not_forgiven_by_matching() -> None:
