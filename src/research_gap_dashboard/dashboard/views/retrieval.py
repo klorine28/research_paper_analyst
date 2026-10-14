@@ -39,6 +39,8 @@ def render_retrieval_gaps(data: RetrievalGapsData) -> None:
       min_overlap=data.min_overlap,
     )
   )
+  if data.no_doi_paper_count:
+    st.caption(text.RETRIEVAL_NO_DOI.format(count=data.no_doi_paper_count))
   st.caption(text.RETRIEVAL_SOURCE_LABEL.format(source=data.source))
   for candidate in data.candidates:
     _render_retrieval_candidate(candidate)

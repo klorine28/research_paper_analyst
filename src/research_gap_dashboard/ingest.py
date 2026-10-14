@@ -4,6 +4,11 @@ Ingest: turn a corpus directory into a CorpusManifest artifact.
 Reads the paper list (BibTeX or DOI list) and the PDFs in `papers/`, pairs
 them up, and writes `artifacts/corpus-manifest.json`. Nothing here touches
 the network: DOI resolution against a scholarly API is a later stage.
+
+A DOI is optional (`CONTEXT.md` > Paper): an entry without one is paired with
+its PDF by citation key alone. Such a Paper is never resolved, so it carries no
+citation-graph metadata; the stages that need that graph count it out of their
+denominators rather than dropping it.
 """
 
 import json
@@ -37,7 +42,7 @@ class PaperListEntry(BaseModel):
   """One entry of the paper list, before it is paired with a PDF."""
 
   citation_key: str
-  doi: str
+  doi: str = ""
   title: str = ""
   authors: list[str] = []
   year: int | None = None
@@ -55,7 +60,7 @@ class Paper(BaseModel):
   """One Paper in the Corpus: a bibliographic record plus its full text."""
 
   citation_key: str
-  doi: str
+  doi: str = ""
   title: str = ""
   authors: list[str] = []
   year: int | None = None
@@ -110,8 +115,15 @@ def ingest_corpus(root: Path, adapter: SourceAdapter | None = None) -> CorpusMan
 
 
 def _resolve(manifest: CorpusManifest, adapter: SourceAdapter) -> None:
-  """Enrich each Paper with canonical metadata, flagging DOIs that don't resolve."""
+  """
+  Enrich each Paper with canonical metadata, flagging DOIs that don't resolve.
+
+  A Paper without a DOI has nothing to look up; it is skipped, not flagged,
+  because its missing metadata is expected rather than a resolution failure.
+  """
   for paper in manifest.papers:
+    if not paper.doi:
+      continue
     record = adapter.resolve(paper.doi)
     if record is None:
       paper.resolution_error = f"{adapter.name} could not resolve DOI {paper.doi}"
@@ -166,15 +178,16 @@ def _entry_from_bibtex(block: Entry) -> PaperListEntry:
 def _match(
   root: Path, entries: list[PaperListEntry], pdf_paths: list[Path]
 ) -> CorpusManifest:
-  """Pair entries with PDFs by DOI, then by citation key, reporting the leftovers."""
+  """
+  Pair entries with PDFs by DOI, then by citation key, reporting the leftovers.
+
+  An entry without a DOI is paired by citation key alone.
+  """
   remaining = {path: _normalize(path.stem) for path in pdf_paths}
   papers: list[Paper] = []
   unmatched: list[UnmatchedEntry] = []
 
   for entry in entries:
-    if not entry.doi:
-      unmatched.append(UnmatchedEntry(entry=entry, reason="no DOI in the paper list"))
-      continue
     match = _find_pdf(entry, remaining)
     if match is None:
       unmatched.append(UnmatchedEntry(entry=entry, reason="no matching PDF"))
@@ -191,7 +204,7 @@ def _match(
 
 
 def _find_pdf(entry: PaperListEntry, candidates: dict[Path, str]) -> Path | None:
-  """Return the PDF whose file name carries the entry's DOI, or else its key."""
+  """Return the PDF whose file name carries the entry's DOI (if any), or its key."""
   for needle in (_normalize(entry.doi), _normalize(entry.citation_key)):
     if not needle:
       continue

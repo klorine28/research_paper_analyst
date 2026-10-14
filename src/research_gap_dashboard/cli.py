@@ -261,9 +261,12 @@ def _run_ingest(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   unresolved = sum(1 for paper in manifest.papers if paper.resolution_error)
+  no_doi = sum(1 for paper in manifest.papers if not paper.doi)
   logger.info(
-    "Corpus: %d Papers, %d unmatched entries, %d orphan PDFs, %d DOIs unresolved.",
+    "Corpus: %d Papers (%d without a DOI), %d unmatched entries, %d orphan PDFs, "
+    "%d DOIs unresolved.",
     len(manifest.papers),
+    no_doi,
     len(manifest.unmatched_entries),
     len(manifest.orphan_pdfs),
     unresolved,

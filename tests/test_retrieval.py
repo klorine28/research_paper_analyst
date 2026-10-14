@@ -194,3 +194,18 @@ def test_retrieve_command_without_a_manifest_errors(tmp_path: Path, monkeypatch)
   monkeypatch.setattr(cli, "OpenAlexAdapter", lambda **_: _openalex(_WORKS))
 
   assert main(["retrieve", str(tmp_path)]) == EXIT_ERROR
+
+
+def test_a_paper_without_a_doi_is_excluded_from_ranking_and_counted(tmp_path: Path):
+  """A no-DOI Paper has no citation list; it stays in the denominator, named apart."""
+  preprint = Paper(
+    citation_key="preprint", doi="", pdf_path=Path("papers/preprint.pdf")
+  )
+  _write_manifest(tmp_path, [*_PAPERS, preprint])
+
+  report = detect_retrieval_gaps(tmp_path, _openalex(_WORKS))
+
+  assert report.corpus_paper_count == 5
+  assert report.coupled_paper_count == 4
+  assert report.no_doi_paper_count == 1
+  assert all("preprint" not in c.citing_citation_keys for c in report.candidates)
