@@ -178,6 +178,8 @@ class AssignmentRecord(_ReadModel):
   axis: str
   category_id: str
   category_label: str = ""
+  original_term: str = ""
+  fact_ref: str = ""
 
 
 class NormalizedFactsRecord(_ReadModel):
