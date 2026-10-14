@@ -71,6 +71,7 @@ _PLACEMENTS: dict[str, list[Placement]] = {
 _STATEMENTS: dict[str, dict[str, str]] = {
   key: {
     "research_question": f"{key} asks about outcomes.",
+    "study_design": f"{key} is a look back at hospital records.",
     "methods": f"{key} used a study design.",
     "populations": f"{key} studied patients.",
     "datasets": f"{key} used records.",
@@ -115,6 +116,7 @@ def _extraction(key: str) -> Extraction:
     citation_key=key,
     fields=ExtractionFields(
       research_question=[_fact(said["research_question"])],
+      study_design=[_fact(said["study_design"])],
       methods=[_fact(said["methods"])],
       populations=[_fact(said["populations"])],
       datasets=[_fact(said["datasets"])],
@@ -254,6 +256,7 @@ def test_direct_comparison_lists_each_field_per_paper(corpus: Path) -> None:
   by_field = {field.field_id: field for field in result.fields}
   assert [f.label for f in result.fields] == [
     "Research question",
+    "Study design",
     "Methods",
     "Population",
     "Datasets",
@@ -263,6 +266,8 @@ def test_direct_comparison_lists_each_field_per_paper(corpus: Path) -> None:
   methods = by_field["methods"]
   assert methods.units[0].statements == ["p01 used a study design."]
   assert methods.units[1].statements == ["p02 used a study design."]
+  design = by_field["study_design"]
+  assert design.units[0].statements == ["p01 is a look back at hospital records."]
 
 
 def test_direct_comparison_highlights_agreements_and_differences(corpus: Path) -> None:

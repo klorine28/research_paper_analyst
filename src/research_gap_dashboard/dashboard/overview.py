@@ -28,9 +28,10 @@ _AXIS_LABELS: dict[str, str] = {
   "dataset": "Dataset",
 }
 
-# The seven Extraction fields whose facts count toward a Paper's density.
+# The eight Extraction fields whose facts count toward a Paper's density.
 _EXTRACTION_FIELDS = (
   "research_question",
+  "study_design",
   "methods",
   "populations",
   "datasets",

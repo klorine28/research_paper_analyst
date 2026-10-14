@@ -1,10 +1,13 @@
 """
 The extract stage: turn each Paper's parsed sections into structured facts.
 
-For every Paper in the manifest, the LLM pulls the seven Extraction fields
-(research question, methods, populations/samples, datasets, key findings, stated
-limitations, stated future work) out of the parsed text. Every extracted fact
-carries Evidence: a verbatim passage and the section it came from.
+For every Paper in the manifest, the LLM pulls the eight Extraction fields
+(research question, study design, methods, populations/samples, datasets, key
+findings, stated limitations, stated future work) out of the parsed text. Every
+extracted fact carries Evidence: a verbatim passage and the section it came
+from. The study design is one fact in everyday words ("retrospective cohort
+study using registry data"), so the Method axis has a design to place for every
+Paper even when the Paper only implies it (ADR 0011).
 
 The stage then mechanically verifies each quoted passage against the parsed
 text. Verification is *per fact*: a fact whose Evidence is not a verbatim match
@@ -38,16 +41,17 @@ EXTRACTIONS_NAME = "extractions.json"
 
 # Bump when the extraction prompt or output shape changes: it keys the LLM cache
 # (ADR 0001), so a bump reruns extraction instead of serving stale answers.
-PROMPT_VERSION = "extract-v1"
+PROMPT_VERSION = "extract-v2"
 
 # Forced structured-output calls occasionally misfire (an empty object, or the
 # schema echoed back), yielding an all-empty Extraction for a Paper that plainly
 # has facts. Retry a few times, bypassing the cache, before accepting emptiness.
 EXTRACT_ATTEMPTS = 3
 
-# The seven Extraction fields, in a fixed order for verification and display.
+# The eight Extraction fields, in a fixed order for verification and display.
 _FIELD_NAMES: tuple[str, ...] = (
   "research_question",
+  "study_design",
   "methods",
   "populations",
   "datasets",
@@ -90,13 +94,27 @@ class ExtractedFact(BaseModel):
 
 
 class ExtractionFields(BaseModel):
-  """The seven Extraction fields the LLM returns for one Paper."""
+  """
+  The eight Extraction fields the LLM returns for one Paper.
+
+  `study_design` is a list only so every field verifies and reviews the same
+  way; the prompt asks for exactly one fact. It defaults to empty so artifacts
+  written before ADR 0011 still load.
+  """
 
   research_question: list[ExtractedFact] = Field(
     default_factory=list, description="The research question(s) the paper asks."
   )
+  study_design: list[ExtractedFact] = Field(
+    default_factory=list,
+    description=(
+      "Exactly one fact: how the study was built, stated in everyday words "
+      "(e.g. 'retrospective cohort study using registry data')."
+    ),
+  )
   methods: list[ExtractedFact] = Field(
-    default_factory=list, description="The study designs and methods used."
+    default_factory=list,
+    description="The procedures, techniques, and analyses the study used.",
   )
   populations: list[ExtractedFact] = Field(
     default_factory=list, description="The populations or samples studied."
@@ -338,7 +356,15 @@ def _build_prompt(parsed: ParsedPaper) -> str:
     "stated in the paper; never invent, infer, or generalize beyond the text.\n"
     "For every fact, copy a short verbatim passage from the paper as Evidence, "
     "exactly as written, and name the section it came from. If a field has no "
-    "support in the text, return an empty list for it.\n\n"
+    "support in the text, return an empty list for it.\n"
+    "For study_design, return exactly one fact saying how the study was built "
+    "(for example a randomized trial, a prospective or retrospective cohort, a "
+    "case-control or cross-sectional study, a case report or case series, a "
+    "registry analysis, a systematic review or meta-analysis, an animal or "
+    "laboratory experiment), stated in everyday words a non-specialist "
+    "understands, e.g. 'retrospective cohort study using registry data'. Quote "
+    "the passage that shows the design best. A procedure, treatment, lab assay, "
+    "or statistical technique is not a study design: put those in methods.\n\n"
     "PAPER TEXT:\n"
     f"{parsed.full_text}"
   )

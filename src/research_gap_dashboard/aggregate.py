@@ -20,6 +20,12 @@ validates both against the loaded Taxonomy and the Paper's Extraction, so a
 hallucinated category or fact becomes an unmapped term rather than an invented
 one. LLM calls go through the cached client (ADR 0001), so reruns are free and
 repeatable.
+
+The Method axis means study design only (ADR 0011). A procedure, treatment, lab
+assay, or statistical technique met on that axis is recorded as "not a study
+design", never as unmapped, so it is never offered as a Method alias. Besides
+the model's own judgement, any Method phrase the Topic taxonomy recognises (the
+cardiology seed lists procedures) is set aside mechanically.
 """
 
 import logging
@@ -49,6 +55,7 @@ from research_gap_dashboard.taxonomy import (
   Axis,
   Taxonomy,
   TaxonomyError,
+  Topic,
   load_taxonomy,
 )
 
@@ -58,7 +65,7 @@ NORMALIZED_FACTS_NAME = "normalized_facts.json"
 
 # Bump when the aggregate prompt or output shape changes: it keys the LLM cache
 # (ADR 0001), so a bump reruns aggregation instead of serving stale answers.
-PROMPT_VERSION = "aggregate-v2"
+PROMPT_VERSION = "aggregate-v3"
 
 # Forced structured-output calls occasionally misfire (an empty object, or the
 # schema echoed back). Retry a few times, bypassing the cache, before accepting
@@ -69,20 +76,38 @@ AGGREGATE_ATTEMPTS = 3
 # any field may say; the other axes each have one dedicated Extraction field.
 AXIS_FIELDS: dict[Axis, tuple[str, ...]] = {
   "topic": tuple(ExtractionFields.model_fields),
-  "method": ("methods",),
+  "method": ("study_design", "methods"),
   "population": ("populations",),
   "dataset": ("datasets",),
 }
 
 # What the model is asked to place on each axis's categories.
 _AXIS_SUBJECTS: dict[Axis, str] = {
-  "topic": "every disease, condition, or subject the paper studies",
-  "method": "every study design or research method the paper uses",
+  "topic": (
+    "every disease, condition, procedure, treatment, or subject the paper studies"
+  ),
+  "method": (
+    "every study design the paper uses, meaning how the study was built "
+    "(randomized trial, cohort, case report, registry analysis, review...)"
+  ),
   "population": (
     "every population or sample the paper studies (age group, sex, species, "
     "care setting); one phrase may map onto several categories"
   ),
   "dataset": "every dataset or data source the paper uses",
+}
+
+
+# Extra instructions for one axis, appended to its mapping prompt.
+_AXIS_NOTES: dict[Axis, str] = {
+  "method": (
+    "\nThese categories are study designs only. A procedure, treatment, lab "
+    "assay, or statistical technique (e.g. echocardiography, coronary "
+    "angiography, troponin assay, logistic regression) is not a study design: "
+    "put that phrase in not_study_design with a short reason, never in "
+    "unmapped or assignments. Use unmapped only for a study design that no "
+    "category covers."
+  ),
 }
 
 
@@ -116,12 +141,27 @@ class UnmappedTerm(BaseModel):
   reason: str = Field(description="Why the phrase could not be placed on the taxonomy.")
 
 
+class NotStudyDesignTerm(BaseModel):
+  """
+  A Method-axis phrase that is not a study design, set aside (ADR 0011).
+
+  Procedures and treatments belong on the Topic axis; lab assays and statistics
+  on none. Unlike an unmapped term, it is no gap in the Method taxonomy, so it
+  is never offered as a Method alias.
+  """
+
+  original_term: str = Field(description="The phrase as written in the Paper.")
+  reason: str = Field(description="Why the phrase is not a study design.")
+
+
 class NormalizedFacts(BaseModel):
   """One Paper's phrases mapped onto every axis's Taxonomy, with the misses kept."""
 
   citation_key: str
   assignments: list[CategoryAssignment]
   unmapped: list[UnmappedTerm]
+  # Defaulted so NormalizedFacts written before ADR 0011 still load.
+  not_study_design: list[NotStudyDesignTerm] = Field(default_factory=list)
 
   def category_ids(self, axis: Axis) -> list[str]:
     """Return the distinct category ids this Paper was placed on for one axis."""
@@ -183,6 +223,18 @@ class _ProposedNormalization(BaseModel):
   unmapped: list[_ProposedUnmapped] = Field(
     default_factory=list,
     description="Phrases about a subject with no matching category.",
+  )
+
+
+class _ProposedMethodNormalization(_ProposedNormalization):
+  """The Method axis proposal, which can also set non-designs aside."""
+
+  not_study_design: list[_ProposedUnmapped] = Field(
+    default_factory=list,
+    description=(
+      "Phrases that are procedures, treatments, lab assays, or statistical "
+      "techniques rather than study designs."
+    ),
   )
 
 
@@ -265,31 +317,54 @@ def aggregate_paper(
   check_distinct_axes(taxonomies)
   assignments: list[CategoryAssignment] = []
   unmapped: list[UnmappedTerm] = []
+  not_design: list[NotStudyDesignTerm] = []
+  topics = next((t for t in taxonomies if t.meta.axis == "topic"), None)
 
   for taxonomy in _in_axis_order(taxonomies):
-    axis = taxonomy.meta.axis
-    facts = _axis_facts(extraction.fields, axis)
+    facts = _axis_facts(extraction.fields, taxonomy.meta.axis)
     if not facts:
       continue
-    try:
-      proposal = complete_model(
-        client,
-        _build_prompt(taxonomy, facts),
-        _ProposedNormalization,
-        prompt_version=prompt_version,
-        tier=tier,
-        attempts=AGGREGATE_ATTEMPTS,
-        accept=_has_any_decision,
-      )
-    except (ValidationError, LlmResponseError) as error:
-      raise AggregateError(axis, str(error)) from error
+    proposal = _propose(
+      client, taxonomy, facts, prompt_version=prompt_version, tier=tier
+    )
     axis_assignments, axis_unmapped = _validate_proposal(taxonomy, facts, proposal)
+    if isinstance(proposal, _ProposedMethodNormalization):
+      axis_unmapped, set_aside = _set_aside_non_designs(proposal, axis_unmapped, topics)
+      not_design.extend(set_aside)
     assignments.extend(axis_assignments)
     unmapped.extend(axis_unmapped)
 
   return NormalizedFacts(
-    citation_key=extraction.citation_key, assignments=assignments, unmapped=unmapped
+    citation_key=extraction.citation_key,
+    assignments=assignments,
+    unmapped=unmapped,
+    not_study_design=not_design,
   )
+
+
+def _propose(
+  client: LlmClient,
+  taxonomy: Taxonomy,
+  facts: dict[str, ExtractedFact],
+  *,
+  prompt_version: str,
+  tier: ModelTier,
+) -> _ProposedNormalization:
+  """Ask the model to place one axis's facts, retrying misfires."""
+  axis = taxonomy.meta.axis
+  schema = _ProposedMethodNormalization if axis == "method" else _ProposedNormalization
+  try:
+    return complete_model(
+      client,
+      _build_prompt(taxonomy, facts),
+      schema,
+      prompt_version=prompt_version,
+      tier=tier,
+      attempts=AGGREGATE_ATTEMPTS,
+      accept=_has_any_decision,
+    )
+  except (ValidationError, LlmResponseError) as error:
+    raise AggregateError(axis, str(error)) from error
 
 
 def check_distinct_axes(taxonomies: Iterable[Taxonomy]) -> None:
@@ -340,7 +415,57 @@ def _lookup_fact(
 
 def _has_any_decision(proposal: _ProposedNormalization) -> bool:
   """Report whether a proposal placed or explicitly surfaced at least one phrase."""
-  return bool(proposal.assignments or proposal.unmapped)
+  set_aside = (
+    proposal.not_study_design
+    if isinstance(proposal, _ProposedMethodNormalization)
+    else []
+  )
+  return bool(proposal.assignments or proposal.unmapped or set_aside)
+
+
+def _set_aside_non_designs(
+  proposal: _ProposedMethodNormalization,
+  unmapped: list[UnmappedTerm],
+  topics: Taxonomy | None,
+) -> tuple[list[UnmappedTerm], list[NotStudyDesignTerm]]:
+  """
+  Split Method-axis misses into true taxonomy gaps and phrases that are no design.
+
+  The model's own `not_study_design` list is kept as is. A phrase it left
+  unmapped (or tried to place on a non-Method id) that the Topic taxonomy
+  recognises is a procedure or condition, so it is set aside too: otherwise it
+  would surface as a Method alias suggestion (ADR 0010, ADR 0011).
+  """
+  not_design = [
+    NotStudyDesignTerm(original_term=p.original_term, reason=p.reason)
+    for p in proposal.not_study_design
+  ]
+  proposed_ids = {a.original_term: a.category_id for a in proposal.assignments}
+  kept: list[UnmappedTerm] = []
+  for term in unmapped:
+    topic = _topic_for(topics, term.original_term, proposed_ids.get(term.original_term))
+    if topic is None:
+      kept.append(term)
+      continue
+    not_design.append(
+      NotStudyDesignTerm(
+        original_term=term.original_term,
+        reason=f"a Topic ({topic.label}), not a study design",
+      )
+    )
+  return kept, not_design
+
+
+def _topic_for(
+  topics: Taxonomy | None, phrase: str, proposed_id: str | None
+) -> Topic | None:
+  """Return the Topic a Method-axis phrase (or the id proposed for it) names."""
+  if topics is None:
+    return None
+  found = topics.resolve(phrase)
+  if found is None and proposed_id is not None:
+    found = topics.topic_by_id(proposed_id) or topics.resolve(proposed_id)
+  return found
 
 
 def _validate_proposal(
@@ -435,7 +560,7 @@ def _build_prompt(taxonomy: Taxonomy, facts: dict[str, ExtractedFact]) -> str:
     "reference exactly as shown, and whose category_id is the id of the "
     "best-matching category. If a fact names a subject that no category covers, "
     "put that phrase in unmapped with a short reason instead of forcing it onto "
-    "a category.\n\n"
+    f"a category.{_AXIS_NOTES.get(axis, '')}\n\n"
     f"CATEGORIES:\n{_render_categories(taxonomy)}\n\n"
     f"PAPER FACTS:\n{_render_facts(facts)}"
   )

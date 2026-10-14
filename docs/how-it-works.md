@@ -173,9 +173,11 @@ extracted = **90% end-to-end**; the shortfall is surfaced honestly, never hidden
 ## 2. Extract — `extract.py`
 
 For each **sectioned** Paper, one LLM call (Anthropic, via the `llm.py` cached
-seam) pulls the structured Extraction: research question, methods,
+seam) pulls the structured Extraction: research question, study design, methods,
 populations, datasets, key findings, limitations, future work — each fact carrying
-an **Evidence** passage. Then the integrity gate (ADR 0004): **every fact's
+an **Evidence** passage. The study design is exactly one fact in everyday words
+("retrospective cohort study using registry data"), quoted like any other
+(ADR 0011). Then the integrity gate (ADR 0004): **every fact's
 Evidence quote is verified verbatim against the Paper's parsed `full_text`**; a
 fact whose quote cannot be found is **dropped as unverifiable**, and a Paper with
 zero verifiable facts is **rejected**. Output: `artifacts/extractions.json`.
@@ -187,7 +189,10 @@ Each Paper's free-text facts are **normalized onto the shared taxonomy axes**
 (Topic, Method, Population, Dataset) with an LLM call, so Papers become
 comparable. Every mapping records axis, the Paper's original term, the assigned
 category, and the source Evidence; a phrase that fits no category is surfaced as
-an **unmapped term** (for taxonomy editing), never silently dropped. Output:
+an **unmapped term** (for taxonomy editing), never silently dropped. The Method
+axis is study design only (ADR 0011): a procedure, treatment, lab assay, or
+statistic met there is recorded as **not a study design** instead, so it is never
+offered as a Method alias; procedures map onto Topics. Output:
 `artifacts/normalized_facts.json`.
 
 ## 4. Detect — `detect.py`

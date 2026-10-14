@@ -33,7 +33,7 @@ flowchart TD
         PR[/"parse-report.json<br/>failures"/]
         EXP["<b>explain</b> ‹LLM›<br/>domain + lay"]
         EXPJ[/"*.explanation.json"/]
-        EXR["<b>extract</b> ‹LLM›<br/>7 fields, each with a quote"]
+        EXR["<b>extract</b> ‹LLM›<br/>8 fields, each with a quote"]
         GATE{"quote found<br/>verbatim?"}
         DROP[/"unverified list<br/><i>dropped, recorded</i>"/]
         EX[/"extractions.json"/]

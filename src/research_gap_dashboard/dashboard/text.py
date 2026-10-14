@@ -472,9 +472,10 @@ META_COOCCURRENCE_EMPTY_REASON = (
   "this Corpus."
 )
 META_METHOD_THIN_NOTE = (
-  "Few Methods mapped: the Method taxonomy is study-design-only, so clinical "
-  "procedures and treatments are set aside as unmapped terms (see taxonomy "
-  "editing). A thin graph here is usually upstream coverage, not a real gap."
+  "Few Methods mapped: the Method axis holds study designs only, so clinical "
+  "procedures and treatments count as Topics and are set aside here as 'not a "
+  "study design'. A thin graph here usually means the Papers share few "
+  "designs, or the Extraction predates the study-design fact (re-run extract)."
 )
 META_COOCCURRENCE_CONTROLS_LABEL = "Graph controls"
 META_MIN_EDGE_LABEL = "Minimum Papers per link"

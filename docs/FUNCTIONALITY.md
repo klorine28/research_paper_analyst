@@ -99,6 +99,8 @@ Maps each Paper's free-text facts onto the shared axis taxonomies (Topic,
 Method, Population, Dataset) so Papers can be compared in the Coverage Matrix.
 Every assignment records axis, original term, assigned category, source fact,
 and Evidence; unplaceable phrases surface as unmapped terms, never dropped.
+On the Method axis (study design only, ADR 0011) non-design phrases are
+recorded as "not a study design" rather than unmapped.
 Writes `normalized_facts.json`. Reader: `read_normalized_facts(root)`.
 
 ### Detect — `detect.py`

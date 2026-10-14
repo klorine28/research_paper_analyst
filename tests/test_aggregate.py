@@ -10,6 +10,7 @@ from conftest import ScriptedLlmClient, StubLlmClient
 
 from research_gap_dashboard import cli
 from research_gap_dashboard.aggregate import (
+  NormalizedFacts,
   aggregate_corpus,
   aggregate_paper,
   load_pipeline_taxonomies,
@@ -43,6 +44,13 @@ id = "heart-failure"
 label = "Heart Failure"
 mesh_id = "D006333"
 aliases = ["Cardiac Failure"]
+
+[[topics]]
+id = "echocardiography"
+label = "Echocardiography"
+mesh_id = "D004452"
+mesh_tree = "E01.370.350.130.750"
+aliases = ["Transthoracic Echocardiography"]
 """
 
 _METHOD_TOML = """
@@ -264,6 +272,138 @@ def test_unmappable_terms_are_surfaced_with_their_axis(tmp_path: Path) -> None:
   ]
 
 
+def _echo_extraction() -> Extraction:
+  """Build a Paper whose design is plain and whose methods name a procedure."""
+  return Extraction(
+    citation_key="hanna2019",
+    fields=ExtractionFields(
+      study_design=[
+        ExtractedFact(
+          statement="Retrospective study of hospital records.",
+          evidence=Evidence(passage="we retrospectively reviewed", section="methods"),
+        )
+      ],
+      methods=[
+        ExtractedFact(
+          statement="All patients underwent transthoracic echocardiography.",
+          evidence=Evidence(passage="underwent echocardiography", section="methods"),
+        )
+      ],
+    ),
+  )
+
+
+_ECHO_TOPIC_PROPOSAL: dict[str, Any] = {
+  "assignments": [
+    {
+      "original_term": "transthoracic echocardiography",
+      "fact_ref": "methods[0]",
+      "category_id": "echocardiography",
+    }
+  ],
+  "unmapped": [],
+}
+
+_DESIGN_ASSIGNMENT: dict[str, Any] = {
+  "original_term": "Retrospective study",
+  "fact_ref": "study_design[0]",
+  "category_id": "retrospective-studies",
+}
+
+
+def test_a_procedure_is_a_topic_and_not_a_study_design(tmp_path: Path) -> None:
+  """A procedure maps to a Topic and is 'not a study design' on Method (ADR 0011)."""
+  method_proposal = {
+    "assignments": [_DESIGN_ASSIGNMENT],
+    "unmapped": [],
+    "not_study_design": [
+      {
+        "original_term": "transthoracic echocardiography",
+        "reason": "an imaging procedure",
+      }
+    ],
+  }
+  client = ScriptedLlmClient([_ECHO_TOPIC_PROPOSAL, method_proposal])
+
+  facts = aggregate_paper(_echo_extraction(), _taxonomies(tmp_path), client)
+
+  assert facts.category_ids("topic") == ["echocardiography"]
+  assert facts.category_ids("method") == ["retrospective-studies"]
+  assert [t.original_term for t in facts.not_study_design] == [
+    "transthoracic echocardiography"
+  ]
+  assert facts.unmapped == []
+
+
+def test_a_procedure_left_unmapped_on_method_is_set_aside(tmp_path: Path) -> None:
+  """A Topic-taxonomy procedure the model calls unmapped on Method is never unmapped."""
+  method_proposal = {
+    "assignments": [_DESIGN_ASSIGNMENT],
+    "unmapped": [
+      {"original_term": "Transthoracic Echocardiography", "reason": "no design"},
+      {"original_term": "stepped-wedge trial", "reason": "no matching design"},
+    ],
+  }
+  client = ScriptedLlmClient([_ECHO_TOPIC_PROPOSAL, method_proposal])
+
+  facts = aggregate_paper(_echo_extraction(), _taxonomies(tmp_path), client)
+
+  assert [t.original_term for t in facts.not_study_design] == [
+    "Transthoracic Echocardiography"
+  ]
+  # A genuine design missing from the taxonomy stays an alias suggestion.
+  assert [u.original_term for u in facts.unmapped] == ["stepped-wedge trial"]
+
+
+def test_a_procedure_assigned_to_a_method_id_is_set_aside(tmp_path: Path) -> None:
+  """A Method assignment naming a procedure Topic is 'not a study design'."""
+  method_proposal = {
+    "assignments": [
+      _DESIGN_ASSIGNMENT,
+      {
+        "original_term": "echocardiography",
+        "fact_ref": "methods[0]",
+        "category_id": "echocardiography",
+      },
+    ],
+    "unmapped": [],
+  }
+  client = ScriptedLlmClient([_ECHO_TOPIC_PROPOSAL, method_proposal])
+
+  facts = aggregate_paper(_echo_extraction(), _taxonomies(tmp_path), client)
+
+  assert facts.category_ids("method") == ["retrospective-studies"]
+  assert [t.original_term for t in facts.not_study_design] == ["echocardiography"]
+  assert facts.unmapped == []
+
+
+def test_the_study_design_fact_feeds_the_method_axis(tmp_path: Path) -> None:
+  """The Method prompt offers the study-design fact and the not-a-design bucket."""
+  prompts: list[str] = []
+
+  class _Recording(ScriptedLlmClient):  # pylint: disable=too-few-public-methods
+    def complete(self, prompt: str, schema: dict[str, Any], **kwargs: Any):
+      prompts.append(prompt)
+      return super().complete(prompt, schema, **kwargs)
+
+  client = _Recording([{"assignments": [_DESIGN_ASSIGNMENT], "unmapped": []}])
+  method_only = [_load(tmp_path, "method", _METHOD_TOML)]
+
+  aggregate_paper(_echo_extraction(), method_only, client)
+
+  assert "[study_design[0]]" in prompts[0]
+  assert "not_study_design" in prompts[0]
+
+
+def test_an_artifact_without_the_not_a_design_list_still_loads() -> None:
+  """NormalizedFacts written before ADR 0011 load with an empty set-aside list."""
+  legacy = NormalizedFacts.model_validate(
+    {"citation_key": "hanna2019", "assignments": [], "unmapped": []}
+  )
+
+  assert legacy.not_study_design == []
+
+
 def test_an_axis_with_no_extracted_facts_makes_no_call(tmp_path: Path) -> None:
   """A Paper with no dataset facts is not sent to the LLM for the Dataset axis."""
   client = StubLlmClient(_TOPIC_PROPOSAL)
@@ -328,7 +468,7 @@ def test_aggregate_corpus_writes_artifact_for_every_paper(
   ]
 
   reread = read_normalized_facts(extracted_corpus)
-  assert reread.prompt_version == "aggregate-v2"
+  assert reread.prompt_version == "aggregate-v3"
   assert reread.normalized[0].category_ids("method") == ["retrospective-studies"]
 
 

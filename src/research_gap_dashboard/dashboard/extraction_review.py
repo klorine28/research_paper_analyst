@@ -35,9 +35,10 @@ from research_gap_dashboard.dashboard.grounding import (
 JUDGMENTS_DIR = "judgments"
 EXTRACTION_REVIEW_NAME = "extraction_review.json"
 
-# The seven Extraction fields, the same set and order the extract stage uses.
+# The eight Extraction fields, the same set and order the extract stage uses.
 FIELD_NAMES: tuple[str, ...] = (
   "research_question",
+  "study_design",
   "methods",
   "populations",
   "datasets",
@@ -53,7 +54,7 @@ Verdict = Literal["approved", "edited", "flagged", "removed"]
 
 
 class UnknownFieldError(ValueError):
-  """Raised when a verdict names a field that is not one of the seven."""
+  """Raised when a verdict names a field that is not one of the eight."""
 
 
 class FactVerdict(BaseModel):
@@ -129,7 +130,7 @@ def load_extraction_review(corpus_root: Path) -> ExtractionReviewLog:
 
 
 def _require_field(field: str) -> None:
-  """Refuse a verdict on anything but one of the seven Extraction fields."""
+  """Refuse a verdict on anything but one of the eight Extraction fields."""
   if field not in FIELD_NAMES:
     raise UnknownFieldError(
       f"Unknown Extraction field '{field}'; expected one of {', '.join(FIELD_NAMES)}."

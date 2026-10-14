@@ -2,7 +2,7 @@
 Behavior of the Verify Extractions assembly: Extraction plus overlay in, view out.
 
 The page's data is assembled by plain functions the layout layer calls; these
-tests exercise that seam (an acceptance criterion). They confirm all seven fields
+tests exercise that seam (an acceptance criterion). They confirm all eight fields
 are present with facts, Evidence, and section, and that a reviewer's verdicts and
 added facts are overlaid on the raw Extraction for display.
 """
@@ -61,7 +61,7 @@ def _paper() -> PaperRecord:
   )
 
 
-def test_all_seven_fields_are_present(tmp_path: Path):
+def test_all_eight_fields_are_present(tmp_path: Path):
   """The view shows every Extraction field, in the fixed order, even empty ones."""
   view = build_extraction_review(
     _extraction(), PaperReview(citation_key="paper-a"), _paper()
@@ -72,6 +72,31 @@ def test_all_seven_fields_are_present(tmp_path: Path):
   assert methods.facts[0].statement == "Retrospective cohort."
   assert methods.facts[0].passage == "A retrospective cohort of 200 patients."
   assert methods.facts[0].section == "methods"
+
+
+def test_the_study_design_is_shown_in_its_plain_words():
+  """The Paper's study design leads the methods, in the words it was extracted in."""
+  extraction = ExtractionRecord(
+    citation_key="paper-a",
+    fields=ExtractionFieldsRecord(
+      study_design=[
+        _fact(
+          "Retrospective cohort study using registry data.",
+          "A retrospective cohort of 200 patients.",
+        )
+      ]
+    ),
+  )
+
+  view = build_extraction_review(
+    extraction, PaperReview(citation_key="paper-a"), _paper()
+  )
+
+  fields = [field.field for field in view.fields]
+  assert fields.index("study_design") == fields.index("methods") - 1
+  design = next(f for f in view.fields if f.field == "study_design")
+  assert design.label == "Study design"
+  assert design.facts[0].statement == "Retrospective cohort study using registry data."
 
 
 def test_a_verdict_is_overlaid_on_its_fact():

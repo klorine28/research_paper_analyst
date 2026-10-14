@@ -2,11 +2,12 @@
 Assembling the Paper Comparison view from the on-disk artifacts.
 
 The researcher picks 2-5 Papers and sees them side by side, field by field
-(research question, methods, population, datasets, findings, limitations), with
-agreements and differences highlighted and a mini Coverage Matrix of what none
-of the selected Papers cover. A larger selection (up to 15 Papers) is split into
-sets of at most five, each set summarized, and the summaries compared instead of
-the raw Papers (CONTEXT.md > Coverage Matrix; docs/BRIEF.md, decision 8).
+(research question, study design, methods, population, datasets, findings,
+limitations), with agreements and differences highlighted and a mini Coverage
+Matrix of what none of the selected Papers cover. A larger selection (up to 15
+Papers) is split into sets of at most five, each set summarized, and the
+summaries compared instead of the raw Papers (CONTEXT.md > Coverage Matrix;
+docs/BRIEF.md, decision 8).
 
 These are plain functions with no Streamlit dependency, and they import no
 pipeline stage (ADR 0002): the layout layer asks here for finished data. Two
@@ -55,6 +56,7 @@ AXIS_LABELS: dict[str, str] = {
 # (None for a free-text field with no shared taxonomy).
 _FIELDS: tuple[tuple[str, str, str | None], ...] = (
   ("research_question", "Research question", None),
+  ("study_design", "Study design", "method"),
   ("methods", "Methods", "method"),
   ("populations", "Population", "population"),
   ("datasets", "Datasets", "dataset"),

@@ -3,7 +3,7 @@ Assembling the Verify Extractions page from a Paper's Extraction and its review.
 
 These are plain functions with no Streamlit dependency: the layout layer stays
 thin by asking here for finished data (ADR 0003). The view pairs each of the
-seven Extraction fields with its facts, each fact's Evidence passage and section,
+eight Extraction fields with its facts, each fact's Evidence passage and section,
 and any reviewer verdict overlaid on it, plus the facts a reviewer added. The
 app layer renders this and wires the verbs to `dashboard.extraction_review`.
 
@@ -29,9 +29,10 @@ from research_gap_dashboard.dashboard.extraction_review import (
   PaperReview,
 )
 
-# Human labels for the seven Extraction fields, in the fixed display order.
+# Human labels for the eight Extraction fields, in the fixed display order.
 FIELD_LABELS: dict[str, str] = {
   "research_question": "Research question",
+  "study_design": "Study design",
   "methods": "Methods",
   "populations": "Populations",
   "datasets": "Datasets",
