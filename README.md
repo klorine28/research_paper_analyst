@@ -35,7 +35,7 @@ reads:
 | `ANTHROPIC_API_KEY` | _(none)_ | Anthropic API key; required for real runs. Leave unset for offline, recorded-response runs. |
 | `LLM_DEFAULT_MODEL` | `claude-sonnet-4-5` | Model for the capable (default) tier. |
 | `LLM_CHEAP_MODEL` | `claude-haiku-4-5` | Model for the cheap, high-volume tier. |
-| `LLM_MAX_TOKENS` | `4096` | Max output tokens per completion. |
+| `LLM_MAX_TOKENS` | `16384` | Max output tokens per completion; a Paper whose Extraction is cut off at this budget fails with a reason saying so. |
 | `OPENALEX_MAILTO` | _(none)_ | Contact email that puts OpenAlex calls in the faster polite pool; `--mailto` overrides it. |
 | `NCBI_API_KEY` | _(none)_ | NCBI E-utilities key; raises PubMed's rate limit from 3 to 10 requests a second. |
 
