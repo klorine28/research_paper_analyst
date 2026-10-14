@@ -29,7 +29,12 @@ from pydantic import BaseModel, Field
 
 from research_gap_dashboard.corpus_layout import inspect_corpus_layout
 from research_gap_dashboard.ingest import read_manifest
-from research_gap_dashboard.llm import LlmClient, ModelTier, complete_model
+from research_gap_dashboard.llm import (
+  LlmClient,
+  LlmResponseError,
+  ModelTier,
+  complete_model,
+)
 from research_gap_dashboard.parsing import ParsedPaper, SectionLabel, read_parsed_paper
 
 logger = logging.getLogger(__name__)
@@ -70,9 +75,19 @@ _REPLACEMENT_CHAR = "\ufffd"
 # pipes are dropped (to whitespace) on both sides before matching.
 _TABLE_PIPE = re.compile(r"\s*\|\s*")
 
+# A hyphenated word the PDF wrapped at its hyphen (`in-\nhospital`, or `in- hospital`
+# once the parser flattened the newline). The break is joined, keeping the hyphen,
+# on both sides before matching (ADR 0004 amendment). Only whitespace after a
+# hyphen between two word characters goes, so no word is edited.
+_LINE_BREAK_HYPHEN = re.compile(r"(?<=\w)([-\u2010])\s+(?=\w)")
+
 
 class EvidenceVerificationError(Exception):
   """Raised when a quoted Evidence passage is not found in the parsed text."""
+
+
+class EmptyExtractionError(Exception):
+  """Raised when the model returned no facts at all for a Paper, past its retries."""
 
 
 class Evidence(BaseModel):
@@ -168,9 +183,10 @@ def extract_corpus(
   """
   Extract structured facts for every Paper and write the Extractions artifact.
 
-  Each Paper is extracted independently: a Paper that was never parsed, or whose
-  Evidence fails verification, is recorded in the report's failures and the run
-  carries on with the rest of the Corpus.
+  Each Paper is extracted independently: a Paper that was never parsed, whose
+  model output was unusable (cut off, or empty past its retries), or none of
+  whose facts verify is recorded in the report's failures with that reason, and
+  the run carries on with the rest of the Corpus.
   """
   manifest = read_manifest(root)
   extractions: list[Extraction] = []
@@ -194,10 +210,19 @@ def extract_corpus(
       result = extract_paper(
         paper.citation_key, parsed, client, prompt_version=prompt_version, tier=tier
       )
-    except EvidenceVerificationError as error:
+    except (EvidenceVerificationError, EmptyExtractionError) as error:
       logger.error("Rejected extraction for %s: %s", paper.citation_key, error)
       failures.append(
         ExtractionFailure(citation_key=paper.citation_key, reason=str(error))
+      )
+      continue
+    except LlmResponseError as error:
+      logger.error("No usable LLM output for %s: %s", paper.citation_key, error)
+      failures.append(
+        ExtractionFailure(
+          citation_key=paper.citation_key,
+          reason=f"no usable model output after {EXTRACT_ATTEMPTS} attempts: {error}",
+        )
       )
       continue
 
@@ -243,7 +268,9 @@ def extract_paper(
   Each fact's quoted passage is checked against the parsed text; a fact that
   does not verify is dropped and returned as an `UnverifiedFact` rather than
   discarding the whole Paper (ADR 0004). A Paper whose facts *all* fail to
-  verify raises `EvidenceVerificationError`, since it has nothing to show.
+  verify raises `EvidenceVerificationError`, since it has nothing to show; one
+  the model returned no facts for at all raises `EmptyExtractionError`, so the
+  two are never confused.
   """
   fields = complete_model(
     client,
@@ -254,6 +281,10 @@ def extract_paper(
     attempts=EXTRACT_ATTEMPTS,
     accept=_has_any_fact,
   )
+  if not _has_any_fact(fields):
+    raise EmptyExtractionError(
+      f"the model returned no facts for this paper in {EXTRACT_ATTEMPTS} attempts"
+    )
   verified, unverified = _verify_fields(citation_key, parsed, fields)
   if not _has_any_fact(verified):
     raise EvidenceVerificationError(
@@ -357,11 +388,13 @@ def _normalize(text: str) -> str:
   Canonicalize text so a faithful quote matches across benign parser artifacts.
 
   This only undoes transformations the *parser* introduced (compatibility
-  glyphs, table pipes, wrapped whitespace); it never edits words, so a genuine
-  LLM misquote (a typo or stitched span) still fails verification.
+  glyphs, table pipes, line-break hyphens, wrapped whitespace); it never edits
+  words, so a genuine LLM misquote (a typo or stitched span) still fails
+  verification.
   """
   text = unicodedata.normalize("NFKC", text)
   text = _TABLE_PIPE.sub(" ", text)
+  text = _LINE_BREAK_HYPHEN.sub(r"\1", text)
   return _WHITESPACE.sub(" ", text).strip()
 
 

@@ -40,7 +40,13 @@ ANTHROPIC_VERSION = "2023-06-01"
 # cheap tier trades capability for cost on high-volume, low-stakes calls.
 DEFAULT_MODEL = "claude-sonnet-4-5"
 CHEAP_MODEL = "claude-haiku-4-5"
-DEFAULT_MAX_TOKENS = 4096
+# A long Paper's Extraction runs to ~5000 output tokens; at 4096, 5 of the 50
+# `takotsubo-50` Papers were cut off (issue #124). Output is billed per token
+# produced, so headroom costs nothing on shorter answers.
+DEFAULT_MAX_TOKENS = 16384
+
+# Generating a full output budget takes minutes, not seconds.
+_HTTP_TIMEOUT_SECONDS = 600.0
 
 # The single forced tool through which Anthropic emits structured output: its
 # input schema is the caller's schema, so the tool input is the answer.
@@ -64,6 +70,15 @@ class LlmConfigError(Exception):
 
 class LlmResponseError(Exception):
   """Raised when a response carries no usable structured output."""
+
+
+class LlmTruncatedError(LlmResponseError):
+  """
+  Raised when a response was cut off at the output token budget.
+
+  A forced tool call cut off mid-JSON comes back with an empty or partial
+  `input`; passed on, it would read as "the model found nothing".
+  """
 
 
 class LlmConfig(BaseModel):
@@ -159,6 +174,11 @@ class AnthropicClient:  # pylint: disable=too-few-public-methods
       "content-type": "application/json",
     }
     response = self._post(ANTHROPIC_MESSAGES_URL, headers, payload)
+    if response.get("stop_reason") == "max_tokens":
+      raise LlmTruncatedError(
+        f"model output was cut off at max_tokens={self._config.max_tokens}; "
+        "raise LLM_MAX_TOKENS and rerun"
+      )
     return _structured_output(response)
 
 
@@ -295,28 +315,41 @@ def complete_model(  # pylint: disable=too-many-arguments
 
   Forced structured-output calls occasionally misfire (an empty object, or the
   schema echoed back). When `attempts` > 1, a call whose result fails validation
-  or is rejected by `accept` is retried with the cache bypassed, so a fresh
-  model response replaces the bad one instead of being served from cache.
+  or is rejected by `accept`, or that raises `LlmResponseError` (e.g. output cut
+  off at the token budget), is retried with the cache bypassed, so a fresh model
+  response replaces the bad one instead of being served from cache. When no
+  attempt is accepted, a response error raised after the last parsed model wins
+  over it (it says more than an unaccepted, often empty, model); otherwise the
+  last parsed model is returned, or the last validation error raised.
   """
   fields = set(model.model_fields)
   schema = model.model_json_schema()
   last_error: ValidationError | None = None
+  response_error: LlmResponseError | None = None
   parsed: _ModelT | None = None
   for attempt in range(attempts):
-    result = client.complete(
-      prompt,
-      schema,
-      prompt_version=prompt_version,
-      tier=tier,
-      refresh=attempt > 0,
-    )
+    try:
+      result = client.complete(
+        prompt,
+        schema,
+        prompt_version=prompt_version,
+        tier=tier,
+        refresh=attempt > 0,
+      )
+    except LlmResponseError as error:
+      logger.warning("LLM attempt %d/%d failed: %s", attempt + 1, attempts, error)
+      response_error = error
+      continue
     try:
       parsed = model.model_validate(_coerce_to_model(result, fields))
     except ValidationError as error:
       last_error = error
       continue
+    response_error = None
     if accept is None or accept(parsed):
       return parsed
+  if response_error is not None:
+    raise response_error
   if parsed is not None:
     return parsed
   raise (
@@ -390,6 +423,8 @@ def _httpx_post(
   url: str, headers: Mapping[str, str], payload: dict[str, Any]
 ) -> dict[str, Any]:
   """POST JSON to a URL and return the parsed response body."""
-  response = httpx.post(url, headers=dict(headers), json=payload, timeout=120.0)
+  response = httpx.post(
+    url, headers=dict(headers), json=payload, timeout=_HTTP_TIMEOUT_SECONDS
+  )
   response.raise_for_status()
   return response.json()

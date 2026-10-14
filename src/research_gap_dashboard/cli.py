@@ -38,7 +38,11 @@ from research_gap_dashboard.retrieval import (
   DEFAULT_MIN_OVERLAP,
   detect_retrieval_gaps,
 )
-from research_gap_dashboard.sources import OpenAlexAdapter, PubMedAdapter
+from research_gap_dashboard.sources import (
+  OpenAlexAdapter,
+  PubMedAdapter,
+  SourceIdentity,
+)
 from research_gap_dashboard.taxonomy import (
   CARDIOLOGY_SEED_PATH,
   SEED_PATHS,
@@ -83,7 +87,10 @@ def build_parser() -> argparse.ArgumentParser:
   ingest.add_argument(
     "--mailto",
     default=None,
-    help="Contact email to join OpenAlex's polite pool when resolving.",
+    help=(
+      "Contact email to join OpenAlex's polite pool when resolving "
+      "(default: OPENALEX_MAILTO)."
+    ),
   )
   parse = subcommands.add_parser(
     "parse",
@@ -189,7 +196,10 @@ def build_parser() -> argparse.ArgumentParser:
   retrieve.add_argument(
     "--mailto",
     default=None,
-    help="Contact email to join OpenAlex's polite pool when resolving.",
+    help=(
+      "Contact email to join OpenAlex's polite pool when resolving "
+      "(default: OPENALEX_MAILTO)."
+    ),
   )
   promote = subcommands.add_parser(
     "promote-gold",
@@ -251,9 +261,12 @@ def _run_ingest(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   unresolved = sum(1 for paper in manifest.papers if paper.resolution_error)
+  no_doi = sum(1 for paper in manifest.papers if not paper.doi)
   logger.info(
-    "Corpus: %d Papers, %d unmatched entries, %d orphan PDFs, %d DOIs unresolved.",
+    "Corpus: %d Papers (%d without a DOI), %d unmatched entries, %d orphan PDFs, "
+    "%d DOIs unresolved.",
     len(manifest.papers),
+    no_doi,
     len(manifest.unmatched_entries),
     len(manifest.orphan_pdfs),
     unresolved,
@@ -264,13 +277,18 @@ def _run_ingest(arguments: argparse.Namespace) -> int:
 def _build_source(arguments: argparse.Namespace):
   """Build the source adapter the ingest run resolves DOIs against."""
   if arguments.source == "pubmed":
-    return PubMedAdapter()
-  return OpenAlexAdapter(mailto=arguments.mailto)
+    return PubMedAdapter(api_key=SourceIdentity.from_env().pubmed_api_key)
+  return OpenAlexAdapter(mailto=_openalex_mailto(arguments))
+
+
+def _openalex_mailto(arguments: argparse.Namespace) -> str | None:
+  """Pick the polite-pool mailto: `--mailto` wins over `OPENALEX_MAILTO`."""
+  return arguments.mailto or SourceIdentity.from_env().openalex_mailto
 
 
 def _run_retrieve(arguments: argparse.Namespace) -> int:
   """Find out-of-corpus candidates by citation overlap and write the artifact."""
-  adapter = OpenAlexAdapter(mailto=arguments.mailto)
+  adapter = OpenAlexAdapter(mailto=_openalex_mailto(arguments))
   try:
     report = detect_retrieval_gaps(
       arguments.corpus,
