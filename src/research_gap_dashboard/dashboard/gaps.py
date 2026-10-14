@@ -161,6 +161,49 @@ def scope_context_to_gap(card: GapCard, corpus: GroundingContext) -> GroundingCo
   return GroundingContext(papers=papers, gaps=[gap], evidence=evidence)
 
 
+class NarrativeScope(BaseModel):
+  """
+  What the narrative summary is grounded in, and the denominator it states.
+
+  The write-up reflects the researcher's judgment (issue #81): only accepted
+  gaps enter its context, and the counts let the page say how many gaps over
+  how many Papers it covers and how many were left out.
+  """
+
+  context: GroundingContext
+  accepted_count: int
+  rejected_count: int
+  undecided_count: int
+  paper_count: int
+
+
+def narrative_scope(data: GapCardsData, corpus: GroundingContext) -> NarrativeScope:
+  """
+  Narrow a Corpus's grounding context to the gaps the researcher accepted.
+
+  The Papers stay the whole Corpus, since they are the citation allow-list;
+  only the gaps shrink. Rejected and undecided gaps are excluded.
+  """
+  gaps = [
+    GapFact(
+      gap_type=card.gap_type_label,
+      title=card.title,
+      explanation=card.explanation,
+      confidence=card.confidence_label,
+      source_citation_keys=card.source_citation_keys,
+    )
+    for card in data.cards
+    if card.status == "accepted"
+  ]
+  return NarrativeScope(
+    context=corpus.model_copy(update={"gaps": gaps}),
+    accepted_count=data.accepted_count,
+    rejected_count=data.rejected_count,
+    undecided_count=data.undecided_count,
+    paper_count=data.corpus_paper_count,
+  )
+
+
 def _expanded_passage(passage: EvidencePassage) -> str:
   """Use the paragraph-expanded window when grounded, else the bare anchor quote."""
   context = passage.context

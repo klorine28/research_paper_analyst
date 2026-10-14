@@ -86,6 +86,7 @@ from research_gap_dashboard.dashboard.gaps import (
   GapCard,
   GapCardsData,
   build_gap_cards,
+  narrative_scope,
   scope_context_to_gap,
 )
 from research_gap_dashboard.dashboard.judgments import (
@@ -1596,7 +1597,7 @@ def _render_analytics_page(corpus_root: Path) -> None:
 
   st.divider()
   _render_narrative_summary(
-    _grounding_context(corpus_root, manifest, has_gaps), client, has_gaps
+    corpus_root, _grounding_context(corpus_root, manifest, has_gaps), client, has_gaps
   )
   st.divider()
   _render_journal(corpus_root)
@@ -1754,19 +1755,37 @@ def _grounding_context(
 
 
 def _render_narrative_summary(
+  corpus_root: Path,
   context: GroundingContext,
   client: LlmClient,
   has_gaps: bool,
 ) -> None:
-  """Render the narrative-summary section, generated on demand and cached."""
+  """Render the narrative summary over accepted gaps only, stating its denominator."""
   st.subheader(text.ANALYTICS_SUMMARY_HEADING)
   st.caption(text.ANALYTICS_SUMMARY_INTRO)
   if not has_gaps:
     st.info(text.ANALYTICS_SUMMARY_NEEDS_GAPS)
     return
+  scope = narrative_scope(
+    build_gap_cards(load_candidate_gaps(corpus_root), load_judgments(corpus_root)),
+    context,
+  )
+  if scope.accepted_count == 0:
+    st.info(
+      text.ANALYTICS_SUMMARY_NEEDS_ACCEPTED.format(undecided=scope.undecided_count)
+    )
+    return
+  st.caption(
+    text.ANALYTICS_SUMMARY_DENOMINATOR.format(
+      accepted=scope.accepted_count,
+      papers=scope.paper_count,
+      rejected=scope.rejected_count,
+      undecided=scope.undecided_count,
+    )
+  )
   if st.button(text.ANALYTICS_GENERATE_SUMMARY_BUTTON):
     with st.spinner(text.ANALYTICS_THINKING):
-      narrative = summarize_gaps(context, client)
+      narrative = summarize_gaps(scope.context, client)
     _render_narrative(narrative)
 
 
