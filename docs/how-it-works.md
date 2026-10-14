@@ -36,11 +36,16 @@ A corpus is a directory:
   judgments/                   # dashboard-only: verdicts, chats, journal
 ```
 
-**Ingest** pairs each bibliographic entry with its PDF by citation key and writes
+**Ingest** pairs each bibliographic entry with its PDF (by DOI in the file name,
+else by citation key) and writes
 `artifacts/corpus-manifest.json` — the list of `Paper`s (citation key, DOI, title,
-year, pdf path) plus any unmatched entries and orphan PDFs. With `--resolve` it
+year, pdf path) plus any unmatched entries and orphan PDFs. An entry with no DOI
+(preprint, thesis, grey literature) is paired by citation key alone and still
+becomes a Paper. With `--resolve` it
 also calls a scholarly API (OpenAlex by default, PubMed optional; see
 `sources.py`) to fill in authors, `referenced_works`, and `cited_by_count`.
+No-DOI Papers are skipped there, so they carry no citation graph: Retrieval Gap
+ranking and the citation network leave them out and say so in their denominators.
 Everything downstream reads this manifest; it never re-reads the `.bib`.
 
 ---
