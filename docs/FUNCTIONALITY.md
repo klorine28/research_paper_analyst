@@ -139,6 +139,14 @@ and the suite runs offline by injecting a fake `fetch`:
 - **`PubMedAdapter`** — second source, via NCBI E-utilities (esearch →
   esummary). Selected at ingest with `--source pubmed`.
 
+Both adapters also satisfy a `TopicSearchSource` protocol
+(`search(query, limit) -> list[WorkRecord]`) for saturation checks (ADR 0009):
+OpenAlex searches `/works` and rebuilds each abstract from its inverted index;
+PubMed runs esearch by relevance, then efetch (XML) for abstracts. Search hits
+carry `openalex_id`, `doi` and/or `pmid`, `title`, `year` and `abstract` (empty
+when the source has none). `SourceIdentity.from_env()` reads how the tool
+identifies itself: `OPENALEX_MAILTO` (polite pool) and `NCBI_API_KEY`.
+
 ---
 
 ## Dashboard — `dashboard/`

@@ -36,6 +36,8 @@ reads:
 | `LLM_DEFAULT_MODEL` | `claude-sonnet-4-5` | Model for the capable (default) tier. |
 | `LLM_CHEAP_MODEL` | `claude-haiku-4-5` | Model for the cheap, high-volume tier. |
 | `LLM_MAX_TOKENS` | `4096` | Max output tokens per completion. |
+| `OPENALEX_MAILTO` | _(none)_ | Contact email that puts OpenAlex calls in the faster polite pool; `--mailto` overrides it. |
+| `NCBI_API_KEY` | _(none)_ | NCBI E-utilities key; raises PubMed's rate limit from 3 to 10 requests a second. |
 
 The test suite never calls the API or the network: it uses recorded responses,
 so `just test` runs with no API key.
