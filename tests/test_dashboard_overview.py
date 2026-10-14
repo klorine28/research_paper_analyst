@@ -355,7 +355,8 @@ def test_dashboard_imports_no_pipeline_logic():
   pipeline_paths = {f"research_gap_dashboard.{name}" for name in _PIPELINE_MODULES}
   package_dir = Path(dashboard_pkg.__file__).parent
   offenders: list[str] = []
-  for source in package_dir.glob("*.py"):
+  # Recurse: the per-page modules live in the `dashboard.views` subpackage.
+  for source in package_dir.rglob("*.py"):
     tree = ast.parse(source.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
       names: list[str] = []
@@ -365,5 +366,5 @@ def test_dashboard_imports_no_pipeline_logic():
         names.extend(alias.name for alias in node.names)
       for name in names:
         if name in pipeline_paths:
-          offenders.append(f"{source.name} imports {name}")
+          offenders.append(f"{source.relative_to(package_dir)} imports {name}")
   assert not offenders

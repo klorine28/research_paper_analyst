@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from matcher_cases import MATCHER_CASES, MatcherCase
+
 from research_gap_dashboard.dashboard.grounding import (
   PARSED_SUFFIX,
   UngroundedEvidenceError,
@@ -44,9 +46,23 @@ def test_dashboard_normalize_matches_the_extract_stage():
     "  leading and trailing  ",
     "tabs\tand\r\nnewlines collapse",
     "single spaces stay single",
+    "reduced in-\nhospital mortality",
+    "reduced in- hospital mortality",
+    "Group A | 10 mice | Male",
+    "The \ufb01nal cohort",
   ]
   for sample in samples:
     assert normalize(sample) == extract_normalize(sample)
+
+
+@pytest.mark.parametrize("case", MATCHER_CASES, ids=lambda case: case.id)
+def test_dashboard_matcher_shared_cases(tmp_path: Path, case: MatcherCase):
+  """The dashboard grounds exactly the quotes the extract stage verifies."""
+  _write_parsed(tmp_path, "paper-a", case.paper_text)
+
+  parsed = read_parsed_paper(tmp_path, "paper-a")
+
+  assert is_grounded(case.passage, parsed) is case.verifies
 
 
 def test_a_verbatim_passage_is_grounded(tmp_path: Path):
