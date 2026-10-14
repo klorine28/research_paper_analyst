@@ -4,7 +4,7 @@ The dashboard's own verbatim-Evidence matcher for Extraction Review corrections.
 Any edited or added Evidence a reviewer saves must quote the Paper's parsed text
 verbatim (CODING_STANDARDS > Research integrity; ADR 0003). The dashboard may not
 import a pipeline stage (ADR 0002), so it owns this copy of the read logic and the
-whitespace normalisation instead of calling `extract._verify_evidence`.
+text normalisation instead of calling `extract._verify_evidence`.
 
 The two must normalise identically, or a correction valid in one could be
 rejected by the other. `normalize` mirrors `extract._normalize` exactly; a test
@@ -14,6 +14,7 @@ artifact reader here.
 """
 
 import re
+import unicodedata
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
@@ -21,10 +22,13 @@ from pydantic import BaseModel, ConfigDict
 PAPER_DATA_DIR = "paper-data"
 PARSED_SUFFIX = ".parsed.json"
 
-# Mirror of `extract._normalize`: collapse whitespace so a quote matches across a
-# PDF's line wrapping. Keep this identical to the pipeline's normaliser (a test
-# enforces it), or a correction grounded there could be refused here.
+# Mirror of `extract._normalize` (ADR 0004): undo only parser artifacts -- table
+# pipes, line-break hyphens (`in-\nhospital` -> `in-hospital`), wrapped whitespace.
+# Keep these identical to the pipeline's (a test enforces it), or a correction
+# grounded there could be refused here.
 _WHITESPACE = re.compile(r"\s+")
+_TABLE_PIPE = re.compile(r"\s*\|\s*")
+_LINE_BREAK_HYPHEN = re.compile(r"(?<=\w)([-\u2010])\s+(?=\w)")
 
 
 class UngroundedEvidenceError(ValueError):
@@ -66,7 +70,10 @@ class ParsedPaperRead(_ReadModel):
 
 
 def normalize(text: str) -> str:
-  """Collapse whitespace so quotes match across a PDF's line wrapping."""
+  """Canonicalize text so a faithful quote matches across benign parser artifacts."""
+  text = unicodedata.normalize("NFKC", text)
+  text = _TABLE_PIPE.sub(" ", text)
+  text = _LINE_BREAK_HYPHEN.sub(r"\1", text)
   return _WHITESPACE.sub(" ", text).strip()
 
 

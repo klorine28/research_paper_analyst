@@ -70,6 +70,12 @@ _REPLACEMENT_CHAR = "\ufffd"
 # pipes are dropped (to whitespace) on both sides before matching.
 _TABLE_PIPE = re.compile(r"\s*\|\s*")
 
+# A hyphenated word the PDF wrapped at its hyphen (`in-\nhospital`, or `in- hospital`
+# once the parser flattened the newline). The break is joined, keeping the hyphen,
+# on both sides before matching (ADR 0004 amendment). Only whitespace after a
+# hyphen between two word characters goes, so no word is edited.
+_LINE_BREAK_HYPHEN = re.compile(r"(?<=\w)([-\u2010])\s+(?=\w)")
+
 
 class EvidenceVerificationError(Exception):
   """Raised when a quoted Evidence passage is not found in the parsed text."""
@@ -357,11 +363,13 @@ def _normalize(text: str) -> str:
   Canonicalize text so a faithful quote matches across benign parser artifacts.
 
   This only undoes transformations the *parser* introduced (compatibility
-  glyphs, table pipes, wrapped whitespace); it never edits words, so a genuine
-  LLM misquote (a typo or stitched span) still fails verification.
+  glyphs, table pipes, line-break hyphens, wrapped whitespace); it never edits
+  words, so a genuine LLM misquote (a typo or stitched span) still fails
+  verification.
   """
   text = unicodedata.normalize("NFKC", text)
   text = _TABLE_PIPE.sub(" ", text)
+  text = _LINE_BREAK_HYPHEN.sub(r"\1", text)
   return _WHITESPACE.sub(" ", text).strip()
 
 
