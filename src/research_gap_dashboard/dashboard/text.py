@@ -752,8 +752,18 @@ ANALYTICS_DROPPED_LABEL = (
 )
 ANALYTICS_SUMMARY_HEADING = "Narrative summary"
 ANALYTICS_SUMMARY_INTRO = (
-  "A few paragraphs for a 'gaps in the literature' section, drawn from this "
-  "Corpus's Candidate Gaps and citing only its Papers."
+  "A few paragraphs for a 'gaps in the literature' section, drawn only from "
+  "the Candidate Gaps you accepted on the Gap Cards page and citing only this "
+  "Corpus's Papers."
+)
+ANALYTICS_SUMMARY_NEEDS_ACCEPTED = (
+  "You have not accepted any Candidate Gaps yet ({undecided} still undecided). "
+  "The narrative summary is built only from gaps you accept, so open the Gap "
+  "Cards page, accept the gaps you judge real, then come back here."
+)
+ANALYTICS_SUMMARY_DENOMINATOR = (
+  "Covers {accepted} accepted gap(s) over {papers} Papers. "
+  "Excluded: {rejected} rejected and {undecided} undecided gap(s)."
 )
 ANALYTICS_SUMMARY_NEEDS_GAPS = (
   "No Candidate Gaps found for this Corpus yet. Run the pipeline through "

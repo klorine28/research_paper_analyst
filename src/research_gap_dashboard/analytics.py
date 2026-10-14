@@ -35,7 +35,7 @@ from research_gap_dashboard.llm import (
 # Bump when a prompt or output shape changes: these key the LLM cache (ADR 0001),
 # so a bump regenerates answers instead of serving stale ones.
 CHAT_PROMPT_VERSION = "analytics-chat-v1"
-NARRATIVE_PROMPT_VERSION = "analytics-narrative-v1"
+NARRATIVE_PROMPT_VERSION = "analytics-narrative-v2"
 
 # Forced structured-output calls occasionally misfire (an empty object, or the
 # schema echoed back). Retry a few times, bypassing the cache, before accepting
@@ -257,9 +257,10 @@ def summarize_gaps(
   """
   Write a few paragraphs on the Corpus's gaps, citing only Corpus Papers.
 
-  Grounded in the accepted and candidate gaps and their source Papers; every
-  citation is validated against the Corpus before it is returned, so the summary
-  never invents a reference (CODING_STANDARDS.md > Research integrity).
+  Grounded in the gaps the context carries (the dashboard passes only those the
+  researcher accepted) and their source Papers; every citation is validated
+  against the Corpus before it is returned, so the summary never invents a
+  reference (CODING_STANDARDS.md > Research integrity).
   """
   completion = complete_model(
     client,
@@ -303,11 +304,12 @@ def _build_narrative_prompt(context: GroundingContext) -> str:
     [
       "You draft a short 'gaps in the literature' section for a researcher, "
       "grounded strictly in the CORPUS context below. Write a few paragraphs "
-      "summarizing where this Corpus looks thin or silent, drawing on the "
-      "Candidate Gaps and the Papers. Present gaps as candidates for human "
-      "judgment, not proven gaps. Cite Papers only by the citation keys listed, "
-      "and put those keys in the citations field; never invent a citation or "
-      "cite work outside the Corpus.",
+      "summarizing where this Corpus looks thin or silent, drawing only on "
+      "the Candidate Gaps listed, which the researcher has accepted, and the "
+      "Papers. Do not raise gaps beyond those listed. Present gaps as "
+      "candidates for human judgment, not proven gaps. Cite Papers only by the "
+      "citation keys listed, and put those keys in the citations field; never "
+      "invent a citation or cite work outside the Corpus.",
       "",
       context.render(),
     ]
