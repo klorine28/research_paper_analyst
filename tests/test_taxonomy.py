@@ -257,3 +257,30 @@ def test_taxonomy_doc_lists_the_procedure_seed():
 
   for topic in (t for t in topics if (t.mesh_tree or "").startswith("E0")):
     assert f"| `{topic.id}` | {topic.mesh_id} | {topic.mesh_tree} |" in doc
+
+
+def test_alias_source_for_unknown_alias_is_reported(tmp_path: Path):
+  """Provenance recorded for a phrase that is not an alias is a reported problem."""
+  text = VALID_TAXONOMY.replace(
+    'aliases = ["Myocardial Diseases"]',
+    'aliases = ["Myocardial Diseases"]\n'
+    'alias_sources = { "Myocardiopathies" = "MeSH entry term of D009202" }',
+  )
+
+  with pytest.raises(TaxonomyError, match="Myocardiopathies"):
+    load_taxonomy(write_taxonomy(tmp_path, text))
+
+
+def test_alias_source_for_an_alias_loads(tmp_path: Path):
+  """An alias may carry where it came from."""
+  text = VALID_TAXONOMY.replace(
+    'aliases = ["Myocardial Diseases"]',
+    'aliases = ["Myocardial Diseases"]\n'
+    'alias_sources = { "myocardial diseases" = "MeSH entry term of D009202" }',
+  )
+
+  taxonomy = load_taxonomy(write_taxonomy(tmp_path, text))
+
+  topic = taxonomy.topic_by_id("cardiomyopathies")
+  assert topic is not None
+  assert topic.alias_sources == {"myocardial diseases": "MeSH entry term of D009202"}
