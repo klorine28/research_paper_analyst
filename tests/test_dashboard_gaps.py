@@ -26,8 +26,10 @@ from research_gap_dashboard.dashboard.artifacts import (
 from research_gap_dashboard.dashboard.gaps import (
   DEFAULT_CONFIDENCE_FILTER,
   build_gap_cards,
+  filter_gap_cards,
   filter_by_confidence,
   narrative_scope,
+  next_undecided_gap_id,
   scope_context_to_gap,
 )
 from research_gap_dashboard.dashboard.judgments import load_judgments, record_judgment
@@ -250,6 +252,98 @@ def test_discuss_this_gap_opens_a_persistent_scoped_conversation(
   assert [turn.content for turn in saved.turns] == ["Why is this a gap?", "Grounded."]
 
 
+def test_filtering_by_status_states_how_many_gaps_are_hidden(corpus: Path):
+  """A status filter keeps only matching cards and counts the rest as hidden."""
+  record_judgment(corpus, "topicxmethod:takotsubo:rct", "accepted")
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+
+  shown = filter_gap_cards(data, statuses={"undecided"})
+
+  assert [card.gap_id for card in shown.cards] == [
+    "topicxtopic:heart-failure:takotsubo",
+    "topicxpopulation:takotsubo:aged",
+  ]
+  assert shown.hidden_count == 1
+
+
+def test_status_and_gap_type_filters_combine(corpus: Path):
+  """Both filters must match: undecided Coverage Gaps leave out the Knowledge Gap."""
+  record_judgment(corpus, "topicxmethod:takotsubo:rct", "accepted")
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+
+  shown = filter_gap_cards(data, statuses={"undecided"}, gap_types={"coverage_gap"})
+
+  assert [card.gap_id for card in shown.cards] == ["topicxpopulation:takotsubo:aged"]
+  assert shown.hidden_count == 2
+
+
+def test_next_undecided_skips_decided_cards_and_wraps(corpus: Path):
+  """'Next undecided' walks the undecided cards in order and wraps to the top."""
+  record_judgment(corpus, "topicxmethod:takotsubo:rct", "rejected")
+  cards = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus)).cards
+
+  first = next_undecided_gap_id(cards, None)
+  second = next_undecided_gap_id(cards, first)
+  third = next_undecided_gap_id(cards, second)
+
+  assert first == "topicxtopic:heart-failure:takotsubo"
+  assert second == "topicxpopulation:takotsubo:aged"
+  assert third == "topicxtopic:heart-failure:takotsubo"
+
+
+def test_next_undecided_is_none_when_every_gap_is_decided(corpus: Path):
+  """With no undecided card left there is nowhere to move to."""
+  for gap_id in (
+    "topicxtopic:heart-failure:takotsubo",
+    "topicxmethod:takotsubo:rct",
+    "topicxpopulation:takotsubo:aged",
+  ):
+    record_judgment(corpus, gap_id, "accepted")
+  cards = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus)).cards
+
+  assert next_undecided_gap_id(cards, "topicxmethod:takotsubo:rct") is None
+
+
+def test_gap_cards_page_filters_and_states_the_hidden_count(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """Filtering the page to accepted gaps hides the rest and says how many."""
+  record_judgment(corpus, "topicxmethod:takotsubo:rct", "accepted")
+  app = _run_gap_cards_app(corpus, monkeypatch)
+  # Show every confidence level: the default filter (#108) hides Low cards.
+  app.multiselect[0].set_value(["high", "medium", "low"]).run()
+
+  app.multiselect(key="gap_filter_status").set_value(["accepted"]).run()
+
+  assert not app.exception
+  accept_keys = [b.key for b in app.button if b.key.startswith("accept-")]
+  assert accept_keys == ["accept-topicxmethod:takotsubo:rct"]
+  captions = " ".join(caption.value for caption in app.caption)
+  assert "Showing 1 of 3 candidate gaps; 2 hidden by the filters." in captions
+
+
+def test_next_undecided_moves_to_the_next_undecided_card(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """Each press of 'Next undecided' brings the next undecided card into focus."""
+  record_judgment(corpus, "topicxtopic:heart-failure:takotsubo", "accepted")
+  app = _run_gap_cards_app(corpus, monkeypatch)
+  # Show every confidence level: the default filter (#108) hides Low cards.
+  app.multiselect[0].set_value(["high", "medium", "low"]).run()
+
+  app.button(key="gap-next-undecided").click().run()
+  assert app.session_state["gap_focus_id"] == "topicxmethod:takotsubo:rct"
+  first_accept = next(b for b in app.button if b.key.startswith("accept-"))
+  assert first_accept.key == "accept-topicxmethod:takotsubo:rct"
+
+  app.button(key="gap-next-undecided").click().run()
+
+  assert not app.exception
+  assert app.session_state["gap_focus_id"] == "topicxpopulation:takotsubo:aged"
+  first_accept = next(b for b in app.button if b.key.startswith("accept-"))
+  assert first_accept.key == "accept-topicxpopulation:takotsubo:aged"
+
+
 def test_confidence_filter_defaults_to_high_and_medium(corpus: Path):
   """By default Low-confidence gaps are hidden, and the hidden count says so."""
   data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
@@ -298,7 +392,7 @@ def test_gap_cards_page_shows_the_hidden_count_and_keeps_the_filter(
 ):
   """The page states how many gaps are hidden; the filter survives navigation."""
   from research_gap_dashboard.dashboard.text import (
-    GAP_FILTER_HIDDEN_SUMMARY,
+    GAP_FILTER_SUMMARY,
     PAGE_OVERVIEW,
   )
 
@@ -308,19 +402,19 @@ def test_gap_cards_page_shows_the_hidden_count_and_keeps_the_filter(
     return [block.value for block in app.caption]
 
   assert not app.exception
-  assert GAP_FILTER_HIDDEN_SUMMARY.format(shown=1, total=3, hidden=2) in captions()
+  assert GAP_FILTER_SUMMARY.format(shown=1, total=3, hidden=2) in captions()
   assert len([b for b in app.button if b.key.startswith("accept-")]) == 1
 
   app.multiselect[0].set_value(["high", "medium", "low"]).run()
 
-  assert GAP_FILTER_HIDDEN_SUMMARY.format(shown=3, total=3, hidden=0) in captions()
+  assert GAP_FILTER_SUMMARY.format(shown=3, total=3, hidden=0) in captions()
 
   app.radio[0].set_value(PAGE_OVERVIEW).run()
   app.radio[0].set_value("Gap Cards").run()
 
   assert not app.exception
   assert app.multiselect[0].value == ["high", "medium", "low"]
-  assert GAP_FILTER_HIDDEN_SUMMARY.format(shown=3, total=3, hidden=0) in captions()
+  assert GAP_FILTER_SUMMARY.format(shown=3, total=3, hidden=0) in captions()
 
 
 def test_tier_one_headline_states_why_and_the_cell_count(corpus: Path):

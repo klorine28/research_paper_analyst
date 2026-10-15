@@ -9,8 +9,9 @@ the same verdicts. Cards keep the artifact's order so the same artifact always
 lists gaps the same way.
 """
 
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable, Sequence
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -135,7 +136,7 @@ DEFAULT_CONFIDENCE_FILTER: tuple[str, ...] = ("high", "medium")
 
 
 class FilteredGapCards(BaseModel):
-  """The cards a confidence filter keeps, and how many it hides."""
+  """The cards the Gap Cards filters keep, and how many they hide (#79, #108)."""
 
   cards: list[GapCard]
   total_count: int
@@ -153,11 +154,7 @@ class FilteredGapCards(BaseModel):
 
 def filter_by_confidence(data: GapCardsData, levels: Iterable[str]) -> FilteredGapCards:
   """Keep only the cards at the chosen confidence levels, in artifact order."""
-  chosen = set(levels)
-  return FilteredGapCards(
-    cards=[card for card in data.cards if card.confidence in chosen],
-    total_count=data.gap_count,
-  )
+  return filter_gap_cards(data, confidence_levels=set(levels))
 
 
 def _evidence_detail(passage_source: CandidateGapRecord, index: int) -> str:
@@ -428,3 +425,54 @@ def build_gap_cards(
     for record in artifact.gaps
   ]
   return GapCardsData(cards=cards, corpus_paper_count=artifact.corpus_paper_count)
+
+
+# The triage filter's names for a card's judgment state; "undecided" stands for a
+# card with no saved verdict, which the judgment log represents as no entry.
+StatusFilter = Literal["accepted", "rejected", "undecided"]
+STATUS_FILTERS: tuple[StatusFilter, ...] = ("accepted", "rejected", "undecided")
+
+
+def _status_filter(card: GapCard) -> StatusFilter:
+  """Name a card's judgment state the way the triage filter does."""
+  return card.status if card.status is not None else "undecided"
+
+
+def filter_gap_cards(
+  data: GapCardsData,
+  statuses: Collection[StatusFilter] = STATUS_FILTERS,
+  gap_types: Collection[str] | None = None,
+  confidence_levels: Collection[str] | None = None,
+) -> FilteredGapCards:
+  """
+  Keep the cards matching every filter, in artifact order, counting the rest.
+
+  Filters combine with AND: a card shows only when its status, its Gap Type and
+  its confidence level are all selected. `None` means no filter on that facet.
+  The hidden count is what lets the page always say how many gaps the filters
+  keep out of view.
+  """
+  cards = [
+    card
+    for card in data.cards
+    if _status_filter(card) in statuses
+    and (gap_types is None or card.gap_type in gap_types)
+    and (confidence_levels is None or card.confidence in confidence_levels)
+  ]
+  return FilteredGapCards(cards=cards, total_count=data.gap_count)
+
+
+def next_undecided_gap_id(cards: Sequence[GapCard], current: str | None) -> str | None:
+  """
+  Return the next undecided card after `current`, wrapping round, or None.
+
+  Starting from the top when there is no current card (or it is no longer in
+  the list) and never returning `current` itself, so repeated presses walk
+  through every undecided card in order.
+  """
+  ids = [card.gap_id for card in cards]
+  start = ids.index(current) + 1 if current in ids else 0
+  for card in [*cards[start:], *cards[:start]]:
+    if card.status is None and card.gap_id != current:
+      return card.gap_id
+  return None
