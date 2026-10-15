@@ -22,6 +22,9 @@ pdf = [
     "docling>=2.130.0",
     "pdfplumber>=0.11.10",
 ]
+embeddings = [
+    "sentence-transformers>=6.1.0",
+]
 
 [dependency-groups]
 dev = [

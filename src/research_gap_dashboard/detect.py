@@ -28,6 +28,11 @@ The sparse-cell threshold is provisional (`docs/BRIEF.md`): only empty cells
 count for Corpora under 25 Papers; empty or single-Paper cells at 25 and above.
 Every card states its cell count and the denominator it was computed over.
 
+When an `Embedder` is injected, cross-Paper limitation pairs whose embeddings
+are close are passed to grouping as merge hints, and the embedding model id,
+revision, threshold, and every hint are recorded in the artifact; without one
+(the `embeddings` extra absent) grouping runs LLM-only.
+
 Matrix detection is deterministic and makes no LLM call; categories, cells,
 and gaps are sorted, so the same NormalizedFacts artifact always yields the
 same cards. Limitation grouping needs the LLM, through the cached client
@@ -49,13 +54,21 @@ from research_gap_dashboard.aggregate import (
   read_normalized_facts,
 )
 from research_gap_dashboard.corpus_layout import inspect_corpus_layout
+from research_gap_dashboard.embeddings import (
+  DEFAULT_MERGE_THRESHOLD,
+  Embedder,
+  EmbeddingProvenance,
+)
 from research_gap_dashboard.extract import Evidence, read_extractions
 from research_gap_dashboard.ingest import read_manifest
 from research_gap_dashboard.limitations import (
   FOLLOW_UP_PROMPT_VERSION,
   GROUP_PROMPT_VERSION,
   LimitationGroup,
+  MergeHint,
+  collect_statements,
   group_limitations,
+  merge_hints,
 )
 from research_gap_dashboard.llm import LlmClient, ModelTier
 from research_gap_dashboard.taxonomy import Axis
@@ -243,6 +256,13 @@ class CandidateGapsReport(BaseModel):
   excluded_citation_keys: list[str] = Field(
     description="Papers in upstream artifacts but absent from the manifest."
   )
+  embedding: EmbeddingProvenance | None = Field(
+    default=None, description="The model behind the merge hints; None if unused."
+  )
+  limitation_merge_threshold: float | None = Field(
+    default=None, description="Cosine at or above which a pair became a hint."
+  )
+  limitation_merge_hints: list[MergeHint] = Field(default_factory=list)
   matrices: list[CoverageMatrix]
   limitation_groups: list[LimitationGroup]
   gaps: list[CandidateGap]
@@ -253,15 +273,21 @@ def sparse_max_count(corpus_paper_count: int) -> int:
   return 0 if corpus_paper_count < SPARSE_CORPUS_SIZE else 1
 
 
-def detect_corpus(
-  root: Path, client: LlmClient, *, tier: ModelTier = "default"
+def detect_corpus(  # pylint: disable=too-many-locals
+  root: Path,
+  client: LlmClient,
+  *,
+  tier: ModelTier = "default",
+  embedder: Embedder | None = None,
+  merge_threshold: float = DEFAULT_MERGE_THRESHOLD,
 ) -> CandidateGapsReport:
   """
   Detect every v1 in-Corpus Gap Type and write the CandidateGaps artifact.
 
   Reads the manifest, the Extractions, and the NormalizedFacts artifact; an
   entry for a Paper not in the manifest is excluded (and listed) so no card
-  cites a Paper outside the Corpus.
+  cites a Paper outside the Corpus. `embedder`, when given, supplies merge
+  hints for limitation grouping at `merge_threshold` cosine.
   """
   manifest = read_manifest(root)
   corpus_keys = {paper.citation_key for paper in manifest.papers}
@@ -283,11 +309,17 @@ def detect_corpus(
   extractions = [e for e in extracted if e.citation_key in corpus_keys]
   matrices, gaps = _matrix_gaps(papers)
 
+  hints = (
+    merge_hints(collect_statements(extractions), embedder, merge_threshold)
+    if embedder is not None
+    else []
+  )
   groups = group_limitations(
     extractions,
     {paper.citation_key: paper.year for paper in manifest.papers},
     client,
     tier=tier,
+    hints=hints,
   )
   gaps.extend(
     _limitation_gap(group, len(extractions)) for group in groups if not group.addressed
@@ -302,6 +334,13 @@ def detect_corpus(
     limitation_prompt_versions=[GROUP_PROMPT_VERSION, FOLLOW_UP_PROMPT_VERSION],
     tier=tier,
     excluded_citation_keys=excluded,
+    embedding=(
+      EmbeddingProvenance(model_id=embedder.model_id, revision=embedder.revision)
+      if embedder is not None
+      else None
+    ),
+    limitation_merge_threshold=merge_threshold if embedder is not None else None,
+    limitation_merge_hints=hints,
     matrices=matrices,
     limitation_groups=groups,
     gaps=gaps,

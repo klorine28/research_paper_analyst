@@ -25,9 +25,11 @@ from research_gap_dashboard.dashboard.grounding import (
   read_parsed_paper,
 )
 from research_gap_dashboard.dashboard.verify import (
+  CorpusVerificationProgress,
   PaperReviewView,
   ReviewFactView,
   ReviewFieldView,
+  build_corpus_progress,
   build_extraction_review,
 )
 from research_gap_dashboard.dashboard.views.widgets import (
@@ -39,8 +41,8 @@ from research_gap_dashboard.dashboard.views.widgets import (
 def render_page(chosen: CorpusChoice) -> None:
   """Assemble the Verify Extractions page's data for a chosen Paper and render it."""
   corpus_root = chosen.root
+  st.header(text.VERIFY_HEADING)
   if not has_extractions(corpus_root):
-    st.header(text.VERIFY_HEADING)
     st.warning(text.VERIFY_NO_EXTRACTIONS)
     return
 
@@ -53,10 +55,11 @@ def render_page(chosen: CorpusChoice) -> None:
     if extraction.citation_key in by_key
   ]
   if not choices:
-    st.header(text.VERIFY_HEADING)
     st.warning(text.VERIFY_NO_EXTRACTIONS)
     return
 
+  review_log = load_extraction_review(corpus_root)
+  _render_corpus_progress(build_corpus_progress(choices, review_log, set(by_key)))
   extraction = st.selectbox(
     text.VERIFY_PAPER_PICKER_LABEL,
     choices,
@@ -64,21 +67,33 @@ def render_page(chosen: CorpusChoice) -> None:
   )
   citation_key = extraction.citation_key
   if not has_parsed_paper(corpus_root, citation_key):
-    st.header(text.VERIFY_HEADING)
     st.warning(text.VERIFY_NO_PARSED_TEXT)
     return
 
-  review = load_extraction_review(corpus_root).review_for(citation_key)
+  review = review_log.review_for(citation_key)
   view = build_extraction_review(extraction, review, by_key[citation_key], corpus_root)
   sections = read_parsed_paper(corpus_root, citation_key).section_labels
   render_verify(view, corpus_root, sections)
 
 
+def _render_corpus_progress(progress: CorpusVerificationProgress) -> None:
+  """Render how much of the whole Corpus has been verified, with its denominators."""
+  summary = text.VERIFY_CORPUS_PROGRESS.format(
+    reviewed=progress.reviewed_facts,
+    total=progress.total_facts,
+    fully=progress.fully_reviewed_papers,
+    papers=progress.total_papers,
+  )
+  st.progress(progress.fraction)
+  st.caption(summary)
+  if progress.is_complete:
+    st.success(text.VERIFY_CORPUS_COMPLETE)
+
+
 def render_verify(
   view: PaperReviewView, corpus_root: Path, sections: list[str]
 ) -> None:
-  """Render the Verify Extractions page for one Paper from already-assembled data."""
-  st.header(text.VERIFY_HEADING)
+  """Render one Paper's review under the page heading, from already-assembled data."""
   st.info(text.VERIFY_INTRO)
   st.subheader(view.title or view.citation_key)
   _render_pdf_link(view)

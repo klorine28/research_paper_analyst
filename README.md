@@ -39,8 +39,24 @@ reads:
 | `OPENALEX_MAILTO` | _(none)_ | Contact email that puts OpenAlex calls in the faster polite pool; `--mailto` overrides it. |
 | `NCBI_API_KEY` | _(none)_ | NCBI E-utilities key; raises PubMed's rate limit from 3 to 10 requests a second. |
 
+### Optional embeddings
+
+`uv sync --extra embeddings` installs `sentence-transformers` and enables a
+local biomedical embedding model (PubMedBERT, downloaded from Hugging Face on
+first use). `detect` then gives limitation grouping the cross-Paper statement
+pairs whose embeddings are close as merge hints, and records the model id,
+revision, threshold, and every hint in `candidate_gaps.json`. Without the extra,
+grouping runs LLM-only and nothing fails.
+
+| Variable | Default | Why |
+| --- | --- | --- |
+| `EMBEDDING_MODEL` | `NeuML/pubmedbert-base-embeddings` | Embedding model id. |
+| `EMBEDDING_REVISION` | `b79526d6ef3645e0df4530322e266f24c829f5ef` | Model revision, pinned so reruns give the same vectors and hints. |
+| `LIMITATION_MERGE_THRESHOLD` | `0.65` | Cosine at or above which two limitation statements from different Papers become a merge hint; must be in (0, 1]. |
+
 The test suite never calls the API or the network: it uses recorded responses,
 so `just test` runs with no API key.
+No test loads or downloads an embedding model: tests replay recorded vectors.
 
 ## Working on this project with an agent
 
