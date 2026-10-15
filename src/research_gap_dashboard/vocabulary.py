@@ -14,9 +14,9 @@ approval makes it apply, and then only to that Corpus. Every decision is
 logged and reversible. Copying an approved alias into the shared taxonomy file
 is a separate, deliberate act (`promote_alias`) that keeps the provenance.
 
-Other alias sources ADR 0010 names (the Corpus's mapped terms, promoted
-unmapped terms, LLM suggestions) are not here yet; they join the same overlay
-as further provenance kinds.
+Recurring unmapped terms join the same overlay as another provenance kind
+(see `term_promotion`). Other alias sources ADR 0010 names (the Corpus's mapped
+terms, LLM suggestions) are not here yet.
 """
 
 import json
@@ -54,7 +54,7 @@ MESH_CONTACT = (
 # inject recorded MeSH responses through it.
 JsonFetch = Callable[[str], dict[str, Any] | None]
 
-AliasSource = Literal["mesh_entry_term", "mesh_child_descriptor"]
+AliasSource = Literal["mesh_entry_term", "mesh_child_descriptor", "unmapped_term"]
 AliasStatus = Literal["proposed", "approved", "rejected", "promoted"]
 
 # The statuses under which an alias maps phrases for its Corpus.
@@ -74,17 +74,30 @@ class MeshDescriptor(BaseModel):
 
 
 class AliasProvenance(BaseModel):
-  """Where a suggested alias came from, so it can be traced back to MeSH."""
+  """Where a suggested alias came from: a MeSH descriptor, or the Corpus's Papers."""
 
   source: AliasSource
-  mesh_id: str = Field(description="The MeSH descriptor the phrase came from.")
-  mesh_label: str = Field(description="That descriptor's preferred label.")
+  mesh_id: str | None = Field(
+    default=None, description="The MeSH descriptor the phrase came from, if MeSH."
+  )
+  mesh_label: str | None = Field(
+    default=None, description="That descriptor's preferred label, if MeSH."
+  )
   mesh_tree: str | None = Field(
     default=None, description="The child descriptor's tree number, if a child."
+  )
+  citation_keys: list[str] = Field(
+    default_factory=list,
+    description="The Papers whose verified Evidence holds the term, if unmapped.",
   )
 
   def describe(self) -> str:
     """Render the provenance as one line for the shared taxonomy file."""
+    if self.source == "unmapped_term":
+      return (
+        f"unmapped term recurring in {len(self.citation_keys)} Papers "
+        f"({', '.join(self.citation_keys)})"
+      )
     if self.source == "mesh_entry_term":
       return f"MeSH entry term of {self.mesh_id} ({self.mesh_label})"
     return f"MeSH child descriptor {self.mesh_id} ({self.mesh_label}, {self.mesh_tree})"
