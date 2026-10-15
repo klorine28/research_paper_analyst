@@ -27,6 +27,10 @@ from research_gap_dashboard.dashboard.judgments import (
   load_judgments,
   record_judgment,
 )
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  render_run_button,
+)
 from research_gap_dashboard.dashboard.views.session_keys import (
   DISCUSS_GAP_KEY,
   GAP_FILTER_STATUS_KEY,
@@ -51,7 +55,9 @@ def render_page(chosen: CorpusChoice) -> None:
   """Render the Gap Cards page for the chosen Corpus."""
   if not has_candidate_gaps(chosen.root):
     st.header(text.GAP_CARDS_HEADING)
-    st.warning(text.NO_CANDIDATE_GAPS_ARTIFACT)
+    render_last_run(chosen.root)
+    st.info(text.NO_CANDIDATE_GAPS_ARTIFACT)
+    render_run_button(chosen.root, "detect", text.RUN_DETECT_BUTTON)
     return
   data = build_gap_cards(
     load_candidate_gaps(chosen.root), load_judgments(chosen.root), chosen.root
@@ -62,6 +68,7 @@ def render_page(chosen: CorpusChoice) -> None:
 def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
   """Render the Gap Cards page: one card per Candidate Gap, with persistence."""
   st.header(text.GAP_CARDS_HEADING)
+  render_last_run(corpus_root)
   st.info(text.GAP_CARDS_INTRO)
   if not data.cards:
     st.success(text.NO_GAPS_DETECTED)

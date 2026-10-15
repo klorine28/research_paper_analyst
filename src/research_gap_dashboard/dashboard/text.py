@@ -271,9 +271,34 @@ COLUMN_FILE = "File"
 # integrity).
 GAP_CARDS_HEADING = "Gap Cards"
 NO_CANDIDATE_GAPS_ARTIFACT = (
-  "No candidate gaps found for this Corpus. Run the pipeline through `detect` "
-  "against this corpus directory first."
+  "No candidate gaps yet: the detect stage hasn't run on this Corpus. It needs "
+  "the Corpus ingested, extracted and aggregated first."
 )
+RUN_DETECT_BUTTON = "\u25b6 Run detect"
+
+# Pipeline runs launched from the dashboard (ADR 0007). `{stage}` is the CLI
+# command name. Exit code 2 is "completed but incomplete" (ADR 0006), never a
+# failure; exit code 1 is a failure.
+RUN_IN_PROGRESS = "Running `{stage}` on this Corpus\u2026"
+RUN_SUCCEEDED = "`{stage}` succeeded."
+RUN_INCOMPLETE = (
+  "`{stage}` completed but incomplete: some Papers fell out. See Needs "
+  "Attention and the run output below."
+)
+RUN_FAILED = "`{stage}` failed. See the run output below for the reason."
+RUN_LOCKED = (
+  "Another run is already in progress on this Corpus. Wait for it to finish, "
+  "then try again."
+)
+RUN_MISSING_KEY = (
+  "`{stage}` needs an Anthropic API key and was not started. Set "
+  "ANTHROPIC_API_KEY in your .env (see .env.example), then reload."
+)
+RUN_DETAILS_LABEL = "Run details"
+RUN_COMMAND_LABEL = "Command: `{command}`  \u00b7  exit code {exit_code}"
+RUN_STDOUT_LABEL = "Standard output"
+RUN_STDERR_LABEL = "Standard error"
+RUN_NO_OUTPUT = "(no output)"
 NO_GAPS_DETECTED = (
   "The detect stage found no Candidate Gaps in this Corpus. That is a result "
   "about this Corpus, not a claim that no gaps exist."
