@@ -1,11 +1,11 @@
 # Cardiology topic taxonomy (seed).
 #
 # The controlled vocabulary of Topics for the Coverage Matrix. Seeded from
-# MeSH 2025 (Heart Diseases, tree C14.280) by
-# scripts/build_cardiology_taxonomy.py. This is a starting point: prune
-# Topics you do not care about and add your own. Every Topic keeps its MeSH
-# descriptor id and tree number as provenance; a hand-added Topic may set
-# mesh_id = "" and source = "manual".
+# MeSH 2025 (Heart Diseases, tree C14.280, plus curated cardiac procedures
+# from E01/E02/E04, ADR 0011) by scripts/build_cardiology_taxonomy.py.
+# This is a starting point: prune Topics you do not care about and add your
+# own. Every Topic keeps its MeSH descriptor id and tree number as provenance;
+# a hand-added Topic may set mesh_id = "" and source = "manual".
 
 [meta]
 domain = "cardiology"
@@ -360,3 +360,252 @@ label = "Ventricular Outflow Obstruction"
 mesh_id = "D014694"
 mesh_tree = "C14.280.955"
 aliases = ["Left Ventricular Outflow Obstruction", "Outflow Obstruction, Left Ventricular", "Outflow Obstruction, Right Ventricular", "Right Ventricular Outflow Obstruction"]
+
+# Diagnostic and therapeutic procedures (ADR 0011): curated from MeSH
+# E01 (Diagnosis), E02 (Therapeutics), and E04 (Surgical Procedures).
+# Procedures are Topics, never Methods; prune any you do not need.
+
+[[topics]]
+id = "heart-function-tests"
+label = "Heart Function Tests"
+mesh_id = "D006334"
+mesh_tree = "E01.370.370.380"
+aliases = ["Cardiac Function Tests", "Cardiac Monitoring"]
+
+[[topics]]
+id = "cardiac-imaging-techniques"
+label = "Cardiac Imaging Techniques"
+mesh_id = "D057791"
+mesh_tree = "E01.370.350.130"
+aliases = ["Intracardiac Imaging Techniques"]
+
+[[topics]]
+id = "echocardiography"
+label = "Echocardiography"
+mesh_id = "D004452"
+mesh_tree = "E01.370.350.130.750"
+parent = "cardiac-imaging-techniques"
+aliases = ["2-D Echocardiography", "2D Echocardiography", "Contrast Echocardiography", "Cross-Sectional Echocardiography", "Echocardiography, 2-D", "Echocardiography, 2D", "Echocardiography, Contrast", "Echocardiography, Cross-Sectional", "Echocardiography, M-Mode", "Echocardiography, Transthoracic", "Echocardiography, Two-Dimensional", "M-Mode Echocardiography", "Transthoracic Echocardiography", "Two-Dimensional Echocardiography"]
+
+[[topics]]
+id = "echocardiography-doppler"
+label = "Echocardiography, Doppler"
+mesh_id = "D015150"
+mesh_tree = "E01.370.350.130.750.220"
+parent = "echocardiography"
+aliases = ["2-D Doppler Echocardiography", "2D Doppler Echocardiography", "Continuous Doppler Echocardiography", "Doppler Echocardiography", "Doppler Echocardiography, 2-D", "Doppler Echocardiography, 2D", "Doppler Echocardiography, Continuous", "Doppler Echocardiography, Two-Dimensional", "Echocardiography, 2-D Doppler", "Echocardiography, 2D Doppler", "Echocardiography, Continuous Doppler", "Echocardiography, Two-Dimensional Doppler", "Two-Dimensional Doppler Echocardiography"]
+
+[[topics]]
+id = "echocardiography-transesophageal"
+label = "Echocardiography, Transesophageal"
+mesh_id = "D017548"
+mesh_tree = "E01.370.350.130.750.235"
+parent = "echocardiography"
+aliases = ["Transesophageal Echocardiography"]
+
+[[topics]]
+id = "echocardiography-stress"
+label = "Echocardiography, Stress"
+mesh_id = "D025401"
+mesh_tree = "E01.370.350.130.750.228"
+parent = "echocardiography"
+aliases = ["Dobutamine Stress Echocardiography", "Echocardiography, Stress, Dobutamine", "Stress Echocardiography"]
+
+[[topics]]
+id = "electrocardiography"
+label = "Electrocardiography"
+mesh_id = "D004562"
+mesh_tree = "E01.370.370.380.240"
+parent = "heart-function-tests"
+aliases = ["12-Lead ECG", "12-Lead EKG", "12-Lead Electrocardiography", "Cardiography", "ECG", "EKG", "Electrocardiogram", "Electrocardiograph"]
+
+[[topics]]
+id = "electrocardiography-ambulatory"
+label = "Electrocardiography, Ambulatory"
+mesh_id = "D015716"
+mesh_tree = "E01.370.370.380.240.230"
+parent = "electrocardiography"
+aliases = ["Ambulatory Electrocardiography", "Ambulatory Electrocardiography Monitoring", "Dynamic Electrocardiography", "Electrocardiography Monitoring, Ambulatory", "Electrocardiography, Dynamic", "Electrocardiography, Holter", "Holter ECG", "Holter EKG", "Holter Electrocardiography", "Holter Monitoring", "Monitoring, Ambulatory Electrocardiographic", "Monitoring, Holter"]
+
+[[topics]]
+id = "coronary-angiography"
+label = "Coronary Angiography"
+mesh_id = "D017023"
+mesh_tree = "E01.370.350.130.625"
+parent = "cardiac-imaging-techniques"
+aliases = ["Angiography, Coronary"]
+
+[[topics]]
+id = "cardiac-catheterization"
+label = "Cardiac Catheterization"
+mesh_id = "D006328"
+mesh_tree = "E01.370.370.380.140"
+parent = "heart-function-tests"
+aliases = ["Catheterization, Cardiac", "Catheterization, Heart", "Heart Catheterization"]
+
+[[topics]]
+id = "computed-tomography-angiography"
+label = "Computed Tomography Angiography"
+mesh_id = "D000072226"
+mesh_tree = "E01.370.350.350.810.335"
+aliases = ["Angiography, CT", "Angiography, Computed Tomography", "CT Angiography"]
+
+[[topics]]
+id = "magnetic-resonance-imaging-cine"
+label = "Magnetic Resonance Imaging, Cine"
+mesh_id = "D019028"
+mesh_tree = "E01.370.350.825.500.510"
+aliases = ["Cine MRI", "Cine Magnetic Resonance Imaging"]
+
+[[topics]]
+id = "myocardial-perfusion-imaging"
+label = "Myocardial Perfusion Imaging"
+mesh_id = "D055414"
+mesh_tree = "E01.370.350.130.875"
+parent = "cardiac-imaging-techniques"
+aliases = ["Myocardial Scintigraphy", "Scintigraphy, Myocardial"]
+
+[[topics]]
+id = "positron-emission-tomography"
+label = "Positron-Emission Tomography"
+mesh_id = "D049268"
+mesh_tree = "E01.370.350.350.800.700"
+aliases = ["PET Imaging", "PET Scan", "Positron-Emission Tomography Imaging", "Tomography, Positron-Emission"]
+
+[[topics]]
+id = "exercise-test"
+label = "Exercise Test"
+mesh_id = "D005080"
+mesh_tree = "E01.370.370.380.250"
+parent = "heart-function-tests"
+aliases = ["Arm Ergometry Test", "Bicycle Ergometry Test", "Cardiopulmonary Exercise Test", "Cardiopulmonary Exercise Testing", "EuroFit Tests", "Eurofit Test Battery", "European Fitness Testing Battery", "Exercise Testing", "Fitness Testing", "Jump Test", "Physical Fitness Testing", "Step Test", "Stress Test", "Treadmill Test"]
+
+[[topics]]
+id = "thrombolytic-therapy"
+label = "Thrombolytic Therapy"
+mesh_id = "D015912"
+mesh_tree = "E02.319.913"
+aliases = ["Fibrinolytic Therapy", "Therapeutic Thrombolysis", "Therapy, Fibrinolytic", "Therapy, Thrombolytic", "Thrombolysis, Therapeutic"]
+
+[[topics]]
+id = "cardiac-pacing-artificial"
+label = "Cardiac Pacing, Artificial"
+mesh_id = "D002304"
+mesh_tree = "E02.331.200"
+aliases = ["Pacing, Cardiac, Artificial"]
+
+[[topics]]
+id = "cardiac-resynchronization-therapy"
+label = "Cardiac Resynchronization Therapy"
+mesh_id = "D058406"
+mesh_tree = "E02.331.200.500"
+parent = "cardiac-pacing-artificial"
+aliases = ["Atrio-Biventricular Pacing", "Biventricular Pacing", "Cardiac Resynchronization", "Cardiac Resynchronization Pacing Therapy", "Resynchronization Pacing Therapy, Cardiac"]
+
+[[topics]]
+id = "catheter-ablation"
+label = "Catheter Ablation"
+mesh_id = "D017115"
+mesh_tree = "E02.808.750.500"
+aliases = ["Ablation, Catheter", "Ablation, Transvenous Electric", "Ablation, Transvenous Electrical", "Catheter Ablation, Electric", "Catheter Ablation, Electrical", "Catheter Ablation, Percutaneous", "Catheter Ablation, Radiofrequency", "Catheter Ablation, Transvenous", "Electric Catheter Ablation", "Electrical Catheter Ablation", "Percutaneous Catheter Ablation", "Radiofrequency Catheter Ablation", "Transvenous Catheter Ablation"]
+
+[[topics]]
+id = "electric-countershock"
+label = "Electric Countershock"
+mesh_id = "D004554"
+mesh_tree = "E02.331.350"
+aliases = ["Cardiac Electroversion", "Cardioversion", "Defibrillation, Electric", "Electrical Cardioversion", "Electroversion Therapy", "Electroversion, Cardiac", "Therapy, Electroversion"]
+
+[[topics]]
+id = "cardiopulmonary-resuscitation"
+label = "Cardiopulmonary Resuscitation"
+mesh_id = "D016887"
+mesh_tree = "E02.365.647.110"
+aliases = ["Basic Cardiac Life Support", "CPR", "Cardio-Pulmonary Resuscitation", "Code Blue", "Life Support, Basic Cardiac", "Mouth-to-Mouth Resuscitation"]
+
+[[topics]]
+id = "extracorporeal-membrane-oxygenation"
+label = "Extracorporeal Membrane Oxygenation"
+mesh_id = "D015199"
+mesh_tree = "E02.880.301"
+aliases = ["ECLS Treatment", "ECMO Extracorporeal Membrane Oxygenation", "ECMO Treatment", "Extracorporeal Life Support", "Oxygenation, Extracorporeal Membrane", "Venoarterial ECMO", "Venoarterial Extracorporeal Membrane Oxygenation", "Venovenous ECMO", "Venovenous Extracorporeal Membrane Oxygenation"]
+
+[[topics]]
+id = "cardiac-rehabilitation"
+label = "Cardiac Rehabilitation"
+mesh_id = "D000072038"
+mesh_tree = "E02.760.169.063.500.185"
+aliases = ["Cardiovascular Rehabilitation"]
+
+[[topics]]
+id = "left-atrial-appendage-closure"
+label = "Left Atrial Appendage Closure"
+mesh_id = "D000097546"
+mesh_tree = "E02.148.442.582"
+parent = "cardiac-catheterization"
+aliases = ["LAA Closure", "Left Atrial Appendage Occlusion Intervention"]
+
+[[topics]]
+id = "assisted-circulation"
+label = "Assisted Circulation"
+mesh_id = "D001243"
+mesh_tree = "E04.050"
+aliases = ["Circulation, Assisted"]
+
+[[topics]]
+id = "intra-aortic-balloon-pumping"
+label = "Intra-Aortic Balloon Pumping"
+mesh_id = "D007423"
+mesh_tree = "E04.050.215.400"
+aliases = ["Intraaortic Balloon Pumping", "Pumping, Intra-Aortic Balloon"]
+
+[[topics]]
+id = "percutaneous-coronary-intervention"
+label = "Percutaneous Coronary Intervention"
+mesh_id = "D062645"
+mesh_tree = "E04.100.814.529.968"
+aliases = ["Percutaneous Coronary Revascularization"]
+
+[[topics]]
+id = "angioplasty-balloon-coronary"
+label = "Angioplasty, Balloon, Coronary"
+mesh_id = "D015906"
+mesh_tree = "E02.148.050.060.100"
+parent = "percutaneous-coronary-intervention"
+aliases = ["Angioplasty, Coronary Balloon", "Angioplasty, Transluminal, Percutaneous Coronary", "Balloon Dilation, Coronary Artery", "Coronary Angioplasty, Transluminal Balloon", "Percutaneous Transluminal Coronary Angioplasty", "Transluminal Coronary Balloon Dilation"]
+
+[[topics]]
+id = "coronary-artery-bypass"
+label = "Coronary Artery Bypass"
+mesh_id = "D001026"
+mesh_tree = "E04.100.376.719.332"
+aliases = ["Aortocoronary Bypass", "Bypass Surgery, Coronary Artery", "Bypass, Coronary Artery", "Coronary Artery Bypass Grafting", "Coronary Artery Bypass Surgery"]
+
+[[topics]]
+id = "heart-transplantation"
+label = "Heart Transplantation"
+mesh_id = "D016027"
+mesh_tree = "E04.100.376.475"
+aliases = ["Cardiac Transplantation", "Grafting, Heart", "Transplantation, Cardiac", "Transplantation, Heart"]
+
+[[topics]]
+id = "heart-valve-prosthesis-implantation"
+label = "Heart Valve Prosthesis Implantation"
+mesh_id = "D019918"
+mesh_tree = "E04.100.376.485"
+aliases = ["Implantation, Heart Valve Prosthesis"]
+
+[[topics]]
+id = "transcatheter-aortic-valve-replacement"
+label = "Transcatheter Aortic Valve Replacement"
+mesh_id = "D065467"
+mesh_tree = "E04.100.376.485.500"
+parent = "heart-valve-prosthesis-implantation"
+aliases = ["TAVR", "Transcatheter Aortic Valve Implantation"]
+
+[[topics]]
+id = "pericardiocentesis"
+label = "Pericardiocentesis"
+mesh_id = "D020519"
+mesh_tree = "E01.370.225.998.329.620"
+aliases = []

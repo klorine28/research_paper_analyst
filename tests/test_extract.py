@@ -74,6 +74,15 @@ _GROUNDED_FIELDS: dict[str, Any] = {
       },
     }
   ],
+  "study_design": [
+    {
+      "statement": "Retrospective cohort study of hospital patients.",
+      "evidence": {
+        "passage": "A retrospective cohort of 200 patients.",
+        "section": "methods",
+      },
+    }
+  ],
   "methods": [
     {
       "statement": "Retrospective cohort study.",
@@ -164,13 +173,14 @@ def parsed_corpus_fixture(cardiology_corpus: Path, tmp_path: Path) -> Path:
   return target
 
 
-def test_extraction_holds_all_seven_fields_with_evidence() -> None:
-  """A grounded extraction carries all seven fields, each fact with a passage."""
+def test_extraction_holds_all_eight_fields_with_evidence() -> None:
+  """A grounded extraction carries all eight fields, each fact with a passage."""
   result = extract_paper("hanna2019", _parsed_sample(), StubLlmClient(_GROUNDED_FIELDS))
   extraction = result.extraction
 
   assert result.unverified == []
-  assert len(ExtractionFields.model_fields) == 7
+  assert len(ExtractionFields.model_fields) == 8
+  assert extraction.fields.study_design[0].evidence.passage
   assert extraction.fields.research_question[0].evidence.passage
   assert extraction.fields.methods[0].evidence.passage
   assert extraction.fields.methods[0].evidence.section == "methods"
@@ -325,6 +335,71 @@ def test_passage_matches_across_line_wrapping() -> None:
   assert result.unverified == []
 
 
+class _PromptRecordingClient(StubLlmClient):  # pylint: disable=too-few-public-methods
+  """A stub that keeps the prompts it was sent."""
+
+  def __init__(self, result: dict[str, Any]):
+    super().__init__(result)
+    self.prompts: list[str] = []
+
+  def complete(
+    self,
+    prompt: str,
+    schema: dict[str, Any],
+    *,
+    prompt_version: str,
+    tier: str = "default",
+    refresh: bool = False,
+  ) -> dict[str, Any]:
+    """Record the prompt, then return the canned result."""
+    self.prompts.append(prompt)
+    return super().complete(
+      prompt, schema, prompt_version=prompt_version, tier=tier, refresh=refresh
+    )
+
+
+def test_the_prompt_asks_for_one_plain_words_study_design() -> None:
+  """Extraction asks for exactly one study-design fact in everyday words (ADR 0011)."""
+  client = _PromptRecordingClient(_GROUNDED_FIELDS)
+
+  extract_paper("hanna2019", _parsed_sample(), client)
+
+  prompt = client.prompts[0]
+  assert "study_design" in prompt
+  assert "exactly one" in prompt
+  assert "everyday words" in prompt
+  assert "not a study design" in prompt
+
+
+def test_a_misquoted_study_design_is_dropped_like_any_fact() -> None:
+  """The study-design fact is verified verbatim; a misquote never reaches Evidence."""
+  misquoted = {**_GROUNDED_FIELDS}
+  misquoted["study_design"] = [
+    {
+      "statement": "Randomized trial.",
+      "evidence": {"passage": "We randomized 200 patients.", "section": "methods"},
+    }
+  ]
+
+  result = extract_paper("hanna2019", _parsed_sample(), StubLlmClient(misquoted))
+
+  assert result.extraction.fields.study_design == []
+  assert [u.field for u in result.unverified] == ["study_design"]
+
+
+def test_every_fixture_paper_has_a_verified_study_design(parsed_corpus: Path) -> None:
+  """Every extracted Paper in the fixture Corpus states its design, verified."""
+  report = extract_corpus(parsed_corpus, StubLlmClient(_GROUNDED_FIELDS))
+
+  assert len(report.extractions) == 10
+  for extraction in read_extractions(parsed_corpus).extractions:
+    designs = extraction.fields.study_design
+    assert len(designs) == 1
+    assert designs[0].statement == "Retrospective cohort study of hospital patients."
+    assert designs[0].evidence.passage == "A retrospective cohort of 200 patients."
+  assert report.unverified == []
+
+
 def test_extract_corpus_writes_artifact_for_every_paper(parsed_corpus: Path) -> None:
   """Each parsed Paper becomes an Extraction in the single Extractions artifact."""
   report = extract_corpus(parsed_corpus, StubLlmClient(_GROUNDED_FIELDS))
@@ -336,7 +411,7 @@ def test_extract_corpus_writes_artifact_for_every_paper(parsed_corpus: Path) -> 
   assert {e.citation_key for e in reread.extractions} == {
     e.citation_key for e in report.extractions
   }
-  assert reread.prompt_version == "extract-v1"
+  assert reread.prompt_version == "extract-v2"
   assert (parsed_corpus / "artifacts" / "extractions.json").is_file()
 
 

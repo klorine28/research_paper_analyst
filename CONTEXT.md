@@ -24,9 +24,11 @@ denominator.
 
 ### Extraction
 
-The structured facts pulled from one Paper: research question, methods,
-populations/samples, datasets, key findings, stated limitations, stated
-future work.
+The structured facts pulled from one Paper: research question, study design,
+methods, populations/samples, datasets, key findings, stated limitations,
+stated future work. The study design is exactly one fact saying how the study
+was built, in everyday words ("retrospective cohort study using registry
+data"), quoted from the Paper like any other fact.
 
 ### Normalized Facts
 
@@ -36,7 +38,10 @@ produced by the Aggregate stage so Papers can be compared in the Coverage
 Matrix. Every mapping records its axis, the Paper's original term, the
 assigned category, and the Evidence of the extracted fact it came from; a
 phrase that fits no category is surfaced as an unmapped term for taxonomy
-editing, never silently dropped.
+editing, never silently dropped. On the Method axis, a phrase that is not a
+study design (a procedure, treatment, lab assay, or statistic) is recorded as
+**not a study design** instead of unmapped, so it is never offered as a Method
+alias.
 
 ### Evidence
 
@@ -93,4 +98,13 @@ only Papers in the Corpus and their Evidence.
 ### Coverage Matrix
 
 A two-axis count of Papers per category pair (e.g. Topic × Method), used to
-surface empty or sparse cells as gap signals.
+surface empty or sparse cells as gap signals. Its four axes:
+
+- **Topic:** what a Paper is about, including the procedures and treatments it
+  studies.
+- **Method:** the Paper's study design only (e.g. randomized trial, cohort,
+  case report), never a procedure.
+- **Population:** who was studied (age group, sex, care setting, species).
+- **Dataset:** where the data came from (registry, records, database).
+
+_Avoid_: "method" for a procedure or lab technique.

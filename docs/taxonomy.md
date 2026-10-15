@@ -5,8 +5,8 @@ Matrix. There are four axes, each with its own file:
 
 | Axis | Seed | Fed by Extraction field(s) | Seeded from |
 | --- | --- | --- | --- |
-| `topic` | [`taxonomies/cardiology.toml`](../taxonomies/cardiology.toml) | all seven | MeSH "Heart Diseases" subtree (C14.280) |
-| `method` | [`taxonomies/methods.toml`](../taxonomies/methods.toml) | `methods` | curated MeSH study characteristics and publication types |
+| `topic` | [`taxonomies/cardiology.toml`](../taxonomies/cardiology.toml) | all eight | MeSH "Heart Diseases" subtree (C14.280) plus curated cardiac procedures (E01/E02/E04) |
+| `method` | [`taxonomies/methods.toml`](../taxonomies/methods.toml) | `study_design`, `methods` | curated MeSH study characteristics and publication types; study design only (ADR 0011) |
 | `population` | [`taxonomies/populations.toml`](../taxonomies/populations.toml) | `populations` | curated MeSH age groups, sex, species, care setting |
 | `dataset` | [`taxonomies/datasets.toml`](../taxonomies/datasets.toml) | `datasets` | curated MeSH records, registries, databases |
 
@@ -58,6 +58,58 @@ The cardiology seed is derived from
 corpus lives. Each Topic keeps its MeSH descriptor id and tree number so any
 Topic traces back to its source.
 
+### Procedure seed (ADR 0011)
+
+Procedures and treatments are Topics, never Methods, so procedure combinations
+surface as Knowledge Gaps (Topic × Topic). After the disease subtree, the
+cardiology seed lists a curated set of cardiac diagnostic and therapeutic
+procedures from MeSH's procedure branches. The labels live in `PROCEDURES` in
+`scripts/build_cardiology_taxonomy.py`; each is resolved against MeSH by exact
+match, keeps its descriptor id and its first E01/E02/E04 tree number, and takes
+its entry terms as aliases (minus any already claimed by another Topic).
+
+| Branch | Topic id | MeSH id | Tree number |
+| --- | --- | --- | --- |
+| E01 Diagnosis | `heart-function-tests` | D006334 | E01.370.370.380 |
+| | `cardiac-imaging-techniques` | D057791 | E01.370.350.130 |
+| | `echocardiography` | D004452 | E01.370.350.130.750 |
+| | `echocardiography-doppler` | D015150 | E01.370.350.130.750.220 |
+| | `echocardiography-transesophageal` | D017548 | E01.370.350.130.750.235 |
+| | `echocardiography-stress` | D025401 | E01.370.350.130.750.228 |
+| | `electrocardiography` | D004562 | E01.370.370.380.240 |
+| | `electrocardiography-ambulatory` | D015716 | E01.370.370.380.240.230 |
+| | `coronary-angiography` | D017023 | E01.370.350.130.625 |
+| | `cardiac-catheterization` | D006328 | E01.370.370.380.140 |
+| | `computed-tomography-angiography` | D000072226 | E01.370.350.350.810.335 |
+| | `magnetic-resonance-imaging-cine` | D019028 | E01.370.350.825.500.510 |
+| | `myocardial-perfusion-imaging` | D055414 | E01.370.350.130.875 |
+| | `positron-emission-tomography` | D049268 | E01.370.350.350.800.700 |
+| | `exercise-test` | D005080 | E01.370.370.380.250 |
+| | `pericardiocentesis` | D020519 | E01.370.225.998.329.620 |
+| E02 Therapeutics | `thrombolytic-therapy` | D015912 | E02.319.913 |
+| | `cardiac-pacing-artificial` | D002304 | E02.331.200 |
+| | `cardiac-resynchronization-therapy` | D058406 | E02.331.200.500 |
+| | `catheter-ablation` | D017115 | E02.808.750.500 |
+| | `electric-countershock` | D004554 | E02.331.350 |
+| | `cardiopulmonary-resuscitation` | D016887 | E02.365.647.110 |
+| | `extracorporeal-membrane-oxygenation` | D015199 | E02.880.301 |
+| | `cardiac-rehabilitation` | D000072038 | E02.760.169.063.500.185 |
+| | `left-atrial-appendage-closure` | D000097546 | E02.148.442.582 |
+| | `angioplasty-balloon-coronary` | D015906 | E02.148.050.060.100 |
+| E04 Surgical Procedures | `assisted-circulation` | D001243 | E04.050 |
+| | `intra-aortic-balloon-pumping` | D007423 | E04.050.215.400 |
+| | `percutaneous-coronary-intervention` | D062645 | E04.100.814.529.968 |
+| | `coronary-artery-bypass` | D001026 | E04.100.376.719.332 |
+| | `heart-transplantation` | D016027 | E04.100.376.475 |
+| | `heart-valve-prosthesis-implantation` | D019918 | E04.100.376.485 |
+| | `transcatheter-aortic-valve-replacement` | D065467 | E04.100.376.485.500 |
+
+The tree number shown is the lowest-sorting one in E01/E02/E04, so a few
+procedures that MeSH files under several branches (pericardiocentesis, coronary
+balloon angioplasty) are listed under the branch that sorts first. Prune any
+procedure the Corpus does not need; lab assays and statistical techniques are
+deliberately on no axis.
+
 Rebuild the seed (needs network; the test suite never does) with:
 
 ```shell
@@ -88,6 +140,13 @@ you leave out produces no categories for that axis. Every assignment in
 category, and the Extraction fact it came from (e.g. `methods[0]`) together
 with that fact's Evidence. Phrases that fit no category are listed as unmapped,
 per axis, so you know what to add to the taxonomy.
+
+The Method axis is study design only (ADR 0011). It is fed by the Paper's one
+plain-words `study_design` fact plus its `methods` facts; any phrase there that
+is a procedure, treatment, lab assay, or statistical technique is listed under
+`not_study_design` instead of unmapped, so it is never suggested as a Method
+alias. A Method phrase the Topic taxonomy recognises (e.g. "transthoracic
+echocardiography") is always set aside this way, whatever the model said.
 
 ## Validating a file
 

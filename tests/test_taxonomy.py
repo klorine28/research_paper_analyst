@@ -180,6 +180,38 @@ def test_shipped_cardiology_seed_is_valid():
   assert taxonomy.resolve("Broken Heart Syndrome") is not None
 
 
+@pytest.mark.parametrize(
+  ("phrase", "expected"),
+  [
+    ("Transthoracic Echocardiography", "echocardiography"),
+    ("Coronary Angiography", "coronary-angiography"),
+    ("ECG", "electrocardiography"),
+    ("Percutaneous Coronary Intervention", "percutaneous-coronary-intervention"),
+    ("Extracorporeal Life Support", "extracorporeal-membrane-oxygenation"),
+  ],
+)
+def test_shipped_cardiology_seed_holds_procedures_as_topics(phrase: str, expected: str):
+  """Procedures are Topics (ADR 0011), each with MeSH E01/E02/E04 provenance."""
+  taxonomy = load_taxonomy(CARDIOLOGY_SEED_PATH)
+
+  resolved = taxonomy.resolve(phrase)
+  assert resolved is not None
+  assert resolved.id == expected
+  assert resolved.mesh_id.startswith("D")
+  assert resolved.mesh_tree is not None
+  assert resolved.mesh_tree.startswith(("E01.", "E02.", "E04."))
+
+
+def test_shipped_method_seed_holds_no_procedure():
+  """No cardiology procedure Topic is also offered as a Method (ADR 0011)."""
+  topics = load_taxonomy(CARDIOLOGY_SEED_PATH)
+  methods = load_taxonomy(SEED_PATHS["method"])
+
+  procedures = [t for t in topics.topics if (t.mesh_tree or "").startswith("E0")]
+  assert procedures
+  assert all(methods.resolve(p.label) is None for p in procedures)
+
+
 def test_axis_defaults_to_topic(tmp_path: Path):
   """A file that names no axis is a Topic taxonomy."""
   taxonomy = load_taxonomy(write_taxonomy(tmp_path, VALID_TAXONOMY))
@@ -214,3 +246,14 @@ def test_shipped_axis_seeds_are_valid(axis: Axis, phrase: str, expected: str):
   resolved = taxonomy.resolve(phrase)
   assert resolved is not None
   assert resolved.id == expected
+
+
+def test_taxonomy_doc_lists_the_procedure_seed():
+  """`docs/taxonomy.md` lists every seeded procedure with its MeSH provenance."""
+  doc = (CARDIOLOGY_SEED_PATH.parents[1] / "docs" / "taxonomy.md").read_text(
+    encoding="utf-8"
+  )
+  topics = load_taxonomy(CARDIOLOGY_SEED_PATH).topics
+
+  for topic in (t for t in topics if (t.mesh_tree or "").startswith("E0")):
+    assert f"| `{topic.id}` | {topic.mesh_id} | {topic.mesh_tree} |" in doc

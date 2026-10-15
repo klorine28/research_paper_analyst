@@ -32,8 +32,8 @@ it knows where everything lives.
 | File | Written by | Holds |
 | --- | --- | --- |
 | `artifacts/corpus-manifest.json` | `ingest` | One record per Paper (citation key, DOI, title, authors, year, journal, PDF path), plus the paper-list entries with no PDF and the PDFs with no entry |
-| `artifacts/extractions.json` | `extract` | Each Paper's seven Extraction fields, every fact with its verified Evidence passage, plus rejected Papers |
-| `artifacts/normalized_facts.json` | `aggregate` | Each Paper's phrases mapped onto the Topic, Method, Population, and Dataset taxonomies (axis, original term, category, source fact, Evidence), plus unmapped terms (see `docs/taxonomy.md`) |
+| `artifacts/extractions.json` | `extract` | Each Paper's eight Extraction fields (including the one plain-words study design), every fact with its verified Evidence passage, plus rejected Papers |
+| `artifacts/normalized_facts.json` | `aggregate` | Each Paper's phrases mapped onto the Topic, Method, Population, and Dataset taxonomies (axis, original term, category, source fact, Evidence), plus unmapped terms and Method-axis phrases that are "not a study design" (see `docs/taxonomy.md`) |
 | `artifacts/candidate_gaps.json` | `detect` | The Coverage Matrices (Topic × Topic, × Method, × Population, × Dataset), every limitation group with its follow-ups, and one card per Knowledge Gap, Coverage Gap, or Unanswered Limitation (see below) |
 
 ### Candidate Gaps

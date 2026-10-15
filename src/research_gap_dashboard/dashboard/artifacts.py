@@ -323,9 +323,10 @@ class ExtractedFactRecord(_ReadModel):
 
 
 class ExtractionFieldsRecord(_ReadModel):
-  """One Paper's seven Extraction fields, projected onto what a view reads."""
+  """One Paper's eight Extraction fields, projected onto what a view reads."""
 
   research_question: list[ExtractedFactRecord] = []
+  study_design: list[ExtractedFactRecord] = []
   methods: list[ExtractedFactRecord] = []
   populations: list[ExtractedFactRecord] = []
   datasets: list[ExtractedFactRecord] = []
