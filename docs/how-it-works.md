@@ -173,6 +173,13 @@ fell out:
 On the 50-paper demo run this reads: 50 PDFs → 50 parsed → 46 sectioned → 45
 extracted = **90% end-to-end**; the shortfall is surfaced honestly, never hidden.
 
+`baseline` (`baseline.py`) extends the funnel to the end of the pipeline and
+prints it as Markdown: Papers kept and lost (with the stage and reason: parse,
+extract, or aggregate), facts verified and unverified, mapped, unmapped, and
+"not a study design" terms per axis, and Candidate Gaps by Gap Type and
+confidence. It reads artifacts only, so it is the cheap way to record a corpus
+baseline before and after a pipeline change (#126).
+
 ---
 
 ## 2. Extract — `extract.py`
@@ -244,7 +251,7 @@ the research journal persist under `judgments/`.
 |---|---|
 | Corpus layout & manifest | `corpus_layout.py`, `ingest.py` |
 | **Parsing (PDF → sections)** | **`parsing.py`** |
-| Funnel diagnostic | `diagnose.py` |
+| Funnel diagnostic, corpus baseline | `diagnose.py`, `baseline.py` |
 | Fact extraction + Evidence gate | `extract.py` |
 | Taxonomy normalization | `aggregate.py`, `taxonomy.py` |
 | Gap detection | `detect.py`, `limitations.py` |
