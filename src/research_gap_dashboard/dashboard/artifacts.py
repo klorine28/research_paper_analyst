@@ -21,6 +21,8 @@ NORMALIZED_FACTS_NAME = "normalized_facts.json"
 RETRIEVAL_GAPS_NAME = "retrieval_gaps.json"
 EXTRACTIONS_NAME = "extractions.json"
 PARSE_REPORT_NAME = "parse-report.json"
+# The Corpus's scope statement: an input at its root, written by `corpus_scope`.
+SCOPE_NAME = "scope.json"
 
 
 class ArtifactNotFoundError(FileNotFoundError):
@@ -493,15 +495,21 @@ def discover_corpora(corpora_root: Path) -> list[CorpusChoice]:
   List the corpora under a directory that have a manifest to read.
 
   A corpus is any immediate subdirectory whose artifacts hold a CorpusManifest,
-  plus the directory itself when it is a corpus. The list is sorted by name so
-  the picker order is stable.
+  or that has a scope statement (a Corpus created in the app before its Papers
+  were ingested), plus the directory itself when it is a corpus. The list is
+  sorted by name so the picker order is stable.
   """
   choices: list[CorpusChoice] = []
   if not corpora_root.is_dir():
     return choices
-  if has_manifest(corpora_root):
+  if _is_corpus(corpora_root):
     choices.append(CorpusChoice(name=corpora_root.name, root=corpora_root))
   for child in sorted(corpora_root.iterdir()):
-    if child.is_dir() and has_manifest(child):
+    if child.is_dir() and _is_corpus(child):
       choices.append(CorpusChoice(name=child.name, root=child))
   return choices
+
+
+def _is_corpus(directory: Path) -> bool:
+  """Whether a directory is a Corpus: it has a manifest or a scope statement."""
+  return has_manifest(directory) or (directory / SCOPE_NAME).is_file()
