@@ -18,7 +18,11 @@ from test_detect import _PLACEMENTS, _write_corpus
 import research_gap_dashboard.dashboard as dashboard_pkg
 
 from research_gap_dashboard.analytics import CorpusPaper, GroundingContext
-from research_gap_dashboard.dashboard.artifacts import load_candidate_gaps
+from research_gap_dashboard.dashboard import text
+from research_gap_dashboard.dashboard.artifacts import (
+  CandidateGapsArtifact,
+  load_candidate_gaps,
+)
 from research_gap_dashboard.dashboard.gaps import (
   DEFAULT_CONFIDENCE_FILTER,
   build_gap_cards,
@@ -317,3 +321,115 @@ def test_gap_cards_page_shows_the_hidden_count_and_keeps_the_filter(
   assert not app.exception
   assert app.multiselect[0].value == ["high", "medium", "low"]
   assert GAP_FILTER_HIDDEN_SUMMARY.format(shown=3, total=3, hidden=0) in captions()
+
+
+def test_tier_one_headline_states_why_and_the_cell_count(corpus: Path):
+  """Tier 1 carries a one-line why built from the cell's own counts (ADR 0008)."""
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  assert card.title
+  assert card.why == (
+    "4 of 6 Papers cover Takotsubo Cardiomyopathy and 1 of 6 cover "
+    "Randomized Controlled Trial; 0 combine them."
+  )
+  assert card.cell_count == 0
+
+
+def test_tier_three_lists_the_papers_in_each_category(corpus: Path):
+  """'Show the data' names the Papers placed on each of the cell's categories."""
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  papers = {group.label: group.citation_keys for group in card.data.category_papers}
+  assert papers == {
+    "Takotsubo Cardiomyopathy": ["p01", "p02", "p03", "p04"],
+    "Randomized Controlled Trial": ["p05"],
+  }
+
+
+def test_tier_three_lists_the_neighbouring_cells(corpus: Path):
+  """Neighbouring cells share a category with the gap, fullest first, never itself."""
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  neighbours = [
+    (cell.row_label, cell.column_label, cell.paper_count)
+    for cell in card.data.neighbours
+  ]
+  assert neighbours == [
+    ("Takotsubo Cardiomyopathy", "Retrospective Studies", 4),
+    ("Heart Failure", "Randomized Controlled Trial", 1),
+  ]
+
+
+def test_tier_three_phrases_the_score_as_expected_versus_observed(corpus: Path):
+  """The score reads as expected vs observed Papers: 4 x 1 / 6 expected, 0 seen."""
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  assert card.data.expected_count == pytest.approx(4 / 6)
+  assert card.data.observed_count == 0
+  assert card.confidence_reason in card.data.reasons
+
+
+def test_a_limitation_card_has_tiers_too(tmp_path: Path):
+  """An Unanswered Limitation's headline and data come from its source Papers."""
+  artifact = CandidateGapsArtifact.model_validate(
+    {
+      "corpus_root": str(tmp_path),
+      "corpus_paper_count": 6,
+      "gaps": [
+        {
+          "gap_id": "limitation:g1",
+          "gap_type": "unanswered_limitation",
+          "title": "Small samples",
+          "explanation": "Candidate Unanswered Limitation.",
+          "confidence": "medium",
+          "confidence_reason": "3 later Paper(s) in the Corpus were checked.",
+          "corpus_paper_count": 6,
+          "source_citation_keys": ["p01", "p02"],
+          "later_paper_count": 3,
+          "evidence": [
+            {
+              "citation_key": "p01",
+              "statement": "The sample was small.",
+              "evidence": {"passage": "Our sample was small.", "section": "discussion"},
+            }
+          ],
+        }
+      ],
+    }
+  )
+
+  card = build_gap_cards(artifact, load_judgments(tmp_path)).cards[0]
+
+  assert card.why == "2 Paper(s) state this; none of 3 later Paper(s) addressed it."
+  assert [(g.label, g.citation_keys) for g in card.data.category_papers] == [
+    ("Source Papers", ["p01", "p02"])
+  ]
+  assert card.data.neighbours == []
+  assert card.data.expected_count is None
+
+
+def test_every_card_expands_into_justification_and_data_tiers(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """Each card's Tier 2 holds its Evidence and Tier 3 its data; Discuss stays."""
+  app = _run_gap_cards_app(corpus, monkeypatch)
+  # Show every confidence level: the default filter (#108) hides Low cards.
+  app.multiselect[0].set_value(["high", "medium", "low"]).run()
+  card_count = len(load_candidate_gaps(corpus).gaps)
+
+  assert not app.exception
+  justification = [
+    e for e in app.expander if e.label == text.GAP_TIER_JUSTIFICATION_LABEL
+  ]
+  data = [e for e in app.expander if e.label == text.GAP_TIER_DATA_LABEL]
+  assert len(justification) == len(data) == card_count
+  discuss = [b for b in app.button if b.label == text.GAP_DISCUSS_BUTTON]
+  assert len(discuss) == card_count
+
+  justification_text = " ".join(
+    block.value for tier in justification for block in tier.markdown
+  )
+  assert "p01 passage on takotsubo" in justification_text
+  data_text = " ".join(block.value for tier in data for block in tier.markdown)
+  assert "Takotsubo Cardiomyopathy × Retrospective Studies: 4" in data_text
+  assert "p01, p02, p03, p04" in data_text

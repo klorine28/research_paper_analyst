@@ -142,7 +142,12 @@ def render_mini_bar(labels: list[str], values: list[int], *, key: str) -> None:
   )
 
 
-def render_evidence_body(passage: str, context: ExpandedEvidence | None) -> None:
+def render_evidence_body(
+  passage: str,
+  context: ExpandedEvidence | None,
+  *,
+  full_section_toggle_key: str | None = None,
+) -> None:
   """
   Show the verbatim anchor inside its paragraph, highlighted, with pointers.
 
@@ -150,6 +155,9 @@ def render_evidence_body(passage: str, context: ExpandedEvidence | None) -> None
   only widens it to the containing paragraph and highlights the anchor, so the
   reader gets context the dashboard did not invent. Falls back to the bare quote
   when no parsed text grounds the passage.
+
+  Streamlit forbids nested expanders, so a caller already inside one passes
+  `full_section_toggle_key` and the full section opens behind a toggle instead.
   """
   if context is None or not context.grounded:
     st.markdown(f"> {passage}")
@@ -169,7 +177,12 @@ def render_evidence_body(passage: str, context: ExpandedEvidence | None) -> None
         pointers=", ".join(pointer.label for pointer in context.pointers)
       )
     )
-  if context.full_section_adds_more:
+  if not context.full_section_adds_more:
+    return
+  if full_section_toggle_key is not None:
+    if st.toggle(text.EVIDENCE_SHOW_FULL_SECTION, key=full_section_toggle_key):
+      st.markdown(f"> {context.full_section}")
+  else:
     with st.expander(text.EVIDENCE_SHOW_FULL_SECTION):
       st.markdown(f"> {context.full_section}")
 
