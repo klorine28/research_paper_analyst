@@ -31,3 +31,12 @@ GAP_CONFIDENCE_WIDGET_KEY = "gap_confidence_filter_widget"
 # The last pipeline run's result survives the rerun that follows it, so the
 # outcome stays on screen after the page redraws with the new artifact (ADR 0007).
 LAST_RUN_KEY = "last_pipeline_run"
+# A gap card's "Compare" button records the gap's Papers here so the Comparison
+# page opens with them selected after the nav switch (issue #80). The Explainer
+# link reuses EXPLAINER_PAPER_KEY.
+COMPARISON_PAPERS_KEY = "comparison_paper_keys"
+# The Explainer and Comparison pickers carry keys so a preselection is written into
+# their state rather than passed as a default: a default that changes between runs
+# gives the widget a new identity and throws the researcher's later choice away.
+EXPLAINER_PICKER_KEY = "explainer_paper_picker"
+COMPARISON_PICKER_KEY = "comparison_paper_picker"

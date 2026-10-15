@@ -23,6 +23,10 @@ from research_gap_dashboard.dashboard.artifacts import (
   CandidateGapsArtifact,
   load_candidate_gaps,
 )
+from research_gap_dashboard.dashboard.comparison import (
+  MAX_SELECTION,
+  comparison_preselection,
+)
 from research_gap_dashboard.dashboard.gaps import (
   DEFAULT_CONFIDENCE_FILTER,
   build_gap_cards,
@@ -527,3 +531,111 @@ def test_every_card_expands_into_justification_and_data_tiers(
   data_text = " ".join(block.value for tier in data for block in tier.markdown)
   assert "Takotsubo Cardiomyopathy × Retrospective Studies: 4" in data_text
   assert "p01, p02, p03, p04" in data_text
+
+
+def test_a_card_lists_its_papers_once_sources_first(corpus: Path):
+  """A card's Papers are its source Papers, then any Evidence Paper, each once."""
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+
+  for card in data.cards:
+    expected = list(
+      dict.fromkeys(
+        [*card.source_citation_keys, *(p.citation_key for p in card.evidence)]
+      )
+    )
+    assert card.paper_keys == expected
+    assert card.paper_keys
+
+
+def test_comparison_preselection_keeps_corpus_papers_up_to_the_limit():
+  """A gap's Papers preselect the Comparison: Corpus Papers only, capped."""
+  corpus_keys = [f"p{i:02d}" for i in range(MAX_SELECTION + 5)]
+  wanted = ["ghost", *corpus_keys, "p00"]
+
+  chosen = comparison_preselection(wanted, corpus_keys)
+
+  assert chosen == corpus_keys[:MAX_SELECTION]
+
+
+def _first_explain_picker(app) -> tuple[str, list[str]]:
+  """Return the first shown card's gap id and its Papers, from its Explain picker."""
+  picker = next(box for box in app.selectbox if box.key.startswith("explain-pick-"))
+  return picker.key.removeprefix("explain-pick-"), list(picker.options)
+
+
+def test_open_in_explainer_preselects_the_chosen_paper(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """A card's Explainer button opens the Explainer with the chosen Paper (#80)."""
+  app = _run_gap_cards_app(corpus, monkeypatch)
+  gap_id, papers = _first_explain_picker(app)
+  chosen = papers[-1]
+
+  app.selectbox(key=f"explain-pick-{gap_id}").set_value(chosen).run()
+  app.button(key=f"explain-{gap_id}").click().run()
+
+  assert not app.exception
+  assert app.session_state["nav_page"] == text.PAGE_EXPLAINER
+  assert text.EXPLAINER_HEADING in [header.value for header in app.header]
+  assert app.selectbox[0].value == chosen
+
+
+def test_compare_opens_the_comparison_with_the_gaps_papers(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """A card's Compare button opens the Comparison with its Papers selected (#80)."""
+  app = _run_gap_cards_app(corpus, monkeypatch)
+  gap_id = next(
+    button.key.removeprefix("compare-")
+    for button in app.button
+    if button.key.startswith("compare-")
+  )
+  card = _card(corpus, gap_id)
+
+  app.button(key=f"compare-{gap_id}").click().run()
+
+  assert not app.exception
+  assert app.session_state["nav_page"] == text.PAGE_COMPARISON
+  assert text.COMPARISON_HEADING in [header.value for header in app.header]
+  assert app.multiselect[0].value == card.paper_keys
+
+
+def test_a_preselected_comparison_keeps_later_edits(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """After opening from a card, changing the selection is not undone (#80)."""
+  app = _run_gap_cards_app(corpus, monkeypatch)
+  compare = next(button for button in app.button if button.key.startswith("compare-"))
+  compare.click().run()
+  kept = app.multiselect[0].value[:-1]
+  if len(kept) < 2:
+    kept = app.multiselect[0].value
+
+  app.multiselect[0].set_value(kept).run()
+  app.run()
+
+  assert not app.exception
+  assert app.multiselect[0].value == kept
+
+
+def test_an_explainer_opened_from_a_card_keeps_a_later_choice(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """After opening from a card, picking another Paper is not undone (#80)."""
+  app = _run_gap_cards_app(corpus, monkeypatch)
+  gap_id, papers = _first_explain_picker(app)
+  app.selectbox(key=f"explain-pick-{gap_id}").set_value(papers[-1]).run()
+  app.button(key=f"explain-{gap_id}").click().run()
+  assert app.selectbox[0].value == papers[-1]
+  opened = app.selectbox[0].index
+  # Neither the opened Paper nor the picker's default first entry, so a reset to
+  # either would show.
+  other = next(i for i in range(len(app.selectbox[0].options)) if i not in {0, opened})
+
+  app.selectbox[0].select_index(other).run()
+  picked = app.selectbox[0].value
+  app.run()
+
+  assert not app.exception
+  assert app.selectbox[0].index == other
+  assert app.selectbox[0].value == picked

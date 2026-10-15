@@ -23,6 +23,7 @@ integrity:
 """
 
 import math
+from collections.abc import Sequence
 
 from pydantic import BaseModel
 
@@ -177,6 +178,20 @@ def selection_error(selection: list[str], manifest: ManifestArtifact) -> str | N
   if missing:
     return f"Not in this Corpus: {', '.join(missing)}."
   return None
+
+
+def comparison_preselection(
+  wanted: Sequence[str], corpus_keys: Sequence[str]
+) -> list[str]:
+  """
+  Return the Papers a Comparison opens with: those wanted, as far as it can show.
+
+  Keeps the wanted order, drops duplicates and Papers not in the Corpus, and stops
+  at MAX_SELECTION, so a gap with many Papers still opens a valid Comparison.
+  """
+  in_corpus = set(corpus_keys)
+  distinct = [key for key in dict.fromkeys(wanted) if key in in_corpus]
+  return distinct[:MAX_SELECTION]
 
 
 def chunk_selection(

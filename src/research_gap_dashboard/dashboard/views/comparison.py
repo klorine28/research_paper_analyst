@@ -17,7 +17,12 @@ from research_gap_dashboard.dashboard.comparison import (
   ComparisonResult,
   FieldComparison,
   build_comparison,
+  comparison_preselection,
   selection_error,
+)
+from research_gap_dashboard.dashboard.views.session_keys import (
+  COMPARISON_PAPERS_KEY,
+  COMPARISON_PICKER_KEY,
 )
 from research_gap_dashboard.dashboard.views.widgets import (
   paper_label,
@@ -34,10 +39,20 @@ def render_page(chosen: CorpusChoice) -> None:
     return
 
   manifest = load_manifest(corpus_root)
-  entries = manifest.papers
+  corpus_keys = [paper.citation_key for paper in manifest.papers]
+  # A gap card's "Compare" link leaves the gap's Papers here (issue #80).
+  # Re-filtering a remembered choice drops Papers of a Corpus no longer chosen.
+  wanted = st.session_state.pop(
+    COMPARISON_PAPERS_KEY, st.session_state.get(COMPARISON_PICKER_KEY)
+  )
+  if wanted is not None:
+    st.session_state[COMPARISON_PICKER_KEY] = comparison_preselection(
+      wanted, corpus_keys
+    )
   selection_keys = st.multiselect(
     text.COMPARISON_PICKER_LABEL,
-    [paper.citation_key for paper in entries],
+    corpus_keys,
+    key=COMPARISON_PICKER_KEY,
     format_func=lambda key: paper_label(manifest, key),
     max_selections=MAX_SELECTION,
   )

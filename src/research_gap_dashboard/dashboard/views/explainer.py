@@ -22,6 +22,7 @@ from research_gap_dashboard.dashboard.explainer import (
 )
 from research_gap_dashboard.dashboard.views.session_keys import (
   EXPLAINER_PAPER_KEY,
+  EXPLAINER_PICKER_KEY,
 )
 
 
@@ -35,19 +36,23 @@ def render_page(chosen: CorpusChoice) -> None:
     st.warning(text.EXPLAINER_NO_PAPERS)
     return
 
+  # A citation-network node or a gap card asks for a Paper here (#49, #80). The
+  # picker holds citation keys, not menu entries, so its remembered choice stays
+  # valid when an entry's explanation status changes.
+  by_key = {entry.citation_key: entry for entry in menu.entries}
   pending_key = st.session_state.pop(EXPLAINER_PAPER_KEY, None)
-  default_index = 0
-  if pending_key is not None:
-    default_index = next(
-      (i for i, entry in enumerate(menu.entries) if entry.citation_key == pending_key),
-      0,
-    )
-  chosen_paper = st.selectbox(
+  if pending_key in by_key:
+    st.session_state[EXPLAINER_PICKER_KEY] = pending_key
+  elif st.session_state.get(EXPLAINER_PICKER_KEY) not in by_key:
+    # A choice remembered from another Corpus would not be among the options.
+    st.session_state.pop(EXPLAINER_PICKER_KEY, None)
+  chosen_key = st.selectbox(
     text.EXPLAINER_PAPER_PICKER_LABEL,
-    menu.entries,
-    index=default_index,
-    format_func=lambda entry: entry.label,
+    list(by_key),
+    key=EXPLAINER_PICKER_KEY,
+    format_func=lambda key: by_key[key].label,
   )
+  chosen_paper = by_key.get(chosen_key or "", menu.entries[0])
   view = _load_explainer_view(corpus_root, manifest, chosen_paper)
   render_paper_explainer(menu, view)
 
