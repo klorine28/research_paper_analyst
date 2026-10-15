@@ -9,6 +9,7 @@ the same verdicts. Cards keep the artifact's order so the same artifact always
 lists gaps the same way.
 """
 
+from collections.abc import Iterable
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -124,6 +125,39 @@ class GapCardsData(BaseModel):
   def undecided_count(self) -> int:
     """How many gaps still await a verdict."""
     return sum(1 for card in self.cards if card.status is None)
+
+
+# Levels in display order, and the default view: Low-confidence gaps are hidden
+# until the researcher asks for them (issue #108), but never silently, since the
+# page always states how many are hidden.
+CONFIDENCE_LEVELS: tuple[str, ...] = ("high", "medium", "low")
+DEFAULT_CONFIDENCE_FILTER: tuple[str, ...] = ("high", "medium")
+
+
+class FilteredGapCards(BaseModel):
+  """The cards a confidence filter keeps, and how many it hides."""
+
+  cards: list[GapCard]
+  total_count: int
+
+  @property
+  def shown_count(self) -> int:
+    """How many gaps pass the filter."""
+    return len(self.cards)
+
+  @property
+  def hidden_count(self) -> int:
+    """How many gaps the filter hides."""
+    return self.total_count - self.shown_count
+
+
+def filter_by_confidence(data: GapCardsData, levels: Iterable[str]) -> FilteredGapCards:
+  """Keep only the cards at the chosen confidence levels, in artifact order."""
+  chosen = set(levels)
+  return FilteredGapCards(
+    cards=[card for card in data.cards if card.confidence in chosen],
+    total_count=data.gap_count,
+  )
 
 
 def _evidence_detail(passage_source: CandidateGapRecord, index: int) -> str:

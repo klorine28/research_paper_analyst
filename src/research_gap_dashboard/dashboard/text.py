@@ -288,6 +288,17 @@ GAP_JUDGMENT_SUMMARY = (
   "{undecided} undecided."
 )
 
+# Confidence filter (issue #108): the hidden count is always shown, even when
+# zero, so filtering never makes gaps disappear silently.
+GAP_FILTER_LABEL = "Show confidence levels"
+GAP_FILTER_HIDDEN_SUMMARY = (
+  "Showing {shown} of {total} candidate gaps; {hidden} hidden by the confidence filter."
+)
+GAP_FILTER_NONE_SHOWN = (
+  "No candidate gaps match the chosen confidence levels. Widen the filter to "
+  "see the hidden ones."
+)
+
 # Per-card labels.
 GAP_CONFIDENCE_LABEL = "Confidence: {confidence}"
 GAP_CELL_COUNT_LABEL = "Papers in this cell: {count} of {total}."

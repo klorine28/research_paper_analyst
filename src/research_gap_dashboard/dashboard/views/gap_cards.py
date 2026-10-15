@@ -11,9 +11,12 @@ from research_gap_dashboard.dashboard.artifacts import (
   load_candidate_gaps,
 )
 from research_gap_dashboard.dashboard.gaps import (
+  CONFIDENCE_LEVELS,
+  DEFAULT_CONFIDENCE_FILTER,
   GapCard,
   GapCardsData,
   build_gap_cards,
+  filter_by_confidence,
 )
 from research_gap_dashboard.dashboard.judgments import (
   clear_judgment,
@@ -22,6 +25,8 @@ from research_gap_dashboard.dashboard.judgments import (
 )
 from research_gap_dashboard.dashboard.views.session_keys import (
   DISCUSS_GAP_KEY,
+  GAP_CONFIDENCE_FILTER_KEY,
+  GAP_CONFIDENCE_WIDGET_KEY,
   PENDING_NAV_KEY,
 )
 from research_gap_dashboard.dashboard.views.widgets import (
@@ -56,8 +61,41 @@ def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
       undecided=data.undecided_count,
     )
   )
-  for card in data.cards:
+  filtered = filter_by_confidence(data, _confidence_filter())
+  st.caption(
+    text.GAP_FILTER_HIDDEN_SUMMARY.format(
+      shown=filtered.shown_count,
+      total=filtered.total_count,
+      hidden=filtered.hidden_count,
+    )
+  )
+  if not filtered.cards:
+    st.info(text.GAP_FILTER_NONE_SHOWN)
+  for card in filtered.cards:
     _render_gap_card(card, corpus_root)
+
+
+def _remember_confidence_filter() -> None:
+  """Copy the widget's choice to the key that outlives page navigation."""
+  st.session_state[GAP_CONFIDENCE_FILTER_KEY] = list(
+    st.session_state[GAP_CONFIDENCE_WIDGET_KEY]
+  )
+
+
+def _confidence_filter() -> list[str]:
+  """Render the confidence filter, restored from the session, and return it."""
+  remembered = st.session_state.setdefault(
+    GAP_CONFIDENCE_FILTER_KEY, list(DEFAULT_CONFIDENCE_FILTER)
+  )
+  st.session_state[GAP_CONFIDENCE_WIDGET_KEY] = list(remembered)
+  chosen = st.multiselect(
+    text.GAP_FILTER_LABEL,
+    options=list(CONFIDENCE_LEVELS),
+    format_func=_confidence_option_label,
+    key=GAP_CONFIDENCE_WIDGET_KEY,
+    on_change=_remember_confidence_filter,
+  )
+  return list(chosen)
 
 
 def _card_status_label(card: GapCard) -> str:
@@ -189,3 +227,8 @@ def _render_controls(card: GapCard, corpus_root: Path) -> None:
     st.session_state[DISCUSS_GAP_KEY] = card.gap_id
     st.session_state[PENDING_NAV_KEY] = text.PAGE_ANALYTICS
     st.rerun()
+
+
+def _confidence_option_label(level: str) -> str:
+  """Show a confidence level the way the cards spell it."""
+  return text.CONFIDENCE_LABELS.get(level, level)
