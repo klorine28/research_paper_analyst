@@ -89,6 +89,15 @@ class GapEvidenceRecord(_ReadModel):
   statement: str = ""
 
 
+class LayerStepRecord(_ReadModel):
+  """One detection layer's verdict on a cell gap, as the dashboard reads it."""
+
+  layer: str
+  effect: str
+  level_after: str
+  reason: str = ""
+
+
 class CandidateGapRecord(_ReadModel):
   """One Candidate Gap card, projected onto what the Gap Cards view shows."""
 
@@ -99,6 +108,8 @@ class CandidateGapRecord(_ReadModel):
   confidence: str
   confidence_reason: str
   corpus_paper_count: int
+  # Cell gaps: each layer's verdict in order; empty in pre-trail artifacts.
+  trail: list[LayerStepRecord] = []
   cell_count: int | None = None
   source_citation_keys: list[str] = []
   evidence: list[GapEvidenceRecord] = []
