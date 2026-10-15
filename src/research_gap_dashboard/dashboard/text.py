@@ -93,6 +93,13 @@ VERIFY_PAPER_PICKER_LABEL = "Paper to verify"
 VERIFY_SUMMARY = (
   "{reviewed} of {extracted} extracted facts reviewed; {added} facts added."
 )
+VERIFY_CORPUS_PROGRESS = (
+  "{reviewed} of {total} extracted facts reviewed across the Corpus; "
+  "{fully} of {papers} Papers fully reviewed."
+)
+VERIFY_CORPUS_COMPLETE = (
+  "Every extracted fact in the Corpus has a verdict: verification is done."
+)
 VERIFY_PDF_LINK = "Open the PDF"
 VERIFY_NO_FACTS = "No facts extracted for this field."
 VERIFY_ADDED_BADGE = "added by reviewer"
@@ -281,12 +288,41 @@ GAP_JUDGMENT_SUMMARY = (
   "{undecided} undecided."
 )
 
+# Confidence filter (issue #108): the hidden count is always shown, even when
+# zero, so filtering never makes gaps disappear silently.
+GAP_FILTER_LABEL = "Show confidence levels"
+
 # Per-card labels.
 GAP_CONFIDENCE_LABEL = "Confidence: {confidence}"
 GAP_CELL_COUNT_LABEL = "Papers in this cell: {count} of {total}."
-GAP_SOURCE_PAPERS_LABEL = "Source Papers: {papers}."
 GAP_EVIDENCE_HEADING = "Evidence"
 GAP_EVIDENCE_SOURCE = "{citation_key} — {section}"
+# Three-tier cards (ADR 0008, issue #107): a headline, then two expanders read
+# straight from the artifact, so no LLM runs at view time.
+GAP_WHY_CELL = (
+  "{row_count} of {total} Papers cover {row} and {column_count} of {total} "
+  "cover {column}; {count} combine them."
+)
+GAP_WHY_LIMITATION = (
+  "{source_count} Paper(s) state this; none of {later_count} later Paper(s) "
+  "addressed it."
+)
+GAP_TIER_JUSTIFICATION_LABEL = "Why this is a candidate: Evidence"
+GAP_TIER_DATA_LABEL = "Show the data"
+GAP_SOURCE_PAPERS_GROUP = "Source Papers"
+GAP_DATA_PAPERS_HEADING = "Papers in each category"
+GAP_DATA_CATEGORY_PAPERS = "**{label}** ({count}): {papers}"
+GAP_DATA_NO_PAPERS = "none"
+GAP_DATA_NEIGHBOURS_HEADING = "Neighbouring cells"
+GAP_DATA_NEIGHBOUR = "- {row} × {column}: {count} Paper(s)"
+GAP_DATA_NO_NEIGHBOURS = "No neighbouring cells in this Coverage Matrix."
+GAP_DATA_NEIGHBOURS_MORE = "…and {count} more neighbouring cells."
+GAP_DATA_SCORE_HEADING = "Score and reasons"
+GAP_DATA_SCORE = (
+  "Expected about {expected:.1f} Papers in this cell if its categories were "
+  "independent across the {total} Papers; {observed} observed. This is a ranking "
+  "score, not a significance test."
+)
 # Evidence-window expansion (issue #47): the anchor quote shown in its paragraph.
 EVIDENCE_POINTERS_LABEL = "Points to: {pointers}"
 EVIDENCE_SHOW_FULL_SECTION = "Show full section"

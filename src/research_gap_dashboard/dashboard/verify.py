@@ -9,8 +9,13 @@ app layer renders this and wires the verbs to `dashboard.extraction_review`.
 
 The overlay never changes `extractions.json`; this view merely reads the raw
 Extraction and layers the researcher's verdicts on top for display.
+
+`build_corpus_progress` gives the Corpus-wide view of the same overlay: how many
+extracted facts across every Paper carry a verdict, so the researcher can tell
+when the Trust step's verification is done.
 """
 
+from collections.abc import Iterable, Set
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -26,6 +31,7 @@ from research_gap_dashboard.dashboard.evidence_context import (
 )
 from research_gap_dashboard.dashboard.extraction_review import (
   FIELD_NAMES,
+  ExtractionReviewLog,
   PaperReview,
 )
 
@@ -200,4 +206,62 @@ def build_extraction_review(
     doi=paper.doi,
     pdf_path=paper.pdf_path,
     fields=fields,
+  )
+
+
+class CorpusVerificationProgress(BaseModel):
+  """How far Extraction Review has got across the whole Corpus, with denominators."""
+
+  reviewed_facts: int
+  total_facts: int
+  fully_reviewed_papers: int
+  total_papers: int
+
+  @property
+  def is_complete(self) -> bool:
+    """True once every extracted fact in the Corpus carries a verdict."""
+    return self.reviewed_facts == self.total_facts
+
+  @property
+  def fraction(self) -> float:
+    """The share of extracted facts reviewed, 1.0 when there is nothing to review."""
+    return self.reviewed_facts / self.total_facts if self.total_facts else 1.0
+
+
+def build_corpus_progress(
+  extractions: Iterable[ExtractionRecord],
+  log: ExtractionReviewLog,
+  paper_keys: Set[str],
+) -> CorpusVerificationProgress:
+  """
+  Count reviewed extracted facts and fully reviewed Papers across the Corpus.
+
+  Only Papers in the manifest (`paper_keys`) count, matching the Papers the
+  Verify page offers. Added facts are not in the denominator: they are the
+  reviewer's own and need no verdict. A verdict whose index the Extraction no
+  longer has (a re-extracted Paper) is stale and not counted.
+  """
+  reviews = log.by_citation_key()
+  reviewed_facts = total_facts = fully_reviewed = total_papers = 0
+  for extraction in extractions:
+    if extraction.citation_key not in paper_keys:
+      continue
+    review = reviews.get(extraction.citation_key)
+    decided = {verdict.key for verdict in review.verdicts} if review else set()
+    paper_total = paper_reviewed = 0
+    for name in FIELD_NAMES:
+      for index in range(len(getattr(extraction.fields, name))):
+        paper_total += 1
+        if (name, index) in decided:
+          paper_reviewed += 1
+    total_papers += 1
+    total_facts += paper_total
+    reviewed_facts += paper_reviewed
+    if paper_reviewed == paper_total:
+      fully_reviewed += 1
+  return CorpusVerificationProgress(
+    reviewed_facts=reviewed_facts,
+    total_facts=total_facts,
+    fully_reviewed_papers=fully_reviewed,
+    total_papers=total_papers,
   )

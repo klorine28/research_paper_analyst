@@ -22,3 +22,9 @@ EXPLAINER_PAPER_KEY = "explainer_paper_key"
 GAP_FILTER_STATUS_KEY = "gap_filter_status"
 GAP_FILTER_TYPE_KEY = "gap_filter_type"
 GAP_FOCUS_KEY = "gap_focus_id"
+# The Gap Cards confidence filter keeps its choice here rather than only under its
+# widget key: Streamlit drops a widget's state once a run doesn't render it, so
+# without this copy the filter would reset whenever the researcher left the page
+# (issue #108).
+GAP_CONFIDENCE_FILTER_KEY = "gap_confidence_filter"
+GAP_CONFIDENCE_WIDGET_KEY = "gap_confidence_filter_widget"

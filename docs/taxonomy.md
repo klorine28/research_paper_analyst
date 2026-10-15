@@ -35,6 +35,7 @@ mesh_id = "D054549"               # required: MeSH descriptor id, or "" if hand-
 mesh_tree = "C14.280.238.906"     # optional: MeSH tree number (provenance)
 parent = "cardiomyopathies"       # optional: id of a broader Topic
 aliases = ["Broken Heart Syndrome", "Stress Cardiomyopathy"]  # optional synonyms
+alias_sources = { "Stress Cardiomyopathy" = "MeSH entry term of D054549 (Takotsubo Cardiomyopathy)" }  # optional
 description = "..."               # optional scope note
 ```
 
@@ -46,6 +47,8 @@ description = "..."               # optional scope note
 - **`aliases`** are the phrases an extracted term may match on, in addition to
   the `id` and `label`. Matching is case-insensitive and whitespace-tolerant.
   The MeSH seed fills these from each descriptor's entry terms.
+- **`alias_sources`** records where an alias came from, keyed by the alias;
+  `aliases promote` fills it. Every key must be one of the Topic's aliases.
 - **`parent`** builds a shallow hierarchy; it must name another Topic's `id`.
 - **Unknown keys are errors.** A typo like `alias` instead of `aliases` is
   reported, not silently dropped.
@@ -148,6 +151,36 @@ is a procedure, treatment, lab assay, or statistical technique is listed under
 alias. A Method phrase the Topic taxonomy recognises (e.g. "transthoracic
 echocardiography") is always set aside this way, whatever the model said.
 
+## Expanding aliases per Corpus (ADR 0010)
+
+A false gap often means the taxonomy lacks the field's words. The `aliases`
+command widens the vocabulary from MeSH, kept per Corpus in an **Alias
+Overlay** at `<corpus>/judgments/alias_overlay.json`:
+
+```shell
+uv run research-gap-dashboard aliases suggest-mesh path/to/corpus   # needs network
+uv run research-gap-dashboard aliases list path/to/corpus --status proposed
+uv run research-gap-dashboard aliases approve path/to/corpus topic cardiomyopathies "Myocardiopathies"
+uv run research-gap-dashboard aliases reject path/to/corpus topic cardiomyopathies "Myocardiopathies"
+uv run research-gap-dashboard aliases promote path/to/corpus topic cardiomyopathies "Myocardiopathies"
+```
+
+- `suggest-mesh` reads each MeSH-backed category's **entry terms** and the
+  labels of its direct **child descriptors** that are not categories
+  themselves (so a narrower descriptor rolls up onto its parent). Each is logged
+  as *proposed* with its provenance (source kind, MeSH id, label, tree number).
+  A phrase the taxonomy already resolves, or that MeSH would give to two
+  categories, is not offered. Re-running never re-offers a decided alias.
+- Nothing maps until **approved**, and an approval applies only to that
+  Corpus: `aggregate <corpus>` normalizes onto the shared files plus that
+  Corpus's approved aliases. Approving a phrase another category already owns
+  is refused. `reject` declines a proposal or reverses an approval; every step
+  is logged with its date.
+- `promote` copies an approved alias into the shared taxonomy file (the one
+  given with `--taxonomy` for that axis, or the shipped seed), with its
+  provenance in `alias_sources`, and re-validates the file; it then applies to
+  every Corpus. A promoted alias is removed by editing that file.
+
 ## Validating a file
 
 The loader collects every problem it finds and reports them together, so a
@@ -159,4 +192,5 @@ uv run research-gap-dashboard taxonomy path/to/taxonomy.toml   # or no path for 
 
 It reports: missing or unparseable file, an unknown axis, no topics, missing or unknown Topic
 fields, duplicate ids, ambiguous aliases (one phrase mapping to two Topics),
+alias sources for phrases that are not aliases,
 parent references that do not resolve, and parent cycles.

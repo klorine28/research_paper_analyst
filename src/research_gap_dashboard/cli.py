@@ -11,13 +11,21 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+import httpx
+
 from research_gap_dashboard.aggregate import aggregate_corpus, load_pipeline_taxonomies
 from research_gap_dashboard.dashboard.extraction_review import (
   FIELD_NAMES as _GOLD_FIELD_NAMES,
 )
 from research_gap_dashboard.apply_corrections import apply_parse_corrections
+from research_gap_dashboard.baseline import baseline_corpus, render_baseline
 from research_gap_dashboard.detect import detect_corpus
 from research_gap_dashboard.diagnose import diagnose_corpus, render_funnel
+from research_gap_dashboard.embeddings import (
+  EmbeddingConfig,
+  EmbeddingConfigError,
+  build_embedder,
+)
 from research_gap_dashboard.env import load_env
 from research_gap_dashboard.explain import explain_corpus
 from research_gap_dashboard.extract import extract_corpus
@@ -44,10 +52,24 @@ from research_gap_dashboard.sources import (
   SourceIdentity,
 )
 from research_gap_dashboard.taxonomy import (
+  AXES,
   CARDIOLOGY_SEED_PATH,
   SEED_PATHS,
+  Taxonomy,
   TaxonomyError,
   load_taxonomy,
+)
+from research_gap_dashboard.vocabulary import (
+  AliasOverlay,
+  AliasOverlayError,
+  MeshVocabulary,
+  approve_alias,
+  promote_alias,
+  propose_aliases,
+  read_alias_overlay,
+  reject_alias,
+  suggest_mesh_aliases,
+  write_alias_overlay,
 )
 
 LLM_CACHE_DIR = ".llm-cache"
@@ -111,6 +133,14 @@ def build_parser() -> argparse.ArgumentParser:
       "(e.g. 0.9 to gate on the >=90%% target); default: report only."
     ),
   )
+  baseline = subcommands.add_parser(
+    "baseline",
+    help=(
+      "Report Papers kept and lost, facts, terms per axis, and Candidate Gaps "
+      "as Markdown."
+    ),
+  )
+  baseline.add_argument("corpus", type=Path, help="Path to the corpus directory.")
   apply_corrections = subcommands.add_parser(
     "apply-parse-corrections",
     help="Write the dashboard's manual parse corrections into paper-data/.",
@@ -226,6 +256,7 @@ def build_parser() -> argparse.ArgumentParser:
     default=CARDIOLOGY_SEED_PATH,
     help="Taxonomy file to validate (default: the shipped cardiology seed).",
   )
+  _add_aliases_parser(subcommands)
   return parser
 
 
@@ -239,6 +270,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     "ingest": _run_ingest,
     "parse": _run_parse,
     "diagnose": _run_diagnose,
+    "baseline": _run_baseline,
     "apply-parse-corrections": _run_apply_parse_corrections,
     "extract": _run_extract,
     "explain": _run_explain,
@@ -247,6 +279,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     "retrieve": _run_retrieve,
     "promote-gold": _run_promote_gold,
     "taxonomy": _run_taxonomy,
+    "aliases": _run_aliases,
   }
   return runners[arguments.command](arguments)
 
@@ -353,6 +386,18 @@ def _run_diagnose(arguments: argparse.Namespace) -> int:
   return EXIT_OK
 
 
+def _run_baseline(arguments: argparse.Namespace) -> int:
+  """Report what every stage kept and lost over the Corpus, as Markdown."""
+  try:
+    report = baseline_corpus(arguments.corpus)
+  except FileNotFoundError as error:
+    logger.error("Run `ingest` first: %s", error)
+    return EXIT_ERROR
+
+  logger.info("%s", render_baseline(report))
+  return EXIT_OK
+
+
 def _run_apply_parse_corrections(arguments: argparse.Namespace) -> int:
   """Write the dashboard's manual parse corrections into paper-data/."""
   try:
@@ -433,7 +478,7 @@ def _run_aggregate(arguments: argparse.Namespace) -> int:
   """Normalize each Paper's extracted facts onto the axis taxonomies."""
   paths = arguments.taxonomy or list(SEED_PATHS.values())
   try:
-    taxonomies = load_pipeline_taxonomies(paths)
+    taxonomies = load_pipeline_taxonomies(paths, corpus=arguments.corpus)
   except TaxonomyError as error:
     logger.error("Taxonomies are invalid:")
     for problem in error.problems:
@@ -466,12 +511,19 @@ def _run_detect(arguments: argparse.Namespace) -> int:
   """Find the Corpus's Candidate Gaps and write the CandidateGaps artifact."""
   try:
     client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
-  except LlmConfigError as error:
+    embedding_config = EmbeddingConfig.from_env()
+  except (LlmConfigError, EmbeddingConfigError) as error:
     logger.error("%s", error)
     return EXIT_ERROR
 
   try:
-    report = detect_corpus(arguments.corpus, client, tier=arguments.tier)
+    report = detect_corpus(
+      arguments.corpus,
+      client,
+      tier=arguments.tier,
+      embedder=build_embedder(embedding_config),
+      merge_threshold=embedding_config.merge_threshold,
+    )
   except FileNotFoundError as error:
     logger.error("Run `ingest`, `extract`, and `aggregate` first: %s", error)
     return EXIT_ERROR
@@ -528,6 +580,133 @@ def _run_taxonomy(arguments: argparse.Namespace) -> int:
     taxonomy.meta.source,
   )
   return EXIT_OK
+
+
+def _add_aliases_parser(subcommands) -> None:
+  """Add the `aliases` command: suggest, review, and promote Corpus aliases."""
+  aliases = subcommands.add_parser(
+    "aliases",
+    help="Suggest, approve, reject, and promote a Corpus's taxonomy aliases.",
+  )
+  actions = aliases.add_subparsers(dest="alias_action", required=True)
+
+  suggest = actions.add_parser(
+    "suggest-mesh",
+    help="Log MeSH entry terms and child descriptors as proposed aliases (network).",
+  )
+  suggest.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  _add_taxonomy_option(suggest)
+
+  listing = actions.add_parser("list", help="List the Corpus's alias overlay.")
+  listing.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  listing.add_argument(
+    "--status",
+    choices=["proposed", "approved", "rejected", "promoted"],
+    default=None,
+    help="Only list aliases with this status.",
+  )
+
+  for name, text in (
+    ("approve", "Approve a proposed alias for this Corpus only."),
+    ("reject", "Reject a proposed alias, or reverse an approval."),
+    ("promote", "Copy an approved alias into the shared taxonomy file."),
+  ):
+    action = actions.add_parser(name, help=text)
+    action.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+    action.add_argument("axis", choices=list(AXES), help="The category's axis.")
+    action.add_argument("category", help="The category id the alias belongs to.")
+    action.add_argument("alias", help="The alias phrase, as listed.")
+    _add_taxonomy_option(action)
+
+
+def _add_taxonomy_option(parser: argparse.ArgumentParser) -> None:
+  """Add the repeatable `--taxonomy` option the alias actions read."""
+  parser.add_argument(
+    "--taxonomy",
+    type=Path,
+    action="append",
+    default=None,
+    help="Taxonomy file, once per axis (default: the shipped seeds).",
+  )
+
+
+def _run_aliases(arguments: argparse.Namespace) -> int:
+  """Run one `aliases` action against a Corpus's Alias Overlay."""
+  overlay = read_alias_overlay(arguments.corpus)
+  if arguments.alias_action == "list":
+    _log_overlay(overlay, arguments.status)
+    return EXIT_OK
+
+  paths: list[Path] = arguments.taxonomy or list(SEED_PATHS.values())
+  try:
+    by_path = {path: load_taxonomy(path) for path in paths}
+  except TaxonomyError as error:
+    logger.error("Taxonomies are invalid:")
+    for problem in error.problems:
+      logger.error("  - %s", problem)
+    return EXIT_ERROR
+
+  try:
+    overlay = _alias_action(arguments, overlay, by_path)
+  except AliasOverlayError as error:
+    logger.error("%s", error)
+    return EXIT_ERROR
+  except httpx.HTTPError as error:
+    logger.error("MeSH could not be reached: %s", error)
+    return EXIT_ERROR
+
+  path = write_alias_overlay(arguments.corpus, overlay)
+  logger.info("Alias overlay written to %s.", path)
+  return EXIT_OK
+
+
+def _alias_action(
+  arguments: argparse.Namespace,
+  overlay: AliasOverlay,
+  by_path: dict[Path, Taxonomy],
+) -> AliasOverlay:
+  """Apply one alias action to the overlay and return the result."""
+  taxonomies = list(by_path.values())
+  if arguments.alias_action == "suggest-mesh":
+    mesh = MeshVocabulary()
+    before = len(overlay.entries)
+    for taxonomy in taxonomies:
+      overlay = propose_aliases(overlay, suggest_mesh_aliases(taxonomy, mesh))
+    logger.info(
+      "Proposed %d new MeSH aliases; approve each with `aliases approve`.",
+      len(overlay.entries) - before,
+    )
+    return overlay
+
+  target = (arguments.axis, arguments.category, arguments.alias)
+  if arguments.alias_action == "approve":
+    return approve_alias(overlay, taxonomies, *target)
+  if arguments.alias_action == "reject":
+    return reject_alias(overlay, *target)
+  path = next(
+    (p for p, taxonomy in by_path.items() if taxonomy.meta.axis == arguments.axis),
+    None,
+  )
+  if path is None:
+    raise AliasOverlayError(f"No {arguments.axis} taxonomy file was given.")
+  promoted = promote_alias(overlay, path, *target)
+  logger.info("Promoted '%s' into %s.", arguments.alias, path)
+  return promoted
+
+
+def _log_overlay(overlay: AliasOverlay, status: str | None) -> None:
+  """Log each overlay alias with its status and provenance."""
+  entries = [e for e in overlay.entries if status is None or e.status == status]
+  logger.info("%d aliases in the overlay.", len(entries))
+  for entry in entries:
+    logger.info(
+      "  [%s] %s / %s: %s  (%s)",
+      entry.status,
+      entry.axis,
+      entry.category_id,
+      entry.alias,
+      entry.provenance.describe(),
+    )
 
 
 if __name__ == "__main__":

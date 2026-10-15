@@ -9,7 +9,7 @@ the same verdicts. Cards keep the artifact's order so the same artifact always
 lists gaps the same way.
 """
 
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Iterable, Sequence
 from pathlib import Path
 from typing import Literal
 
@@ -24,6 +24,7 @@ from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard.artifacts import (
   CandidateGapRecord,
   CandidateGapsArtifact,
+  CoverageMatrixRecord,
 )
 from research_gap_dashboard.dashboard.evidence_context import (
   EvidenceExpander,
@@ -44,14 +45,51 @@ class EvidencePassage(BaseModel):
   context: ExpandedEvidence | None = None
 
 
+class CategoryPapers(BaseModel):
+  """The Papers placed on one category of a gap, or behind a limitation."""
+
+  label: str
+  citation_keys: list[str]
+
+
+class NeighbourCell(BaseModel):
+  """One Coverage Matrix cell that shares a category with a gap's cell."""
+
+  row_label: str
+  column_label: str
+  paper_count: int
+
+
+class GapData(BaseModel):
+  """
+  Tier 3, "show the data": what a card's confidence was computed from.
+
+  The expected count is the independence expectation for the cell, shown as a
+  ranking score beside the observed count, never as a significance claim (ADR
+  0008). Limitation cards have no cell, so they carry no neighbours or score.
+  """
+
+  category_papers: list[CategoryPapers]
+  neighbours: list[NeighbourCell]
+  expected_count: float | None
+  observed_count: int | None
+  reasons: list[str]
+
+
 class GapCard(BaseModel):
-  """One Candidate Gap card the view renders, with its judgment state."""
+  """
+  One Candidate Gap card the view renders, with its judgment state.
+
+  Fields map onto ADR 0008's three tiers: Tier 1 is the title, confidence, `why`
+  and cell count; Tier 2 the Evidence; Tier 3 `data`.
+  """
 
   gap_id: str
   gap_type: str
   gap_type_label: str
   title: str
   explanation: str
+  why: str
   confidence: str
   confidence_label: str
   confidence_reason: str
@@ -59,6 +97,7 @@ class GapCard(BaseModel):
   corpus_paper_count: int
   source_citation_keys: list[str]
   evidence: list[EvidencePassage]
+  data: GapData
   status: Status
 
 
@@ -89,6 +128,35 @@ class GapCardsData(BaseModel):
     return sum(1 for card in self.cards if card.status is None)
 
 
+# Levels in display order, and the default view: Low-confidence gaps are hidden
+# until the researcher asks for them (issue #108), but never silently, since the
+# page always states how many are hidden.
+CONFIDENCE_LEVELS: tuple[str, ...] = ("high", "medium", "low")
+DEFAULT_CONFIDENCE_FILTER: tuple[str, ...] = ("high", "medium")
+
+
+class FilteredGapCards(BaseModel):
+  """The cards the Gap Cards filters keep, and how many they hide (#79, #108)."""
+
+  cards: list[GapCard]
+  total_count: int
+
+  @property
+  def shown_count(self) -> int:
+    """How many gaps pass the filter."""
+    return len(self.cards)
+
+  @property
+  def hidden_count(self) -> int:
+    """How many gaps the filter hides."""
+    return self.total_count - self.shown_count
+
+
+def filter_by_confidence(data: GapCardsData, levels: Iterable[str]) -> FilteredGapCards:
+  """Keep only the cards at the chosen confidence levels, in artifact order."""
+  return filter_gap_cards(data, confidence_levels=set(levels))
+
+
 def _evidence_detail(passage_source: CandidateGapRecord, index: int) -> str:
   """Describe what a card's Evidence passage supports, per gap-card shape."""
   link = passage_source.evidence[index]
@@ -100,8 +168,124 @@ def _evidence_detail(passage_source: CandidateGapRecord, index: int) -> str:
   return ""
 
 
+def _is_cell_gap(record: CandidateGapRecord) -> bool:
+  """Say whether a record is a Coverage Matrix cell gap, not a limitation."""
+  return record.cell_count is not None and bool(record.row_id)
+
+
+def _why(record: CandidateGapRecord) -> str:
+  """Build the card's one-line why from the counts the artifact recorded."""
+  if _is_cell_gap(record):
+    return text.GAP_WHY_CELL.format(
+      row=record.row_label,
+      column=record.column_label,
+      row_count=record.row_paper_count,
+      column_count=record.column_paper_count,
+      total=record.corpus_paper_count,
+      count=record.cell_count,
+    )
+  return text.GAP_WHY_LIMITATION.format(
+    source_count=len(record.source_citation_keys),
+    later_count=record.later_paper_count,
+  )
+
+
+def _category_keys(
+  record: CandidateGapRecord, axis: str, category_id: str
+) -> list[str]:
+  """List the Papers whose Evidence places them on one of the cell's categories."""
+  return sorted(
+    {
+      link.citation_key
+      for link in record.evidence
+      if link.axis == axis and link.category_id == category_id
+    }
+  )
+
+
+def _neighbours(
+  record: CandidateGapRecord, matrices: list[CoverageMatrixRecord]
+) -> list[NeighbourCell]:
+  """
+  List the cells of the gap's matrix that share one of its categories.
+
+  On a same-axis matrix (Topic x Topic) a category may sit in either position,
+  since only one triangle of cells is stored. Fullest cells come first.
+  """
+  matrix = next(
+    (
+      m
+      for m in matrices
+      if m.row_axis == record.row_axis and m.column_axis == record.column_axis
+    ),
+    None,
+  )
+  if matrix is None:
+    return []
+  labels = {c.category_id: c.label for c in [*matrix.rows, *matrix.columns]}
+  same_axis = matrix.row_axis == matrix.column_axis
+  gap_categories = {record.row_id, record.column_id}
+  neighbours: list[NeighbourCell] = []
+  for cell in matrix.cells:
+    if cell.row_id == record.row_id and cell.column_id == record.column_id:
+      continue
+    if same_axis:
+      shares = bool({cell.row_id, cell.column_id} & gap_categories)
+    else:
+      shares = cell.row_id == record.row_id or cell.column_id == record.column_id
+    if shares:
+      neighbours.append(
+        NeighbourCell(
+          row_label=labels.get(cell.row_id, cell.row_id),
+          column_label=labels.get(cell.column_id, cell.column_id),
+          paper_count=cell.paper_count,
+        )
+      )
+  return sorted(neighbours, key=lambda n: (-n.paper_count, n.row_label, n.column_label))
+
+
+def _data(record: CandidateGapRecord, matrices: list[CoverageMatrixRecord]) -> GapData:
+  """Assemble Tier 3 from the record and the matrix it was detected in."""
+  if not _is_cell_gap(record):
+    return GapData(
+      category_papers=[
+        CategoryPapers(
+          label=text.GAP_SOURCE_PAPERS_GROUP,
+          citation_keys=record.source_citation_keys,
+        )
+      ],
+      neighbours=[],
+      expected_count=None,
+      observed_count=None,
+      reasons=[record.confidence_reason],
+    )
+  total = record.corpus_paper_count
+  expected = (
+    record.row_paper_count * record.column_paper_count / total if total else 0.0
+  )
+  return GapData(
+    category_papers=[
+      CategoryPapers(
+        label=record.row_label,
+        citation_keys=_category_keys(record, record.row_axis, record.row_id),
+      ),
+      CategoryPapers(
+        label=record.column_label,
+        citation_keys=_category_keys(record, record.column_axis, record.column_id),
+      ),
+    ],
+    neighbours=_neighbours(record, matrices),
+    expected_count=expected,
+    observed_count=record.cell_count,
+    reasons=[record.confidence_reason],
+  )
+
+
 def _card(
-  record: CandidateGapRecord, status: Status, expander: EvidenceExpander
+  record: CandidateGapRecord,
+  status: Status,
+  expander: EvidenceExpander,
+  matrices: list[CoverageMatrixRecord],
 ) -> GapCard:
   """Assemble one display card from an artifact record and its judgment."""
   return GapCard(
@@ -110,6 +294,7 @@ def _card(
     gap_type_label=text.GAP_TYPE_LABELS.get(record.gap_type, record.gap_type),
     title=record.title,
     explanation=record.explanation,
+    why=_why(record),
     confidence=record.confidence,
     confidence_label=text.CONFIDENCE_LABELS.get(record.confidence, record.confidence),
     confidence_reason=record.confidence_reason,
@@ -126,6 +311,7 @@ def _card(
       )
       for index, link in enumerate(record.evidence)
     ],
+    data=_data(record, matrices),
     status=status,
   )
 
@@ -234,6 +420,7 @@ def build_gap_cards(
       record,
       decided[record.gap_id].decision if record.gap_id in decided else None,
       expander,
+      artifact.matrices,
     )
     for record in artifact.gaps
   ]
@@ -246,13 +433,6 @@ StatusFilter = Literal["accepted", "rejected", "undecided"]
 STATUS_FILTERS: tuple[StatusFilter, ...] = ("accepted", "rejected", "undecided")
 
 
-class FilteredGapCards(BaseModel):
-  """The cards a triage filter keeps, and how many it hides (issue #79)."""
-
-  cards: list[GapCard]
-  hidden_count: int
-
-
 def _status_filter(card: GapCard) -> StatusFilter:
   """Name a card's judgment state the way the triage filter does."""
   return card.status if card.status is not None else "undecided"
@@ -262,21 +442,24 @@ def filter_gap_cards(
   data: GapCardsData,
   statuses: Collection[StatusFilter] = STATUS_FILTERS,
   gap_types: Collection[str] | None = None,
+  confidence_levels: Collection[str] | None = None,
 ) -> FilteredGapCards:
   """
   Keep the cards matching every filter, in artifact order, counting the rest.
 
-  Filters combine with AND: a card shows only when its status and its Gap Type
-  are both selected. `gap_types=None` means no Gap Type filter. The hidden count
-  is what lets the page always say how many gaps the filters keep out of view.
+  Filters combine with AND: a card shows only when its status, its Gap Type and
+  its confidence level are all selected. `None` means no filter on that facet.
+  The hidden count is what lets the page always say how many gaps the filters
+  keep out of view.
   """
   cards = [
     card
     for card in data.cards
     if _status_filter(card) in statuses
     and (gap_types is None or card.gap_type in gap_types)
+    and (confidence_levels is None or card.confidence in confidence_levels)
   ]
-  return FilteredGapCards(cards=cards, hidden_count=data.gap_count - len(cards))
+  return FilteredGapCards(cards=cards, total_count=data.gap_count)
 
 
 def next_undecided_gap_id(cards: Sequence[GapCard], current: str | None) -> str | None:

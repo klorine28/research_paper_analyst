@@ -90,6 +90,13 @@ class Topic(BaseModel):
     default_factory=list,
     description="Synonyms an extracted phrase may match on (MeSH entry terms).",
   )
+  alias_sources: dict[str, str] = Field(
+    default_factory=dict,
+    description=(
+      "Where an alias came from, keyed by the alias; filled when an alias is "
+      "promoted from a Corpus's Alias Overlay (ADR 0010)."
+    ),
+  )
   description: str | None = Field(default=None, description="Optional scope note.")
 
 
@@ -110,17 +117,17 @@ class Taxonomy(BaseModel):
 
   def resolve(self, phrase: str) -> Topic | None:
     """Map a raw phrase onto a Topic by id, label, or alias (case-insensitive)."""
-    key = _normalize(phrase)
+    key = normalize_phrase(phrase)
     if not key:
       return None
     for topic in self.topics:
       candidates = [topic.id, topic.label, *topic.aliases]
-      if any(_normalize(candidate) == key for candidate in candidates):
+      if any(normalize_phrase(candidate) == key for candidate in candidates):
         return topic
     return None
 
 
-def _normalize(value: str) -> str:
+def normalize_phrase(value: str) -> str:
   """Fold case and collapse internal whitespace for tolerant matching."""
   return " ".join(value.split()).casefold()
 
@@ -155,6 +162,11 @@ def _format_validation_errors(error: ValidationError) -> list[str]:
   return problems
 
 
+def taxonomy_problems(taxonomy: Taxonomy) -> list[str]:
+  """Return every validation problem of an in-memory Taxonomy (none when valid)."""
+  return _semantic_problems(taxonomy)
+
+
 def _semantic_problems(taxonomy: Taxonomy) -> list[str]:
   """Collect problems beyond field shape: emptiness, uniqueness, hierarchy."""
   problems: list[str] = []
@@ -164,6 +176,7 @@ def _semantic_problems(taxonomy: Taxonomy) -> list[str]:
 
   problems.extend(_duplicate_id_problems(taxonomy))
   problems.extend(_alias_problems(taxonomy))
+  problems.extend(_alias_source_problems(taxonomy))
   problems.extend(_parent_problems(taxonomy))
   return problems
 
@@ -184,7 +197,7 @@ def _alias_problems(taxonomy: Taxonomy) -> list[str]:
   owners: dict[str, list[str]] = {}
   for topic in taxonomy.topics:
     for name in (topic.id, topic.label, *topic.aliases):
-      owners.setdefault(_normalize(name), []).append(topic.id)
+      owners.setdefault(normalize_phrase(name), []).append(topic.id)
 
   problems: list[str] = []
   for name, topic_ids in owners.items():
@@ -193,6 +206,20 @@ def _alias_problems(taxonomy: Taxonomy) -> list[str]:
       problems.append(
         f"Alias '{name}' is ambiguous: it maps to topics {', '.join(distinct)}."
       )
+  return problems
+
+
+def _alias_source_problems(taxonomy: Taxonomy) -> list[str]:
+  """Report provenance recorded for a phrase that is not one of the aliases."""
+  problems: list[str] = []
+  for topic in taxonomy.topics:
+    aliases = {normalize_phrase(alias) for alias in topic.aliases}
+    for name in topic.alias_sources:
+      if normalize_phrase(name) not in aliases:
+        problems.append(
+          f"Topic '{topic.id}' records a source for '{name}', which is not one "
+          "of its aliases."
+        )
   return problems
 
 
