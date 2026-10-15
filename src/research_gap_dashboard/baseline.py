@@ -132,7 +132,7 @@ def baseline_corpus(root: Path) -> CorpusBaseline:
     parse_warnings={
       p.citation_key: "; ".join(_parse_issues(p))
       for p in sorted(funnel.papers, key=lambda p: p.citation_key)
-      if p.citation_key in kept and _parse_issues(p)
+      if p.citation_key in kept and (p.near_empty or p.collapsed)
     },
     prompt_versions=_prompt_versions(extract, aggregate),
     facts=_facts(extract),
@@ -195,10 +195,13 @@ def _aggregate_loss(key: str, aggregate: AggregateReport) -> LostPaper | None:
 
 
 def _parse_issues(paper: PaperFunnel) -> list[str]:
-  """Return the funnel's parse-quality notes for a Paper (near-empty, collapsed)."""
-  return [
-    issue for issue in paper.issues if "near-empty" in issue or "collapsed" in issue
-  ]
+  """Return the funnel's parse-quality flags for a Paper, in words."""
+  issues: list[str] = []
+  if paper.near_empty:
+    issues.append(f"near-empty parsed text ({paper.char_count} chars)")
+  if paper.collapsed:
+    issues.append("collapsed into unlabeled sections")
+  return issues
 
 
 def _prompt_versions(
