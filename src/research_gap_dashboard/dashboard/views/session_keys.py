@@ -17,3 +17,8 @@ DISCUSS_GAP_KEY = "discuss_gap_id"
 # A citation-network node click records the Paper it wants the Explainer to open
 # here, so the Explainer page can preselect it after the nav switch (issue #49).
 EXPLAINER_PAPER_KEY = "explainer_paper_key"
+# Gap triage (issue #79): the status and Gap Type filter widgets, and the card
+# "Next undecided" last brought into focus.
+GAP_FILTER_STATUS_KEY = "gap_filter_status"
+GAP_FILTER_TYPE_KEY = "gap_filter_type"
+GAP_FOCUS_KEY = "gap_focus_id"

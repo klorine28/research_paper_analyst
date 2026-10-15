@@ -11,9 +11,14 @@ from research_gap_dashboard.dashboard.artifacts import (
   load_candidate_gaps,
 )
 from research_gap_dashboard.dashboard.gaps import (
+  STATUS_FILTERS,
+  FilteredGapCards,
   GapCard,
   GapCardsData,
+  StatusFilter,
   build_gap_cards,
+  filter_gap_cards,
+  next_undecided_gap_id,
 )
 from research_gap_dashboard.dashboard.judgments import (
   clear_judgment,
@@ -22,11 +27,20 @@ from research_gap_dashboard.dashboard.judgments import (
 )
 from research_gap_dashboard.dashboard.views.session_keys import (
   DISCUSS_GAP_KEY,
+  GAP_FILTER_STATUS_KEY,
+  GAP_FILTER_TYPE_KEY,
+  GAP_FOCUS_KEY,
   PENDING_NAV_KEY,
 )
 from research_gap_dashboard.dashboard.views.widgets import (
   render_evidence_body,
 )
+
+_STATUS_FILTER_LABELS: dict[StatusFilter, str] = {
+  "accepted": text.GAP_STATUS_ACCEPTED,
+  "rejected": text.GAP_STATUS_REJECTED,
+  "undecided": text.GAP_STATUS_UNDECIDED,
+}
 
 
 def render_page(chosen: CorpusChoice) -> None:
@@ -56,8 +70,71 @@ def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
       undecided=data.undecided_count,
     )
   )
-  for card in data.cards:
+  shown = _render_filters(data)
+  if not shown.cards:
+    st.info(text.GAP_FILTER_NO_MATCH)
+    return
+  focus_id = _render_next_undecided(shown.cards)
+  focused = [card for card in shown.cards if card.gap_id == focus_id]
+  others = [card for card in shown.cards if card.gap_id != focus_id]
+  if focused:
+    st.subheader(text.GAP_FOCUS_HEADING)
+    _render_gap_card(focused[0], corpus_root)
+    if others:
+      st.subheader(text.GAP_OTHERS_HEADING)
+  for card in others:
     _render_gap_card(card, corpus_root)
+
+
+def _render_filters(data: GapCardsData) -> FilteredGapCards:
+  """Render the status and Gap Type filters and return the cards they keep."""
+  gap_types = list(dict.fromkeys(card.gap_type for card in data.cards))
+  status_col, type_col = st.columns(2)
+  statuses = status_col.multiselect(
+    text.GAP_FILTER_STATUS_LABEL,
+    options=list(STATUS_FILTERS),
+    default=list(STATUS_FILTERS),
+    format_func=_STATUS_FILTER_LABELS.__getitem__,
+    key=GAP_FILTER_STATUS_KEY,
+  )
+  selected_types = type_col.multiselect(
+    text.GAP_FILTER_TYPE_LABEL,
+    options=gap_types,
+    default=gap_types,
+    format_func=_gap_type_label,
+    key=GAP_FILTER_TYPE_KEY,
+  )
+  shown = filter_gap_cards(data, statuses=statuses, gap_types=selected_types)
+  st.caption(
+    text.GAP_FILTER_SUMMARY.format(
+      shown=len(shown.cards), total=data.gap_count, hidden=shown.hidden_count
+    )
+  )
+  return shown
+
+
+def _gap_type_label(gap_type: str) -> str:
+  """Return the human label for a Gap Type, falling back to its raw name."""
+  return text.GAP_TYPE_LABELS.get(gap_type, gap_type)
+
+
+def _render_next_undecided(cards: list[GapCard]) -> str | None:
+  """
+  Render "Next undecided" and return the card currently in focus, if any.
+
+  Pressing it advances the focus past the current card to the next undecided
+  one among the cards the filters show; the focus is kept in session state so
+  judging the focused card leaves it in place until the next press.
+  """
+  current = st.session_state.get(GAP_FOCUS_KEY)
+  if st.button(text.GAP_NEXT_UNDECIDED_BUTTON, key="gap-next-undecided"):
+    following = next_undecided_gap_id(cards, current)
+    if following is None:
+      st.info(text.GAP_NO_UNDECIDED_SHOWN)
+    else:
+      st.session_state[GAP_FOCUS_KEY] = following
+      current = following
+  return current
 
 
 def _card_status_label(card: GapCard) -> str:

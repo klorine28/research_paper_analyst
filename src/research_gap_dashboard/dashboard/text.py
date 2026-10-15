@@ -300,6 +300,19 @@ GAP_STATUS_UNDECIDED = "Undecided"
 GAP_ACCEPT_BUTTON = "Accept"
 GAP_REJECT_BUTTON = "Reject"
 GAP_CLEAR_BUTTON = "Reset to undecided"
+# Triage controls (issue #79). The hidden count is always stated so a filtered
+# list is never mistaken for every Candidate Gap (CODING_STANDARDS.md > Show the
+# denominator).
+GAP_FILTER_STATUS_LABEL = "Show status"
+GAP_FILTER_TYPE_LABEL = "Show Gap Types"
+GAP_FILTER_SUMMARY = (
+  "Showing {shown} of {total} candidate gaps; {hidden} hidden by the filters."
+)
+GAP_FILTER_NO_MATCH = "No candidate gaps match these filters."
+GAP_NEXT_UNDECIDED_BUTTON = "Next undecided"
+GAP_NO_UNDECIDED_SHOWN = "No undecided gaps among the cards shown."
+GAP_FOCUS_HEADING = "Current gap"
+GAP_OTHERS_HEADING = "Other gaps"
 
 # How each Candidate Gap's kind and confidence read to the researcher; kept here
 # so the dashboard never imports the detect stage's labels (ADR 0002).
