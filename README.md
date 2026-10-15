@@ -116,8 +116,9 @@ doing>`. Ending a session mid-task? `/skill:handoff`. Pi sessions are trees:
 
 ## Dashboard
 
-The dashboard is a Streamlit app that only reads the on-disk artifacts the
-pipeline writes; it never runs pipeline logic (see `docs/adr/0002-...`). Ingest
+The dashboard is a Streamlit app that reads the on-disk artifacts the
+pipeline writes; it never imports pipeline logic (see `docs/adr/0002-...`), but
+it may launch the CLI as a subprocess (`docs/adr/0007-...`). Ingest
 a corpus first, then launch the app:
 
 ```shell
@@ -131,11 +132,18 @@ manifest. The Corpus Overview page shows the paper count, papers per year,
 venues, and what was left out, alongside a prominent reminder that detected
 gaps are candidates for human judgment, not verdicts.
 
-The Gap Cards page (available once `detect` has run) shows one card per
+The Gap Cards page shows one card per
 Candidate Gap: its Gap Type, explanation, confidence, cell count, and the
 verbatim Evidence passages with their source Papers. Accept or reject each
 card; judgments persist to JSON under the corpus's `judgments/` directory and
-are restored when you reopen the corpus, so a review can span months.
+are restored when you reopen the corpus, so a review can span months. Before
+`detect` has run, the page offers a **Run detect** button that runs
+`uv run research-gap-dashboard detect <corpus>` as a blocking subprocess (the
+app must be launched from the project directory). It refuses to start without
+`ANTHROPIC_API_KEY`, refuses a second run while one is in progress on the same
+corpus (a lock under `judgments/`), and reports the run as succeeded, completed
+but incomplete (exit code 2), or failed (exit code 1), with stdout and stderr
+under **Run details**.
 
 The Verify Extractions page (available once `extract` and `parse` have run) lets
 a researcher check each Paper's Extraction against its own text, one field at a
