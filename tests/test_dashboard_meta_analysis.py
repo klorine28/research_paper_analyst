@@ -109,6 +109,22 @@ def test_citation_network_reports_unresolved_papers_rather_than_dropping_them():
   assert any("p02" in note for note in graph.notes)
 
 
+def test_citation_network_reports_papers_without_a_doi_apart():
+  """A no-DOI Paper is named as unresolvable, not told to run --resolve."""
+  papers = [
+    PaperRecord(citation_key="p01", doi="10.1/p01", openalex_id="W1"),
+    PaperRecord(citation_key="thesis", doi=""),
+  ]
+  graph = build_citation_network(_manifest(papers))
+
+  assert [n.node_id for n in graph.nodes] == ["p01"]
+  assert any("1 of 2" in note for note in graph.notes)
+  no_doi = [note for note in graph.notes if "thesis" in note]
+  assert len(no_doi) == 1
+  assert "no DOI" in no_doi[0]
+  assert "--resolve" not in no_doi[0]
+
+
 def test_citation_network_notes_sparse_structure():
   """Fewer in-Corpus citations than Papers earns the sparse-structure note."""
   papers = [

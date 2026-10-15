@@ -37,7 +37,7 @@ class PaperRecord(_ReadModel):
   """One Paper, as the dashboard reads it from the CorpusManifest artifact."""
 
   citation_key: str
-  doi: str
+  doi: str = ""
   title: str = ""
   year: int | None = None
   journal: str = ""
@@ -178,6 +178,8 @@ class AssignmentRecord(_ReadModel):
   axis: str
   category_id: str
   category_label: str = ""
+  original_term: str = ""
+  fact_ref: str = ""
 
 
 class NormalizedFactsRecord(_ReadModel):
@@ -265,6 +267,7 @@ class RetrievalGapsArtifact(_ReadModel):
   label: str = ""
   corpus_paper_count: int = 0
   coupled_paper_count: int = 0
+  no_doi_paper_count: int = 0
   min_overlap: int = 0
   limit: int = 0
   candidates: list[RetrievalCandidateRecord] = []

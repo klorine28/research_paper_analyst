@@ -1,12 +1,14 @@
 """Behavior of the extract stage: parsed sections in, verified structured facts out."""
 
 import shutil
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from conftest import StubLlmClient
+from matcher_cases import MATCHER_CASES, MatcherCase
 
 from research_gap_dashboard import cli
 from research_gap_dashboard.cli import main
@@ -18,7 +20,12 @@ from research_gap_dashboard.extract import (
   read_extractions,
 )
 from research_gap_dashboard.ingest import ingest_corpus, read_manifest
-from research_gap_dashboard.llm import CachingLlmClient, DiskCache
+from research_gap_dashboard.llm import (
+  AnthropicClient,
+  CachingLlmClient,
+  DiskCache,
+  LlmConfig,
+)
 from research_gap_dashboard.parsing import PARSED_SUFFIX, ParsedPaper, ParsedSection
 
 
@@ -268,6 +275,25 @@ def test_markdown_table_pipes_are_ignored_when_matching() -> None:
   assert result.unverified == []
 
 
+@pytest.mark.parametrize("case", MATCHER_CASES, ids=lambda case: case.id)
+def test_pipeline_matcher_shared_cases(case: MatcherCase) -> None:
+  """The extract stage verifies exactly the quotes the dashboard matcher does."""
+  anchor = "Anchor sentence."
+  parsed = _parsed_with(f"{anchor}\n\n{case.paper_text}")
+  fields = _one_finding(anchor)
+  fields["key_findings"].append(
+    {
+      "statement": "The case.",
+      "evidence": {"passage": case.passage, "section": "results"},
+    }
+  )
+
+  result = extract_paper("p", parsed, StubLlmClient(fields))
+
+  dropped = [u.statement for u in result.unverified]
+  assert dropped == ([] if case.verifies else ["The case."])
+
+
 def test_a_typo_is_not_forgiven_by_matching() -> None:
   """Normalization undoes parser artifacts only; an LLM typo still fails to verify."""
   parsed = _parsed_with("prolongation by bradycardial pacing in rabbits")
@@ -423,7 +449,9 @@ def test_a_paper_with_only_bad_quotes_is_a_failure(parsed_corpus: Path) -> None:
 
   assert report.extractions == []
   assert len(report.failures) == 10
-  assert all("no fact" in failure.reason for failure in report.failures)
+  for failure in report.failures:
+    assert "no fact's Evidence verified" in failure.reason
+    assert "1 unverifiable" in failure.reason
 
 
 def test_a_paper_without_parsed_text_is_a_failure(parsed_corpus: Path) -> None:
@@ -470,3 +498,65 @@ def test_cli_extract_requires_an_api_key(parsed_corpus: Path, monkeypatch) -> No
   monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
   assert main(["extract", str(parsed_corpus)]) == cli.EXIT_ERROR
+
+
+def _truncating_post(cut_off_key: str) -> Callable[..., dict[str, Any]]:
+  """
+  Build a fake Anthropic transport that cuts off one Paper's output at `max_tokens`.
+
+  This is what the API returned for 5 of the 50 `takotsubo-50` Papers: a forced
+  tool call with `stop_reason: max_tokens` and an empty `input` (issue #124).
+  """
+
+  def post(  # pylint: disable=unused-argument
+    url: str, headers: Mapping[str, str], payload: dict[str, Any]
+  ) -> dict[str, Any]:
+    prompt = payload["messages"][0]["content"]
+    if f"Study {cut_off_key}." in prompt:
+      return {
+        "stop_reason": "max_tokens",
+        "content": [{"type": "tool_use", "name": "emit", "input": {}}],
+      }
+    return {
+      "stop_reason": "tool_use",
+      "content": [{"type": "tool_use", "name": "emit", "input": _GROUNDED_FIELDS}],
+    }
+
+  return post
+
+
+def test_a_paper_whose_output_was_cut_off_is_reported_as_cut_off(
+  parsed_corpus: Path,
+) -> None:
+  """
+  A Paper whose Extraction hit the token budget is a failure saying so.
+
+  Regression for issue #124: such Papers were dropped as "no fact's Evidence
+  verified against the paper text (0 unverifiable)", which contradicts itself.
+  """
+  cut_off = read_manifest(parsed_corpus).papers[0].citation_key
+  client = AnthropicClient(
+    LlmConfig(api_key="sk-test", max_tokens=4096), post=_truncating_post(cut_off)
+  )
+
+  report = extract_corpus(parsed_corpus, client)
+
+  assert len(report.extractions) == 9
+  assert [f.citation_key for f in report.failures] == [cut_off]
+  reason = report.failures[0].reason
+  assert "max_tokens" in reason
+  assert "LLM_MAX_TOKENS" in reason
+  assert "Evidence" not in reason
+
+
+def test_a_paper_the_model_found_no_facts_in_is_reported_as_such(
+  parsed_corpus: Path,
+) -> None:
+  """An all-empty answer, after its retries, is not blamed on Evidence checks."""
+  report = extract_corpus(parsed_corpus, StubLlmClient({}))
+
+  assert report.extractions == []
+  assert len(report.failures) == 10
+  for failure in report.failures:
+    assert "returned no facts" in failure.reason
+    assert "Evidence" not in failure.reason

@@ -18,6 +18,7 @@ import research_gap_dashboard.dashboard as dashboard_pkg
 
 from research_gap_dashboard.dashboard.artifacts import load_retrieval_gaps
 from research_gap_dashboard.dashboard.retrieval import build_retrieval_gaps
+from research_gap_dashboard.ingest import Paper
 from research_gap_dashboard.retrieval import OUT_OF_CORPUS_LABEL, detect_retrieval_gaps
 
 
@@ -93,3 +94,22 @@ def test_retrieval_page_renders_and_is_separated(
   assert "Retrieval Gaps (out-of-corpus)" in [header.value for header in app.header]
   warnings = " ".join(warning.value for warning in app.warning)
   assert "not evidence-linked gaps" in warnings
+
+
+def test_papers_without_a_doi_are_shown_in_the_denominator(
+  tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """The page says how many Papers had no DOI and so could not be ranked over."""
+  root = tmp_path / "corpus"
+  root.mkdir()
+  preprint = Paper(citation_key="preprint", pdf_path=Path("papers/preprint.pdf"))
+  _write_manifest(root, [*_PAPERS, preprint])
+  detect_retrieval_gaps(root, _openalex(_WORKS), min_overlap=1)
+
+  data = build_retrieval_gaps(load_retrieval_gaps(root))
+  assert data.no_doi_paper_count == 1
+
+  app = _run_retrieval_app(root, monkeypatch)
+  captions = " ".join(caption.value for caption in app.caption)
+  assert "4 of 5 Papers" in captions
+  assert "1 Paper(s) have no DOI" in captions

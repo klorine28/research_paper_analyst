@@ -191,3 +191,73 @@ def test_cli_reports_a_corpus_outside_the_envelope(corpus: Path, caplog):
 
   assert main(["ingest", str(corpus)]) == 1
   assert "v1 supports 10-75" in caplog.text
+
+
+# --- Papers without a DOI (#73) -----------------------------------------------
+
+
+def _add_preprint(corpus: Path, key: str, *, with_pdf: bool = True) -> None:
+  """Append a no-DOI entry (a preprint) and, optionally, a PDF named by its key."""
+  with (corpus / "corpus.bib").open("a", encoding="utf-8") as bib:
+    bib.write(
+      f"\n@misc{{{key},\n"
+      f"  title = {{Unpublished work {key}}},\n"
+      f"  author = {{Preprint, Pat}},\n"
+      f"  year = {{2024}}\n}}\n"
+    )
+  if with_pdf:
+    template = sorted((corpus / "papers").glob("*.pdf"))[0]
+    shutil.copy(template, corpus / "papers" / f"{key}.pdf")
+
+
+def test_an_entry_without_a_doi_is_paired_with_its_pdf_by_citation_key(corpus: Path):
+  """A no-DOI entry with a matching PDF becomes a first-class Paper."""
+  _add_preprint(corpus, "thesis2024")
+
+  manifest = ingest_corpus(corpus)
+
+  assert len(manifest.papers) == 11
+  paper = next(p for p in manifest.papers if p.citation_key == "thesis2024")
+  assert paper.doi == ""
+  assert paper.pdf_path.name == "thesis2024.pdf"
+  assert paper.title == "Unpublished work thesis2024"
+  assert manifest.unmatched_entries == []
+  assert manifest.orphan_pdfs == []
+
+
+def test_an_entry_without_a_doi_or_a_pdf_is_reported_unmatched(corpus: Path):
+  """A no-DOI entry whose PDF is absent is reported, not silently dropped."""
+  _add_preprint(corpus, "thesis2024", with_pdf=False)
+
+  manifest = ingest_corpus(corpus)
+
+  assert len(manifest.papers) == 10
+  assert [u.entry.citation_key for u in manifest.unmatched_entries] == ["thesis2024"]
+  assert manifest.unmatched_entries[0].reason == "no matching PDF"
+
+
+def test_a_paper_without_a_doi_is_not_resolved_and_carries_no_citation_graph(
+  corpus: Path,
+):
+  """Resolution skips a no-DOI Paper: no lookup, no graph, and no false error."""
+  _add_preprint(corpus, "thesis2024")
+  looked_up: list[str] = []
+
+  class _RecordingAdapter(_StubAdapter):  # pylint: disable=too-few-public-methods
+    def resolve(self, doi: str) -> WorkRecord | None:
+      looked_up.append(doi)
+      return WorkRecord(
+        doi=doi,
+        openalex_id=f"https://openalex.org/{doi}",
+        referenced_works=["https://openalex.org/W9"],
+      )
+
+  manifest = ingest_corpus(corpus, adapter=_RecordingAdapter({}))
+
+  assert "" not in looked_up
+  assert len(looked_up) == 10
+  paper = next(p for p in manifest.papers if p.citation_key == "thesis2024")
+  assert paper.openalex_id == ""
+  assert paper.referenced_works == []
+  assert paper.resolution_error is None
+  assert paper.title == "Unpublished work thesis2024"
