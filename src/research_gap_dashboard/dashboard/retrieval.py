@@ -40,6 +40,7 @@ class RetrievalGapsData(BaseModel):
   source: str
   corpus_paper_count: int
   coupled_paper_count: int
+  no_doi_paper_count: int
   min_overlap: int
   candidates: list[RetrievalCandidateView]
 
@@ -71,6 +72,7 @@ def build_retrieval_gaps(artifact: RetrievalGapsArtifact) -> RetrievalGapsData:
     source=artifact.source,
     corpus_paper_count=artifact.corpus_paper_count,
     coupled_paper_count=artifact.coupled_paper_count,
+    no_doi_paper_count=artifact.no_doi_paper_count,
     min_overlap=artifact.min_overlap,
     candidates=[_candidate(record) for record in artifact.candidates],
   )

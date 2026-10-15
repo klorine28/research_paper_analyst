@@ -19,7 +19,11 @@ import research_gap_dashboard.dashboard as dashboard_pkg
 
 from research_gap_dashboard.analytics import CorpusPaper, GroundingContext
 from research_gap_dashboard.dashboard.artifacts import load_candidate_gaps
-from research_gap_dashboard.dashboard.gaps import build_gap_cards, scope_context_to_gap
+from research_gap_dashboard.dashboard.gaps import (
+  build_gap_cards,
+  narrative_scope,
+  scope_context_to_gap,
+)
 from research_gap_dashboard.dashboard.judgments import load_judgments, record_judgment
 from research_gap_dashboard.detect import detect_corpus
 
@@ -121,6 +125,36 @@ def test_scope_context_to_gap_narrows_to_the_gaps_slice(corpus: Path):
   scoped_keys = {paper.citation_key for paper in scoped.papers}
   assert scoped_keys == set(card.source_citation_keys) | evidence_keys
   assert scoped_keys < _corpus_context().allowed_keys
+
+
+def test_narrative_scope_keeps_only_accepted_gaps(corpus: Path):
+  """Rejected and undecided gaps never reach the narrative's grounding context."""
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+  accepted, rejected = data.cards[0], data.cards[1]
+  record_judgment(corpus, accepted.gap_id, "accepted")
+  record_judgment(corpus, rejected.gap_id, "rejected")
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+
+  scope = narrative_scope(data, _corpus_context())
+
+  assert [gap.title for gap in scope.context.gaps] == [accepted.title]
+  assert scope.accepted_count == 1
+  assert scope.rejected_count == 1
+  assert scope.undecided_count == data.gap_count - 2
+  assert scope.paper_count == data.corpus_paper_count
+  # Papers stay the full Corpus: they are the citation allow-list.
+  assert scope.context.allowed_keys == _corpus_context().allowed_keys
+
+
+def test_narrative_scope_with_no_accepted_gaps_is_empty(corpus: Path):
+  """With no verdicts at all, the narrative has nothing to ground itself in."""
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+
+  scope = narrative_scope(data, _corpus_context())
+
+  assert scope.context.gaps == []
+  assert scope.accepted_count == 0
+  assert scope.undecided_count == data.gap_count
 
 
 def test_scope_context_to_gap_carries_the_evidence_passages(corpus: Path):

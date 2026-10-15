@@ -226,11 +226,13 @@ def build_citation_network(manifest: ManifestArtifact) -> NetworkGraph:
   tightly the Corpus cites itself. A node no edge touches is isolated: it is a
   Retrieval-Gap signal (the Corpus may be missing the work that connects it).
   Papers with no OpenAlex id could not be placed and are reported, never assumed
-  to be uncited (they need an ingest ``--resolve`` run).
+  to be uncited: those with a DOI need an ingest ``--resolve`` run, while those
+  without one can never be resolved and are named apart.
   """
   papers = _corpus_papers(manifest)
   by_openalex = {p.openalex_id: p for p in papers if p.openalex_id}
-  unresolved = [p for p in papers if not p.openalex_id]
+  unresolved = [p for p in papers if not p.openalex_id and p.doi]
+  no_doi = [p for p in papers if not p.openalex_id and not p.doi]
 
   nodes: list[GraphNode] = []
   edges: list[GraphEdge] = []
@@ -275,6 +277,13 @@ def build_citation_network(manifest: ManifestArtifact) -> NetworkGraph:
       text.META_CITATION_UNRESOLVED.format(
         count=len(unresolved),
         keys=", ".join(p.citation_key for p in unresolved),
+      )
+    )
+  if no_doi:
+    notes.append(
+      text.META_CITATION_NO_DOI.format(
+        count=len(no_doi),
+        keys=", ".join(p.citation_key for p in no_doi),
       )
     )
   if nodes and len(edges) < len(nodes):

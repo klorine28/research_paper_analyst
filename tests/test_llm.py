@@ -14,6 +14,7 @@ from research_gap_dashboard.llm import (
   LlmConfig,
   LlmConfigError,
   LlmResponseError,
+  LlmTruncatedError,
   RecordedLlmClient,
   build_llm_client,
   complete_model,
@@ -348,3 +349,108 @@ def test_build_llm_client_wraps_in_cache_when_dir_given(tmp_path: Path) -> None:
 
   uncached = build_llm_client(LlmConfig(api_key="sk-test"))
   assert isinstance(uncached, AnthropicClient)
+
+
+def test_a_response_cut_off_at_max_tokens_is_a_truncation_error() -> None:
+  """
+  Output cut off by the token budget is reported, not returned as an empty object.
+
+  Anthropic hands back a forced tool call cut off at `max_tokens` with an empty
+  `input`; returned as-is it reads as "the model found no facts" (issue #124).
+  """
+  post = _RecordingPost(
+    {
+      "stop_reason": "max_tokens",
+      "content": [{"type": "tool_use", "name": "emit", "input": {}}],
+    }
+  )
+  client = AnthropicClient(LlmConfig(api_key="sk-test", max_tokens=4096), post=post)
+
+  with pytest.raises(LlmTruncatedError, match="LLM_MAX_TOKENS"):
+    client.complete("p", Extraction.model_json_schema(), prompt_version="v1")
+
+
+def test_a_truncated_response_is_never_cached(tmp_path: Path) -> None:
+  """A cut-off response raises before the cache stores it, so a rerun retries."""
+  post = _RecordingPost(
+    {"stop_reason": "max_tokens", "content": [{"type": "tool_use", "input": {}}]}
+  )
+  client = CachingLlmClient(
+    AnthropicClient(LlmConfig(api_key="sk-test"), post=post), DiskCache(tmp_path)
+  )
+
+  with pytest.raises(LlmTruncatedError):
+    client.complete("p", Extraction.model_json_schema(), prompt_version="v1")
+
+  assert not list(tmp_path.glob("*.json"))
+
+
+def test_the_default_output_budget_fits_a_full_extraction() -> None:
+  """
+  The default budget leaves room for a long Paper's Extraction.
+
+  At 4096 tokens, 5 of the 50 `takotsubo-50` Papers had their Extraction cut
+  off; the longest complete ones were already near 5000 tokens (issue #124).
+  """
+  assert LlmConfig.from_env({}).max_tokens >= 16384
+
+
+class _OutcomeClient(_SequenceClient):  # pylint: disable=too-few-public-methods
+  """Plays a scripted sequence of outcomes, raising those that are exceptions."""
+
+  def __init__(self, outcomes: list[dict[str, Any] | Exception]):
+    super().__init__([])
+    self.outcomes = outcomes
+
+  def complete(  # pylint: disable=unused-argument
+    self,
+    prompt: str,
+    schema: dict[str, Any],
+    *,
+    prompt_version: str,
+    tier: str = "default",
+    refresh: bool = False,
+  ) -> dict[str, Any]:
+    """Return or raise the next scripted outcome."""
+    outcome = self.outcomes[min(self.calls, len(self.outcomes) - 1)]
+    self.calls += 1
+    if isinstance(outcome, Exception):
+      raise outcome
+    return outcome
+
+
+def test_complete_model_retries_past_a_response_error() -> None:
+  """A call that raises a response error is retried like a rejected result."""
+  client = _OutcomeClient(
+    [LlmTruncatedError("cut off"), {"research_question": "q", "findings": ["a"]}]
+  )
+
+  result = complete_model(client, "prompt", Extraction, prompt_version="v1", attempts=2)
+
+  assert result.findings == ["a"]
+
+
+def test_complete_model_raises_the_response_error_when_retries_run_out() -> None:
+  """When every attempt raises, the last response error reaches the caller."""
+  client = _OutcomeClient([LlmTruncatedError("cut off")])
+
+  with pytest.raises(LlmTruncatedError):
+    complete_model(client, "prompt", Extraction, prompt_version="v1", attempts=3)
+  assert client.calls == 3
+
+
+def test_a_response_error_after_an_empty_answer_is_what_gets_raised() -> None:
+  """A cut-off last attempt says more than an earlier unaccepted, empty answer."""
+  client = _OutcomeClient(
+    [{"research_question": "", "findings": []}, LlmTruncatedError("cut off")]
+  )
+
+  with pytest.raises(LlmTruncatedError):
+    complete_model(
+      client,
+      "prompt",
+      Extraction,
+      prompt_version="v1",
+      attempts=2,
+      accept=lambda ex: bool(ex.findings),
+    )

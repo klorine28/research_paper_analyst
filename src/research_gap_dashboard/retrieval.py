@@ -75,6 +75,10 @@ class RetrievalGapsReport(BaseModel):
   coupled_paper_count: int = Field(
     description="Papers with a resolved citation list to rank over."
   )
+  no_doi_paper_count: int = Field(
+    default=0,
+    description="Papers with no DOI, so never resolved and never ranked over.",
+  )
   min_overlap: int = Field(description="Least citation overlap a candidate needed.")
   limit: int = Field(description="Cap on candidates written.")
   candidates: list[RetrievalCandidate]
@@ -114,6 +118,7 @@ def detect_retrieval_gaps(
     source=adapter.name,
     corpus_paper_count=len(manifest.papers),
     coupled_paper_count=len(coupled),
+    no_doi_paper_count=sum(1 for p in manifest.papers if not p.doi),
     min_overlap=min_overlap,
     limit=limit,
     candidates=candidates,

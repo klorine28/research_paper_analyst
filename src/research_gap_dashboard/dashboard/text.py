@@ -436,6 +436,10 @@ META_CITATION_UNRESOLVED = (
   "{count} Paper(s) have no OpenAlex id and are not on the graph (run ingest "
   "`--resolve`): {keys}."
 )
+META_CITATION_NO_DOI = (
+  "{count} Paper(s) have no DOI, so they cannot be resolved and are not on "
+  "the graph: {keys}."
+)
 META_CITATION_SPARSE = (
   "Sparse citation structure: fewer in-Corpus citations than Papers. On a "
   "tight topical Corpus this is expected; read isolated nodes with care."
@@ -598,6 +602,10 @@ RETRIEVAL_SUMMARY = (
   "{coupled} of {corpus} Papers that carry a resolved citation list. Each "
   "appears in at least {min_overlap} Corpus Papers' references."
 )
+RETRIEVAL_NO_DOI = (
+  "{count} Paper(s) have no DOI, so they carry no citation list and are not "
+  "ranked over."
+)
 RETRIEVAL_SOURCE_LABEL = "Ranking read from: {source}."
 RETRIEVAL_OVERLAP_LABEL = "Cited by {overlap} Corpus Paper(s): {papers}."
 RETRIEVAL_META_LABEL = "{venue}{year}{cited_by}"
@@ -744,8 +752,18 @@ ANALYTICS_DROPPED_LABEL = (
 )
 ANALYTICS_SUMMARY_HEADING = "Narrative summary"
 ANALYTICS_SUMMARY_INTRO = (
-  "A few paragraphs for a 'gaps in the literature' section, drawn from this "
-  "Corpus's Candidate Gaps and citing only its Papers."
+  "A few paragraphs for a 'gaps in the literature' section, drawn only from "
+  "the Candidate Gaps you accepted on the Gap Cards page and citing only this "
+  "Corpus's Papers."
+)
+ANALYTICS_SUMMARY_NEEDS_ACCEPTED = (
+  "You have not accepted any Candidate Gaps yet ({undecided} still undecided). "
+  "The narrative summary is built only from gaps you accept, so open the Gap "
+  "Cards page, accept the gaps you judge real, then come back here."
+)
+ANALYTICS_SUMMARY_DENOMINATOR = (
+  "Covers {accepted} accepted gap(s) over {papers} Papers. "
+  "Excluded: {rejected} rejected and {undecided} undecided gap(s)."
 )
 ANALYTICS_SUMMARY_NEEDS_GAPS = (
   "No Candidate Gaps found for this Corpus yet. Run the pipeline through "
