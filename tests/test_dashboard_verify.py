@@ -18,11 +18,13 @@ from research_gap_dashboard.dashboard.artifacts import (
 )
 from research_gap_dashboard.dashboard.extraction_review import (
   AddedFact,
+  ExtractionReviewLog,
   FactVerdict,
   PaperReview,
 )
 from research_gap_dashboard.dashboard.verify import (
   FIELD_LABELS,
+  build_corpus_progress,
   build_extraction_review,
 )
 
@@ -177,3 +179,93 @@ def test_the_pdf_path_is_carried_onto_the_view():
 def _now() -> datetime:
   """Return a timestamp for building verdicts in tests."""
   return datetime.now(timezone.utc)
+
+
+def _second_extraction() -> ExtractionRecord:
+  """Build a second Paper's Extraction with one key finding."""
+  return ExtractionRecord(
+    citation_key="paper-b",
+    fields=ExtractionFieldsRecord(
+      key_findings=[_fact("Mortality fell.", "Mortality fell by 10%.", "results")]
+    ),
+  )
+
+
+def test_corpus_progress_counts_reviewed_facts_and_fully_reviewed_papers():
+  """Progress spans every Paper: reviewed / total facts and Papers fully reviewed."""
+  log = ExtractionReviewLog(
+    reviews=[
+      PaperReview(
+        citation_key="paper-b",
+        verdicts=[
+          FactVerdict(
+            field="key_findings", fact_index=0, verdict="flagged", decided_at=_now()
+          )
+        ],
+      ),
+      PaperReview(
+        citation_key="paper-a",
+        verdicts=[
+          FactVerdict(
+            field="methods", fact_index=1, verdict="approved", decided_at=_now()
+          )
+        ],
+      ),
+    ]
+  )
+
+  progress = build_corpus_progress(
+    [_extraction(), _second_extraction()], log, {"paper-a", "paper-b"}
+  )
+
+  assert progress.reviewed_facts == 2
+  assert progress.total_facts == 3
+  assert progress.fully_reviewed_papers == 1
+  assert progress.total_papers == 2
+  assert not progress.is_complete
+
+
+def test_corpus_progress_ignores_stale_verdicts_and_papers_outside_the_manifest():
+  """Verdicts on facts the Extraction lacks, or on dropped Papers, are not counted."""
+  log = ExtractionReviewLog(
+    reviews=[
+      PaperReview(
+        citation_key="paper-a",
+        verdicts=[
+          FactVerdict(
+            field="methods", fact_index=7, verdict="approved", decided_at=_now()
+          )
+        ],
+      )
+    ]
+  )
+
+  progress = build_corpus_progress(
+    [_extraction(), _second_extraction()], log, {"paper-a"}
+  )
+
+  assert progress.reviewed_facts == 0
+  assert progress.total_facts == 2
+  assert progress.total_papers == 1
+  assert progress.fully_reviewed_papers == 0
+
+
+def test_corpus_progress_is_complete_when_every_fact_has_a_verdict():
+  """Once every extracted fact carries a verdict, verification is done."""
+  log = ExtractionReviewLog(
+    reviews=[
+      PaperReview(
+        citation_key="paper-b",
+        verdicts=[
+          FactVerdict(
+            field="key_findings", fact_index=0, verdict="approved", decided_at=_now()
+          )
+        ],
+      )
+    ]
+  )
+
+  progress = build_corpus_progress([_second_extraction()], log, {"paper-b"})
+
+  assert progress.is_complete
+  assert progress.fully_reviewed_papers == progress.total_papers == 1
