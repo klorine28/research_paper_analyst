@@ -159,7 +159,25 @@ app must be launched from the project directory). It refuses to start without
 `ANTHROPIC_API_KEY`, refuses a second run while one is in progress on the same
 corpus (a lock under `judgments/`), and reports the run as succeeded, completed
 but incomplete (exit code 2), or failed (exit code 1), with stdout and stderr
-under **Run details**.
+under **Run output**.
+
+The Pipeline page lists every stage (`ingest`, `parse`, `extract`, `explain`,
+`aggregate`, `detect`, `retrieve`) as **done**, **not run**, or **stale**, read
+only from which artifacts exist and when they were written: a stage is stale
+when one of its inputs (say, a PDF added after `ingest`) is newer than its
+artifact, and the page names the changed inputs. Every stage has a **Run** or
+**Re-run** button, always available, that launches the stage the same way. Cost
+stays out of the way in a collapsed **Run details** expander: each LLM stage's
+estimated cost (a rough upper bound — Papers × a per-Paper token allowance at
+the default model's list price, as if nothing were cached) and the actual cost
+of its last run, priced from the token usage the CLI records in
+`artifacts/llm-usage.json`. A run whose estimate is above
+`LLM_COST_CONFIRM_ABOVE` asks for confirmation before it starts; a model with
+no known price always asks.
+
+| Variable | Default | Why |
+| --- | --- | --- |
+| `LLM_COST_CONFIRM_ABOVE` | `1.00` | US dollars. A dashboard run estimated above this asks "Run anyway?" first, so an expensive run never surprises you. `0` confirms every LLM run; a value that isn't a non-negative number is reported in the app and treated as `0`. |
 
 The Verify Extractions page (available once `extract` and `parse` have run) lets
 a researcher check each Paper's Extraction against its own text, one field at a

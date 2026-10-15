@@ -31,3 +31,6 @@ GAP_CONFIDENCE_WIDGET_KEY = "gap_confidence_filter_widget"
 # The last pipeline run's result survives the rerun that follows it, so the
 # outcome stays on screen after the page redraws with the new artifact (ADR 0007).
 LAST_RUN_KEY = "last_pipeline_run"
+# A run whose estimated cost is above LLM_COST_CONFIRM_ABOVE waits here, as
+# (corpus root, stage), until the researcher confirms or cancels it (issue #70).
+PENDING_RUN_KEY = "pending_pipeline_run"
