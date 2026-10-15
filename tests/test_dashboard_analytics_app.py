@@ -9,6 +9,7 @@ provenance.
 """
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 from conftest import StubLlmClient
@@ -29,6 +30,12 @@ from research_gap_dashboard.dashboard.text import (
   PAGE_ANALYTICS,
 )
 from research_gap_dashboard.detect import detect_corpus
+from research_gap_dashboard.extract import (
+  Evidence,
+  ExtractedFact,
+  Extraction,
+  ExtractionFields,
+)
 
 
 @pytest.fixture(name="corpus")
@@ -39,15 +46,17 @@ def corpus_fixture(tmp_path: Path) -> Path:
   return root
 
 
-def _run_analytics(corpus: Path, monkeypatch: pytest.MonkeyPatch, answer: str):
+def _run_analytics(
+  corpus: Path,
+  monkeypatch: pytest.MonkeyPatch,
+  answer: str,
+  client: StubLlmClient | None = None,
+):
   """Run the shell on the Analytics page with a keyless stub answering the chat."""
   from streamlit.testing.v1 import AppTest
 
-  monkeypatch.setattr(
-    analytics_module,
-    "build_analytics_client",
-    lambda _cache_dir: StubLlmClient({"answer": answer, "citations": []}),
-  )
+  stub = client or StubLlmClient({"answer": answer, "citations": []})
+  monkeypatch.setattr(analytics_module, "build_analytics_client", lambda _dir: stub)
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
@@ -107,6 +116,52 @@ def test_new_rename_and_delete_a_conversation(
   assert not app.exception
   titles = {summary.title for summary in list_conversations(corpus)}
   assert "Beta-blocker thread" in titles
+
+
+class _PromptRecorder(StubLlmClient):  # pylint: disable=too-few-public-methods
+  """A stub answer that also keeps every prompt it was sent."""
+
+  def __init__(self, result: dict[str, Any]):
+    super().__init__(result)
+    self.prompts: list[str] = []
+
+  def complete(self, prompt, schema, *, prompt_version, tier="default", refresh=False):
+    self.prompts.append(prompt)
+    return super().complete(
+      prompt, schema, prompt_version=prompt_version, tier=tier, refresh=refresh
+    )
+
+
+def test_a_general_question_is_grounded_in_the_retrieved_extracted_facts(
+  tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """Asking about one Paper's methods sends its extracted facts and Evidence (#97)."""
+  extraction = Extraction(
+    citation_key="p05",
+    fields=ExtractionFields(
+      methods=[
+        ExtractedFact(
+          statement="Randomized beta-blocker trial",
+          evidence=Evidence(
+            passage="Patients were randomized to bisoprolol or placebo.",
+            section="methods",
+          ),
+        )
+      ]
+    ),
+  )
+  root = _write_corpus(tmp_path / "corpus", _PLACEMENTS, extractions=[extraction])
+  detect_corpus(root, StubLlmClient({}))
+  recorder = _PromptRecorder({"answer": "A randomized trial.", "citations": ["p05"]})
+  app = _run_analytics(root, monkeypatch, "", client=recorder)
+
+  app.chat_input[0].set_value("What methods did p05 use?").run()
+
+  assert not app.exception
+  assert any(
+    "Patients were randomized to bisoprolol or placebo." in prompt
+    for prompt in recorder.prompts
+  )
 
 
 def _run_with_narrative(corpus: Path, monkeypatch: pytest.MonkeyPatch):

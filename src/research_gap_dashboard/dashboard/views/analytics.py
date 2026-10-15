@@ -27,6 +27,7 @@ from research_gap_dashboard.dashboard.artifacts import (
 )
 from research_gap_dashboard.dashboard.chat_history import ChatTurn
 from research_gap_dashboard.dashboard.conversations import Conversation
+from research_gap_dashboard.dashboard.fact_pool import load_fact_pool
 from research_gap_dashboard.dashboard.gaps import (
   GapCard,
   build_gap_cards,
@@ -222,7 +223,12 @@ def _grounding_context(
 ) -> GroundingContext:
   """Map this Corpus's artifact read models onto the analytics grounding context."""
   papers = [
-    CorpusPaper(citation_key=paper.citation_key, title=paper.title, year=paper.year)
+    CorpusPaper(
+      citation_key=paper.citation_key,
+      title=paper.title,
+      year=paper.year,
+      authors=paper.authors,
+    )
     for paper in manifest.papers
   ]
   gap_facts: list[GapFact] = []
@@ -237,7 +243,9 @@ def _grounding_context(
           source_citation_keys=gap.source_citation_keys,
         )
       )
-  return GroundingContext(papers=papers, gaps=gap_facts)
+  return GroundingContext(
+    papers=papers, gaps=gap_facts, fact_pool=load_fact_pool(corpus_root)
+  )
 
 
 def _render_narrative_summary(
