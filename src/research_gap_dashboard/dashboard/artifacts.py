@@ -83,6 +83,8 @@ class GapEvidenceRecord(_ReadModel):
   citation_key: str
   evidence: EvidenceRecord
   role: str = ""
+  axis: str = ""
+  category_id: str = ""
   original_term: str = ""
   statement: str = ""
 
@@ -100,6 +102,17 @@ class CandidateGapRecord(_ReadModel):
   cell_count: int | None = None
   source_citation_keys: list[str] = []
   evidence: list[GapEvidenceRecord] = []
+  # Cell gaps (Knowledge and Coverage) only: the cell and its two categories.
+  row_axis: str = ""
+  row_id: str = ""
+  row_label: str = ""
+  column_axis: str = ""
+  column_id: str = ""
+  column_label: str = ""
+  row_paper_count: int = 0
+  column_paper_count: int = 0
+  # Unanswered Limitations only: how many later Papers were checked.
+  later_paper_count: int = 0
 
 
 class MatrixCategoryRecord(_ReadModel):
