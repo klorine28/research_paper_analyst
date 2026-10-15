@@ -1,4 +1,10 @@
-"""The Verify Extractions page: review one Paper's extracted facts against its text."""
+"""
+The Verify Extractions page: review one Paper's extracted facts against its text.
+
+Verdicts go to a `judgments/` overlay (ADR 0003). Promoting the reviewed
+Extraction to a Gold Extraction is the pipeline's `promote-gold` command, which
+the page launches through the runner (ADR 0007) rather than doing itself.
+"""
 
 from pathlib import Path
 
@@ -32,6 +38,10 @@ from research_gap_dashboard.dashboard.verify import (
   build_corpus_progress,
   build_extraction_review,
 )
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  render_run_button,
+)
 from research_gap_dashboard.dashboard.views.widgets import (
   paper_label,
   render_evidence_body,
@@ -60,6 +70,7 @@ def render_page(chosen: CorpusChoice) -> None:
 
   review_log = load_extraction_review(corpus_root)
   _render_corpus_progress(build_corpus_progress(choices, review_log, set(by_key)))
+  _render_promote_gold(corpus_root)
   extraction = st.selectbox(
     text.VERIFY_PAPER_PICKER_LABEL,
     choices,
@@ -88,6 +99,13 @@ def _render_corpus_progress(progress: CorpusVerificationProgress) -> None:
   st.caption(summary)
   if progress.is_complete:
     st.success(text.VERIFY_CORPUS_COMPLETE)
+
+
+def _render_promote_gold(corpus_root: Path) -> None:
+  """Offer the promote-gold seam command and show how the last run went."""
+  render_last_run(corpus_root)
+  render_run_button(corpus_root, "promote-gold", text.VERIFY_PROMOTE_BUTTON)
+  st.caption(text.VERIFY_PROMOTE_HELP)
 
 
 def render_verify(

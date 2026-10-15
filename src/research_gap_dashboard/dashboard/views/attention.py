@@ -1,4 +1,11 @@
-"""The Needs Manual Attention page: Papers that fell out, with correction boxes."""
+"""
+The Needs Manual Attention page: Papers that fell out, with correction boxes.
+
+A correction box saves the pasted text as a `judgments/` overlay (the
+dashboard's only write, ADR 0006) and then has the runner apply it and
+re-extract (`apply-parse-corrections` then `extract`, ADR 0007), so the queue
+redraws from the artifacts those pipeline commands wrote.
+"""
 
 from pathlib import Path
 
@@ -14,6 +21,14 @@ from research_gap_dashboard.dashboard.parse_corrections import (
   EmptyCorrectionError,
   record_parse_correction,
 )
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  run_and_redraw,
+)
+
+# The seam command that folds the overlay into paper-data/, then the stage that
+# re-reads it; the runner holds the Corpus lock across both.
+APPLY_AND_REEXTRACT = ("apply-parse-corrections", "extract")
 
 
 def render_page(chosen: CorpusChoice) -> None:
@@ -25,6 +40,9 @@ def render_page(chosen: CorpusChoice) -> None:
 def render_attention(report: AttentionReport, corpus_root: Path) -> None:
   """Render the needs-manual-attention queue and per-Paper correction boxes."""
   st.header(text.ATTENTION_HEADING)
+  # Before the early returns: a correction that clears the queue must still
+  # show how its run went.
+  render_last_run(corpus_root)
   banner = report.banner
   if banner.total_papers == 0:
     st.info(text.ATTENTION_NO_PIPELINE)
@@ -78,14 +96,16 @@ def _render_attention_section(
 
 
 def _render_correction_box(corpus_root: Path, citation_key: str) -> None:
-  """Render the paste-the-correct-text box that writes a judgments/ overlay."""
+  """Render the paste box that saves a judgments/ overlay, then applies it."""
   pasted = st.text_area(
     text.ATTENTION_CORRECTION_LABEL,
     key=f"parse-correction-{citation_key}",
     help=text.ATTENTION_CORRECTION_HELP,
   )
   if not st.button(
-    text.ATTENTION_SAVE_CORRECTION, key=f"save-correction-{citation_key}"
+    text.ATTENTION_APPLY_CORRECTION,
+    key=f"apply-correction-{citation_key}",
+    type="primary",
   ):
     return
   try:
@@ -93,4 +113,4 @@ def _render_correction_box(corpus_root: Path, citation_key: str) -> None:
   except EmptyCorrectionError:
     st.warning(text.ATTENTION_CORRECTION_EMPTY)
     return
-  st.success(text.ATTENTION_CORRECTION_SAVED)
+  run_and_redraw(corpus_root, APPLY_AND_REEXTRACT)

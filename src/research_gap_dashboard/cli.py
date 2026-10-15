@@ -37,6 +37,7 @@ from research_gap_dashboard.ingest import (
 from research_gap_dashboard.llm import LlmConfigError, build_llm_client
 from research_gap_dashboard.parsing import parse_corpus
 from research_gap_dashboard.promote_gold import (
+  GoldPromotionRefusedError,
   default_gold_path,
   promote_gold,
   write_gold,
@@ -543,6 +544,14 @@ def _run_promote_gold(arguments: argparse.Namespace) -> int:
     gold = promote_gold(arguments.corpus)
   except FileNotFoundError as error:
     logger.error("Run `extract` and review the Extraction first: %s", error)
+    return EXIT_ERROR
+  except GoldPromotionRefusedError as error:
+    # Logged last so a caller that shows only the final line shows the reason.
+    logger.error(
+      "Gold promotion refused, nothing written. %s. Fix or remove that fact "
+      "on the Verify page, then promote again.",
+      error,
+    )
     return EXIT_ERROR
 
   output_path = arguments.out or default_gold_path(arguments.corpus)

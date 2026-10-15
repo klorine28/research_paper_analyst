@@ -8,13 +8,22 @@ manifest, an Extraction, and parsed text, then drives the page's navigation.
 """
 
 import json
+import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 from streamlit.testing.v1 import AppTest
 
 import research_gap_dashboard.dashboard as dashboard_pkg
-from research_gap_dashboard.dashboard.text import PAGE_VERIFY, VERIFY_HEADING
+from research_gap_dashboard.dashboard import pipeline_runner
+from research_gap_dashboard.dashboard.text import (
+  PAGE_VERIFY,
+  RUN_FAILED_WITH_REASON,
+  RUN_SUCCEEDED,
+  VERIFY_HEADING,
+  VERIFY_PROMOTE_BUTTON,
+)
 
 
 def _build_corpus(root: Path) -> None:
@@ -160,3 +169,61 @@ def test_verify_page_shows_corpus_progress_that_updates_on_a_verdict(
     "1 of 1 Papers fully reviewed." in _captions(app)
   )
   assert any("Every extracted fact" in block.value for block in app.success)
+
+
+class _FakePromote:
+  """Stands in for `subprocess.run`, recording the CLI command each launch ran."""
+
+  def __init__(self, returncode: int = 0, stderr: str = "") -> None:
+    self.returncode = returncode
+    self.stderr = stderr
+    self.commands: list[list[str]] = []
+
+  def __call__(self, args: list[str], **_kwargs: Any) -> subprocess.CompletedProcess:
+    self.commands.append(list(args))
+    return subprocess.CompletedProcess(args, self.returncode, "", self.stderr)
+
+
+def _click_promote(app: AppTest) -> None:
+  promote = next(b for b in app.button if b.label == VERIFY_PROMOTE_BUTTON)
+  promote.click().run()
+
+
+def test_verify_page_promotes_to_gold_through_the_runner(
+  tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """Promote runs the CLI's promote-gold seam command, without needing a key."""
+  corpus = tmp_path / "corpus"
+  _build_corpus(corpus)
+  fake = _FakePromote()
+  monkeypatch.setattr(pipeline_runner.subprocess, "run", fake)
+  monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+
+  app = _run_verify_page(tmp_path, monkeypatch)
+  _click_promote(app)
+
+  assert not app.exception
+  assert [command[3:] for command in fake.commands] == [
+    ["promote-gold", str(corpus.resolve())]
+  ]
+  assert RUN_SUCCEEDED.format(stage="promote-gold") in [s.value for s in app.success]
+
+
+def test_verify_page_shows_a_refused_promotion_with_its_reason(
+  tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """The strict refusal's reason is in the error itself, not only in the output."""
+  _build_corpus(tmp_path / "corpus")
+  reason = (
+    "Gold promotion refused, nothing written. Paper 'paper-a': Evidence in "
+    "'methods': passage not found in the paper text."
+  )
+  fake = _FakePromote(returncode=1, stderr=f"Building\n{reason}\n")
+  monkeypatch.setattr(pipeline_runner.subprocess, "run", fake)
+
+  app = _run_verify_page(tmp_path, monkeypatch)
+  _click_promote(app)
+
+  assert not app.exception
+  errors = [e.value for e in app.error]
+  assert RUN_FAILED_WITH_REASON.format(stage="promote-gold", reason=reason) in errors

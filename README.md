@@ -168,9 +168,18 @@ hallucinated fact, or add a missing one. Verdicts are annotation-only (see
 `docs/adr/0003-...`): they persist to a review overlay under `judgments/` and
 never change `extractions.json`, so `aggregate`/`detect` stay deterministic. Any
 edited or added Evidence must be a verbatim quote from the Paper's parsed text,
-re-verified before it is saved. Promote a reviewed Extraction to a committed
-Gold Extraction regression fixture with the command-line step (not the browser):
+re-verified before it is saved. **Promote to Gold Extraction** on that page
+turns the reviewed Extraction into a committed Gold Extraction regression
+fixture by running the pipeline's `promote-gold` command through the runner
+(the browser never writes the fixture itself). Promotion is strict: if any kept
+quote is not verbatim in its Paper, nothing is written and the page shows which
+Paper and passage refused it. The same step from a terminal:
 
 ```shell
 uv run research-gap-dashboard promote-gold path/to/corpus
 ```
+
+On the Needs Attention page, pasting a broken Paper's correct text and clicking
+**Apply correction & re-extract** saves the text to a `judgments/` overlay, then
+runs `apply-parse-corrections` and `extract` in one locked run and redraws the
+queue (ADR 0006/0007).
