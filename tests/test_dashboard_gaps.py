@@ -20,7 +20,9 @@ import research_gap_dashboard.dashboard as dashboard_pkg
 from research_gap_dashboard.analytics import CorpusPaper, GroundingContext
 from research_gap_dashboard.dashboard.artifacts import load_candidate_gaps
 from research_gap_dashboard.dashboard.gaps import (
+  DEFAULT_CONFIDENCE_FILTER,
   build_gap_cards,
+  filter_by_confidence,
   narrative_scope,
   scope_context_to_gap,
 )
@@ -242,3 +244,76 @@ def test_discuss_this_gap_opens_a_persistent_scoped_conversation(
   saved = load_conversation(corpus, conversation_id_for_gap(gap_id))
   assert saved is not None
   assert [turn.content for turn in saved.turns] == ["Why is this a gap?", "Grounded."]
+
+
+def test_confidence_filter_defaults_to_high_and_medium(corpus: Path):
+  """By default Low-confidence gaps are hidden, and the hidden count says so."""
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+
+  filtered = filter_by_confidence(data, DEFAULT_CONFIDENCE_FILTER)
+
+  assert [card.confidence for card in filtered.cards] == ["medium"]
+  assert filtered.shown_count == 1
+  assert filtered.hidden_count == 2
+  assert filtered.total_count == data.gap_count
+
+
+@pytest.mark.parametrize(
+  ("levels", "shown", "hidden"),
+  [
+    (("high", "medium", "low"), 3, 0),
+    (("low",), 2, 1),
+    (("high",), 0, 3),
+    ((), 0, 3),
+  ],
+)
+def test_confidence_filter_keeps_only_the_chosen_levels(
+  corpus: Path, levels: tuple[str, ...], shown: int, hidden: int
+):
+  """Only cards at a chosen level are shown; every other card counts as hidden."""
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+
+  filtered = filter_by_confidence(data, levels)
+
+  assert all(card.confidence in levels for card in filtered.cards)
+  assert filtered.shown_count == shown
+  assert filtered.hidden_count == hidden
+
+
+def test_confidence_filter_keeps_the_artifact_order(corpus: Path):
+  """Filtering never reorders the cards it keeps."""
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+
+  filtered = filter_by_confidence(data, ("high", "medium", "low"))
+
+  assert [c.gap_id for c in filtered.cards] == [c.gap_id for c in data.cards]
+
+
+def test_gap_cards_page_shows_the_hidden_count_and_keeps_the_filter(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """The page states how many gaps are hidden; the filter survives navigation."""
+  from research_gap_dashboard.dashboard.text import (
+    GAP_FILTER_HIDDEN_SUMMARY,
+    PAGE_OVERVIEW,
+  )
+
+  app = _run_gap_cards_app(corpus, monkeypatch)
+
+  def captions() -> list[str]:
+    return [block.value for block in app.caption]
+
+  assert not app.exception
+  assert GAP_FILTER_HIDDEN_SUMMARY.format(shown=1, total=3, hidden=2) in captions()
+  assert len([b for b in app.button if b.key.startswith("accept-")]) == 1
+
+  app.multiselect[0].set_value(["high", "medium", "low"]).run()
+
+  assert GAP_FILTER_HIDDEN_SUMMARY.format(shown=3, total=3, hidden=0) in captions()
+
+  app.radio[0].set_value(PAGE_OVERVIEW).run()
+  app.radio[0].set_value("Gap Cards").run()
+
+  assert not app.exception
+  assert app.multiselect[0].value == ["high", "medium", "low"]
+  assert GAP_FILTER_HIDDEN_SUMMARY.format(shown=3, total=3, hidden=0) in captions()

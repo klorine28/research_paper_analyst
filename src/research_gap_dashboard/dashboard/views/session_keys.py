@@ -17,3 +17,9 @@ DISCUSS_GAP_KEY = "discuss_gap_id"
 # A citation-network node click records the Paper it wants the Explainer to open
 # here, so the Explainer page can preselect it after the nav switch (issue #49).
 EXPLAINER_PAPER_KEY = "explainer_paper_key"
+# The Gap Cards confidence filter keeps its choice here rather than only under its
+# widget key: Streamlit drops a widget's state once a run doesn't render it, so
+# without this copy the filter would reset whenever the researcher left the page
+# (issue #108).
+GAP_CONFIDENCE_FILTER_KEY = "gap_confidence_filter"
+GAP_CONFIDENCE_WIDGET_KEY = "gap_confidence_filter_widget"
