@@ -13,13 +13,19 @@ from research_gap_dashboard.dashboard.retrieval import (
   RetrievalGapsData,
   build_retrieval_gaps,
 )
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  render_run_buttons,
+)
 
 
 def render_page(chosen: CorpusChoice) -> None:
   """Render the Retrieval Gaps page for the chosen Corpus."""
   if not has_retrieval_gaps(chosen.root):
     st.header(text.RETRIEVAL_HEADING)
+    render_last_run(chosen.root)
     st.warning(text.NO_RETRIEVAL_GAPS_ARTIFACT)
+    render_run_buttons(chosen.root, ["retrieve"], scope="retrieval")
     return
   render_retrieval_gaps(build_retrieval_gaps(load_retrieval_gaps(chosen.root)))
 

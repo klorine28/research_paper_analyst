@@ -15,9 +15,17 @@ from pathlib import Path
 import streamlit as st
 
 from research_gap_dashboard.dashboard import text
-from research_gap_dashboard.dashboard.artifacts import CorpusChoice, discover_corpora
+from research_gap_dashboard.dashboard.artifacts import (
+  CorpusChoice,
+  discover_corpora,
+  discover_uningested_corpora,
+)
 from research_gap_dashboard.dashboard.attention import build_attention
 from research_gap_dashboard.dashboard.page_registry import page_for, page_titles
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  render_run_button,
+)
 from research_gap_dashboard.dashboard.views.session_keys import (
   NAV_PAGE_KEY,
   PENDING_NAV_KEY,
@@ -74,7 +82,7 @@ def main() -> None:
 
   choices = discover_corpora(_corpora_root())
   if not choices:
-    st.warning(text.NO_CORPORA)
+    _render_no_corpora(_corpora_root())
     return
 
   chosen = _select_corpus(choices)
@@ -82,6 +90,23 @@ def main() -> None:
   _apply_pending_nav()
   page = _select_page()
   page_for(page).render(chosen)
+
+
+def _render_no_corpora(corpora_root: Path) -> None:
+  """With nothing ingested, offer to ingest each corpus folder found instead."""
+  st.warning(text.NO_CORPORA)
+  folders = discover_uningested_corpora(corpora_root)
+  if not folders:
+    st.info(text.NO_CORPUS_FOLDERS)
+    return
+  for folder in folders:
+    render_last_run(folder.root)
+    render_run_button(
+      folder.root,
+      "ingest",
+      text.RUN_INGEST_CORPUS_BUTTON.format(name=folder.name),
+      key=f"run-ingest-{folder.name}",
+    )
 
 
 def _render_incompleteness_banner(corpus_root: Path) -> None:

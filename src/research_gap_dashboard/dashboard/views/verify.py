@@ -32,6 +32,10 @@ from research_gap_dashboard.dashboard.verify import (
   build_corpus_progress,
   build_extraction_review,
 )
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  render_run_buttons,
+)
 from research_gap_dashboard.dashboard.views.widgets import (
   paper_label,
   render_evidence_body,
@@ -42,8 +46,10 @@ def render_page(chosen: CorpusChoice) -> None:
   """Assemble the Verify Extractions page's data for a chosen Paper and render it."""
   corpus_root = chosen.root
   st.header(text.VERIFY_HEADING)
+  render_last_run(corpus_root)
   if not has_extractions(corpus_root):
     st.warning(text.VERIFY_NO_EXTRACTIONS)
+    render_run_buttons(corpus_root, ["extract"], scope="verify")
     return
 
   extractions = load_extractions(corpus_root)
@@ -56,6 +62,7 @@ def render_page(chosen: CorpusChoice) -> None:
   ]
   if not choices:
     st.warning(text.VERIFY_NO_EXTRACTIONS)
+    render_run_buttons(corpus_root, ["extract"], scope="verify")
     return
 
   review_log = load_extraction_review(corpus_root)
@@ -68,6 +75,7 @@ def render_page(chosen: CorpusChoice) -> None:
   citation_key = extraction.citation_key
   if not has_parsed_paper(corpus_root, citation_key):
     st.warning(text.VERIFY_NO_PARSED_TEXT)
+    render_run_buttons(corpus_root, ["parse"], scope="verify-paper")
     return
 
   review = review_log.review_for(citation_key)

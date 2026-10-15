@@ -7,6 +7,7 @@ the rerun that follows, so the page redraws with the new artifact while the
 outcome and the captured output stay on screen.
 """
 
+from collections.abc import Sequence
 from pathlib import Path
 
 import streamlit as st
@@ -16,13 +17,26 @@ from research_gap_dashboard.dashboard.pipeline_runner import RunOutcome, RunResu
 from research_gap_dashboard.dashboard.views.session_keys import LAST_RUN_KEY
 
 
-def render_run_button(corpus_root: Path, stage: str, label: str) -> None:
-  """Render a button that runs `stage` on the Corpus, then redraws the page."""
-  if not st.button(label, key=f"run-{stage}", type="primary"):
+def render_run_button(
+  corpus_root: Path,
+  stage: str,
+  label: str | None = None,
+  *,
+  args: Sequence[str] = (),
+  key: str | None = None,
+) -> None:
+  """
+  Render a button that runs `stage` on the Corpus, then redraws the page.
+
+  `key` tells apart two buttons for the same stage on one page (e.g. one per
+  Corpus, or one per empty chart); it defaults to the stage name.
+  """
+  label = label or text.run_stage_button(stage)
+  if not st.button(label, key=key or f"run-{stage}", type="primary"):
     return
   with st.spinner(text.RUN_IN_PROGRESS.format(stage=stage)):
     # Looked up on the module at call time so tests can patch the subprocess.
-    result = pipeline_runner.run_stage(corpus_root, stage)
+    result = pipeline_runner.run_stage(corpus_root, stage, args=args)
   st.session_state[LAST_RUN_KEY] = (str(corpus_root), result)
   st.rerun()
 
@@ -65,3 +79,15 @@ def _outcome_message(result: RunResult) -> str:
     RunOutcome.MISSING_KEY: text.RUN_MISSING_KEY,
   }
   return templates[result.outcome].format(stage=result.stage)
+
+
+def render_run_buttons(corpus_root: Path, stages: Sequence[str], *, scope: str) -> None:
+  """
+  Render one run button per missing stage, in pipeline order, side by side.
+
+  This is what every empty or guard state offers in place of a CLI command
+  (ADR 0007). `scope` keeps the keys unique when one page shows several guards.
+  """
+  for column, stage in zip(st.columns(len(stages)), stages):
+    with column:
+      render_run_button(corpus_root, stage, key=f"run-{scope}-{stage}")
