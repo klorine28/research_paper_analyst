@@ -131,3 +131,32 @@ def test_verify_page_approves_a_fact(tmp_path: Path, monkeypatch: pytest.MonkeyP
   assert overlay.is_file()
   saved = json.loads(overlay.read_text(encoding="utf-8"))
   assert saved["reviews"][0]["verdicts"][0]["verdict"] == "approved"
+
+
+def _captions(app: AppTest) -> str:
+  """Join every caption on the page into one searchable string."""
+  return " ".join(caption.value for caption in app.caption)
+
+
+def test_verify_page_shows_corpus_progress_that_updates_on_a_verdict(
+  tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """Corpus-wide progress states its denominators and moves when a verdict lands."""
+  corpus = tmp_path / "corpus"
+  _build_corpus(corpus)
+
+  app = _run_verify_page(tmp_path, monkeypatch)
+  assert (
+    "0 of 1 extracted facts reviewed across the Corpus; "
+    "0 of 1 Papers fully reviewed." in _captions(app)
+  )
+
+  approve = next(button for button in app.button if button.label == "Approve")
+  approve.click().run()
+
+  assert not app.exception
+  assert (
+    "1 of 1 extracted facts reviewed across the Corpus; "
+    "1 of 1 Papers fully reviewed." in _captions(app)
+  )
+  assert any("Every extracted fact" in block.value for block in app.success)

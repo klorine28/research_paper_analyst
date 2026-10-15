@@ -43,6 +43,14 @@ study design (a procedure, treatment, lab assay, or statistic) is recorded as
 **not a study design** instead of unmapped, so it is never offered as a Method
 alias.
 
+### Alias Overlay
+
+One Corpus's logged alias suggestions for the taxonomies (e.g. MeSH entry
+terms and child descriptors), each with its provenance and a human decision:
+proposed, approved, rejected, or promoted. Only approved aliases map phrases,
+and only for that Corpus; copying one into the shared taxonomy file
+(**promoting** it) is a separate, deliberate act (ADR 0010).
+
 ### Evidence
 
 A specific passage or data point in a Paper that supports a claim the

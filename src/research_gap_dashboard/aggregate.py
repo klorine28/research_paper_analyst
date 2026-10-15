@@ -58,6 +58,7 @@ from research_gap_dashboard.taxonomy import (
   Topic,
   load_taxonomy,
 )
+from research_gap_dashboard.vocabulary import apply_alias_overlay, read_alias_overlay
 
 logger = logging.getLogger(__name__)
 
@@ -525,12 +526,15 @@ def read_normalized_facts(root: Path) -> AggregateReport:
 
 def load_pipeline_taxonomies(
   paths: Iterable[Path] = SEED_PATHS.values(),
+  corpus: Path | None = None,
 ) -> list[Taxonomy]:
   """
   Load the Taxonomies the aggregate stage normalizes onto (the seeds by default).
 
   Every file's problems are collected, prefixed with its path, and raised
-  together, as are two files claiming the same axis.
+  together, as are two files claiming the same axis. Given a `corpus`, that
+  Corpus's approved Alias Overlay is applied on top (ADR 0010); the shared
+  files are never changed by it.
   """
   taxonomies: list[Taxonomy] = []
   problems: list[str] = []
@@ -545,6 +549,8 @@ def load_pipeline_taxonomies(
     problems.extend(error.problems)
   if problems:
     raise TaxonomyError(problems)
+  if corpus is not None:
+    return apply_alias_overlay(taxonomies, read_alias_overlay(corpus))
   return taxonomies
 
 
