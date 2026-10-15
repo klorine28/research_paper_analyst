@@ -84,14 +84,21 @@ _KEPT = [
 ]
 
 
+# Kept, though docling recognised no section headings in it.
+_UNSTRUCTURED = "maejima2020"
+_UNSTRUCTURED_MARKDOWN = _GOOD_MARKDOWN.replace("## ", "")
+
+
 class _ScriptedParser:  # pylint: disable=too-few-public-methods
-  """Parse every PDF into good text except the one meant to come out empty."""
+  """Parse every PDF into good text except the one meant to lose its headings."""
 
   name = "scripted"
 
   def parse(self, pdf: Path) -> ParsedPaper:
-    """Return near-empty text for the parse-lost Paper, good text otherwise."""
-    markdown = "Scan\n" if pdf.name.startswith(_PARSE_LOST) else _GOOD_MARKDOWN
+    """Return heading-less text for the unstructured Paper, good text otherwise."""
+    markdown = (
+      _UNSTRUCTURED_MARKDOWN if pdf.name.startswith(_UNSTRUCTURED) else _GOOD_MARKDOWN
+    )
     return DoclingParser(convert=lambda _: markdown).parse(pdf)
 
 
@@ -249,6 +256,7 @@ def corpus_fixture(cardiology_corpus: Path, tmp_path: Path) -> Path:
   shutil.copytree(cardiology_corpus, root)
   ingest_corpus(root)
   parse_corpus(root, parser=_ScriptedParser())
+  (root / "paper-data" / f"{_PARSE_LOST}.parsed.json").unlink()
   artifacts = root / "artifacts"
 
   extracted = [*_KEPT, _AGGREGATE_LOST]
@@ -264,7 +272,10 @@ def corpus_fixture(cardiology_corpus: Path, tmp_path: Path) -> Path:
         ExtractionFailure(
           citation_key=_EXTRACT_LOST,
           reason="the model returned no facts for this paper in 3 attempts",
-        )
+        ),
+        ExtractionFailure(
+          citation_key=_PARSE_LOST, reason="no parsed text; run `parse` first"
+        ),
       ],
       unverified=[
         _unverified("hill2019", "methods"),
@@ -330,7 +341,17 @@ def test_baseline_reports_papers_kept_and_each_lost_paper_with_its_stage(
     "the model returned no facts for this paper in 3 attempts"
   )
   assert reasons[_AGGREGATE_LOST] == "method axis: unknown category"
-  assert "near-empty" in reasons[_PARSE_LOST]
+  assert ".parsed.json missing" in reasons[_PARSE_LOST]
+
+
+def test_baseline_keeps_an_unstructured_paper_and_flags_it(corpus: Path):
+  """A Paper parsed without section headings still counts as kept, with a note."""
+  baseline = baseline_corpus(corpus)
+
+  assert _UNSTRUCTURED in baseline.kept_citation_keys
+  assert list(baseline.parse_warnings) == [_UNSTRUCTURED]
+  assert "collapsed" in baseline.parse_warnings[_UNSTRUCTURED]
+  assert f"| {_UNSTRUCTURED} | collapsed" in render_baseline(baseline)
 
 
 def test_baseline_counts_verified_and_unverified_facts(corpus: Path):

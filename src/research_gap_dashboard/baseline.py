@@ -27,7 +27,7 @@ from research_gap_dashboard.detect import (
   GapType,
   read_candidate_gaps,
 )
-from research_gap_dashboard.diagnose import FunnelReport, diagnose_corpus
+from research_gap_dashboard.diagnose import PaperFunnel, diagnose_corpus
 from research_gap_dashboard.extract import ExtractReport, read_extractions
 from research_gap_dashboard.taxonomy import AXES, Axis
 
@@ -97,6 +97,7 @@ class CorpusBaseline(BaseModel):
   total_papers: int
   kept_citation_keys: list[str]
   lost: list[LostPaper]
+  parse_warnings: dict[str, str]
   prompt_versions: dict[str, str]
   facts: FactBaseline | None
   axes: list[AxisBaseline] | None
@@ -110,36 +111,29 @@ def baseline_corpus(root: Path) -> CorpusBaseline:
   aggregate = _read_or_none(read_normalized_facts, root)
   detect = _read_or_none(read_candidate_gaps, root)
 
-  lost = [
-    LostPaper(citation_key=paper.citation_key, stage="parse", reason=paper.issues[0])
-    for paper in funnel.papers
-    if not paper.sectioned and paper.issues
-  ]
-  parse_lost = {paper.citation_key for paper in lost}
-  lost.extend(
-    LostPaper(citation_key=key, stage="extract", reason=reason)
-    for key, reason in _extract_losses(extract, _manifest_keys(funnel)).items()
-    if key not in parse_lost
+  lost = sorted(
+    (
+      loss
+      for paper in funnel.papers
+      if (loss := _loss(paper, extract, aggregate)) is not None
+    ),
+    key=lambda loss: loss.citation_key,
   )
-  if aggregate is not None:
-    lost.extend(
-      LostPaper(
-        citation_key=failure.citation_key,
-        stage="aggregate",
-        reason=f"{failure.axis} axis: {failure.reason}",
-      )
-      for failure in aggregate.failures
-    )
-  lost.sort(key=lambda paper: paper.citation_key)
-
-  lost_keys = {paper.citation_key for paper in lost}
-  kept = [key for key in _manifest_keys(funnel) if key not in lost_keys]
+  lost_keys = {loss.citation_key for loss in lost}
+  kept = sorted(
+    p.citation_key for p in funnel.papers if p.citation_key not in lost_keys
+  )
 
   return CorpusBaseline(
     corpus_root=root,
     total_papers=funnel.total_papers,
     kept_citation_keys=kept,
     lost=lost,
+    parse_warnings={
+      p.citation_key: "; ".join(_parse_issues(p))
+      for p in sorted(funnel.papers, key=lambda p: p.citation_key)
+      if p.citation_key in kept and _parse_issues(p)
+    },
     prompt_versions=_prompt_versions(extract, aggregate),
     facts=_facts(extract),
     axes=_axes(aggregate),
@@ -147,21 +141,64 @@ def baseline_corpus(root: Path) -> CorpusBaseline:
   )
 
 
-def _manifest_keys(funnel: FunnelReport) -> list[str]:
-  """Every manifest Paper's citation key, sorted."""
-  return sorted(paper.citation_key for paper in funnel.papers)
+def _loss(
+  paper: PaperFunnel, extract: ExtractReport | None, aggregate: AggregateReport | None
+) -> LostPaper | None:
+  """
+  Say where a Paper fell out of the latest stage that ran, or None if it got through.
 
-
-def _extract_losses(extract: ExtractReport | None, keys: list[str]) -> dict[str, str]:
-  """Papers the extract stage rejected or never produced, with the reason."""
+  A Paper whose text parsed without structure is still extracted, so it is lost
+  only where a stage really dropped it; its parse issues ride along as context.
+  """
+  if not paper.parsed:
+    return LostPaper(
+      citation_key=paper.citation_key, stage="parse", reason=paper.issues[0]
+    )
   if extract is None:
-    return {}
-  reasons = {failure.citation_key: failure.reason for failure in extract.failures}
-  extracted = {extraction.citation_key for extraction in extract.extractions}
-  for key in keys:
-    if key not in extracted and key not in reasons:
-      reasons[key] = "not in the Extractions artifact; rerun `extract`"
-  return reasons
+    return None
+  return _extract_loss(paper, extract) or (
+    _aggregate_loss(paper.citation_key, aggregate) if aggregate else None
+  )
+
+
+def _extract_loss(paper: PaperFunnel, extract: ExtractReport) -> LostPaper | None:
+  """Say why the extract stage dropped a parsed Paper, or None if it kept it."""
+  key = paper.citation_key
+  if key in {e.citation_key for e in extract.extractions}:
+    return None
+  reason = next(
+    (f.reason for f in extract.failures if f.citation_key == key),
+    "not in the Extractions artifact; rerun `extract`",
+  )
+  context = "; ".join(_parse_issues(paper))
+  return LostPaper(
+    citation_key=key,
+    stage="extract",
+    reason=f"{reason} (parse: {context})" if context else reason,
+  )
+
+
+def _aggregate_loss(key: str, aggregate: AggregateReport) -> LostPaper | None:
+  """Say why the aggregate stage dropped an extracted Paper, or None if it kept it."""
+  if key in {n.citation_key for n in aggregate.normalized}:
+    return None
+  failure = next((f for f in aggregate.failures if f.citation_key == key), None)
+  return LostPaper(
+    citation_key=key,
+    stage="aggregate",
+    reason=(
+      f"{failure.axis} axis: {failure.reason}"
+      if failure
+      else "not in the NormalizedFacts artifact; rerun `aggregate`"
+    ),
+  )
+
+
+def _parse_issues(paper: PaperFunnel) -> list[str]:
+  """Return the funnel's parse-quality notes for a Paper (near-empty, collapsed)."""
+  return [
+    issue for issue in paper.issues if "near-empty" in issue or "collapsed" in issue
+  ]
 
 
 def _prompt_versions(
@@ -251,6 +288,7 @@ def render_baseline(baseline: CorpusBaseline) -> str:
     versions = ", ".join(f"{k} `{v}`" for k, v in baseline.prompt_versions.items())
     lines.append(f"Prompt versions: {versions}.")
   lines.extend(_render_lost(baseline))
+  lines.extend(_render_parse_warnings(baseline))
   lines.extend(_render_facts(baseline))
   lines.extend(_render_axes(baseline))
   lines.extend(_render_gaps(baseline))
@@ -265,6 +303,14 @@ def _render_lost(baseline: CorpusBaseline) -> list[str]:
     f"| {p.citation_key} | {p.stage} | {p.reason.replace('|', '/')} |"
     for p in baseline.lost
   )
+  return lines
+
+
+def _render_parse_warnings(baseline: CorpusBaseline) -> list[str]:
+  if not baseline.parse_warnings:
+    return []
+  lines = ["", "| Kept despite a parse issue | Issue |", "|---|---|"]
+  lines.extend(f"| {key} | {issue} |" for key, issue in baseline.parse_warnings.items())
   return lines
 
 
