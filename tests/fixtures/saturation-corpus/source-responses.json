@@ -1,0 +1,8142 @@
+{
+ "json": {
+  "https://api.openalex.org/works?search=%28%22Heart+Failure%22+OR+%22Congestive+Heart+Failure%22+OR+%22Right-Sided+Heart+Failure%22+OR+%22Left-Sided+Heart+Failure%22+OR+%22Cardiac+Failure%22+OR+%22chronic+heart+failure%22%29+AND+%28%22Myocardial+Ischemia%22+OR+%22Ischemic+Heart+Disease%22+OR+%22myocardial+ischaemia%22%29&per-page=10&select=id%2Cdoi%2Cids%2Ctitle%2Cpublication_year%2Cauthorships%2Cprimary_location%2Ccited_by_count%2Cabstract_inverted_index": {
+   "results": [
+    {
+     "id": "https://openalex.org/W2117387476",
+     "doi": null,
+     "ids": {
+      "openalex": "https://openalex.org/W2117387476",
+      "mag": "2117387476",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/16883222"
+     },
+     "title": "[Possible role of hyperinsulinemia in pathogenesis of acute and chronic cardiac failure in patients with ischemic heart disease (data of clinical studies)].",
+     "publication_year": 2006,
+     "cited_by_count": 0,
+     "abstract_inverted_index": {
+      "Changes": [
+       0
+      ],
+      "of": [
+       1,
+       17,
+       46,
+       48,
+       65,
+       68,
+       78,
+       88,
+       90,
+       96,
+       105,
+       122,
+       125,
+       135,
+       140,
+       150,
+       157,
+       159
+      ],
+      "blood": [
+       2,
+       71
+      ],
+      "insulin": [
+       3,
+       69,
+       82,
+       91,
+       109,
+       141,
+       151
+      ],
+      "content": [
+       4,
+       83,
+       139
+      ],
+      "were": [
+       5
+      ],
+      "studied": [
+       6
+      ],
+      "in": [
+       7,
+       63,
+       70,
+       142
+      ],
+      "patients": [
+       8
+      ],
+      "with": [
+       9,
+       13
+      ],
+      "ischemic": [
+       10,
+       49
+      ],
+      "heart": [
+       11,
+       21,
+       50,
+       54,
+       80,
+       107,
+       129
+      ],
+      "disease": [
+       12,
+       26
+      ],
+      "various": [
+       14
+      ],
+      "functional": [
+       15
+      ],
+      "classes": [
+       16
+      ],
+      "acute": [
+       18,
+       53,
+       126
+      ],
+      "and": [
+       19,
+       23,
+       94,
+       127,
+       144
+      ],
+      "chronic": [
+       20,
+       79,
+       128
+      ],
+      "failure": [
+       22,
+       55,
+       81,
+       108,
+       130
+      ],
+      "at": [
+       24,
+       37,
+       154
+      ],
+      "different": [
+       25
+      ],
+      "stages.": [
+       27
+      ],
+      "It": [
+       28
+      ],
+      "was": [
+       29,
+       41,
+       111
+      ],
+      "established": [
+       30
+      ],
+      "that": [
+       31,
+       120
+      ],
+      "latent": [
+       32
+      ],
+      "hyperinsulinemia": [
+       33,
+       61
+      ],
+      "which": [
+       34
+      ],
+      "became": [
+       35
+      ],
+      "evident": [
+       36
+      ],
+      "induced": [
+       38
+      ],
+      "myocardial": [
+       39,
+       59
+      ],
+      "ischemia": [
+       40
+      ],
+      "present": [
+       42
+      ],
+      "on": [
+       43,
+       147
+      ],
+      "all": [
+       44
+      ],
+      "stages": [
+       45
+      ],
+      "development": [
+       47,
+       95,
+       158
+      ],
+      "disease.": [
+       51,
+       161
+      ],
+      "In": [
+       52
+      ],
+      "due": [
+       56
+      ],
+      "to": [
+       57,
+       137
+      ],
+      "developed": [
+       58
+      ],
+      "infarction": [
+       60
+      ],
+      "manifested": [
+       62
+      ],
+      "58.3%": [
+       64
+      ],
+      "patients.": [
+       66
+      ],
+      "Amount": [
+       67
+      ],
+      "increased": [
+       72
+      ],
+      "almost": [
+       73
+      ],
+      "3": [
+       74
+      ],
+      "times.": [
+       75
+      ],
+      "During": [
+       76
+      ],
+      "progression": [
+       77
+      ],
+      "significantly": [
+       84
+      ],
+      "decreased,": [
+       85
+      ],
+      "probably": [
+       86
+      ],
+      "because": [
+       87
+      ],
+      "exhaustion": [
+       89
+      ],
+      "producing": [
+       92,
+       152
+      ],
+      "function": [
+       93,
+       153
+      ],
+      "its": [
+       97
+      ],
+      "relative": [
+       98
+      ],
+      "or": [
+       99,
+       113
+      ],
+      "absolute": [
+       100
+      ],
+      "deficit.": [
+       101
+      ],
+      "At": [
+       102
+      ],
+      "terminal": [
+       103
+      ],
+      "stage": [
+       104,
+       156
+      ],
+      "congestive": [
+       106
+      ],
+      "level": [
+       110
+      ],
+      "<": [
+       112
+      ],
+      "=": [
+       114
+      ],
+      "1": [
+       115
+      ],
+      "microU/ml.": [
+       116
+      ],
+      "The": [
+       117
+      ],
+      "authors": [
+       118
+      ],
+      "believe": [
+       119
+      ],
+      "severity": [
+       121
+      ],
+      "clinical": [
+       123
+      ],
+      "signs": [
+       124
+      ],
+      "are": [
+       131
+      ],
+      "determined": [
+       132
+      ],
+      "by": [
+       133
+      ],
+      "sensitivity": [
+       134
+      ],
+      "myocardium": [
+       136
+      ],
+      "insulin,": [
+       138
+      ],
+      "blood,": [
+       143
+      ],
+      "also": [
+       145
+      ],
+      "depends": [
+       146
+      ],
+      "compensatory": [
+       148
+      ],
+      "possibilities": [
+       149
+      ],
+      "each": [
+       155
+      ],
+      "the": [
+       160
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "I L Telkova"
+       }
+      },
+      {
+       "author": {
+        "display_name": "A T Tepliakov"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Rostislav S. Karpov"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "PubMed"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W3023718101",
+     "doi": "https://doi.org/10.3390/ijms21093167",
+     "ids": {
+      "openalex": "https://openalex.org/W3023718101",
+      "doi": "https://doi.org/10.3390/ijms21093167",
+      "mag": "3023718101",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/32365863"
+     },
+     "title": "Ischemic Heart Disease and Heart Failure: Role of Coronary Ion Channels",
+     "publication_year": 2020,
+     "cited_by_count": 152,
+     "abstract_inverted_index": {
+      "Heart": [
+       0
+      ],
+      "failure": [
+       1,
+       26
+      ],
+      "is": [
+       2,
+       17,
+       29,
+       63,
+       97
+      ],
+      "a": [
+       3,
+       48,
+       68,
+       139
+      ],
+      "complex": [
+       4,
+       69
+      ],
+      "syndrome": [
+       5
+      ],
+      "responsible": [
+       6
+      ],
+      "for": [
+       7
+      ],
+      "high": [
+       8
+      ],
+      "rates": [
+       9
+      ],
+      "of": [
+       10,
+       19,
+       24,
+       40,
+       67,
+       85,
+       90,
+       105,
+       117,
+       130,
+       141,
+       148
+      ],
+      "death": [
+       11
+      ],
+      "and": [
+       12,
+       27,
+       56,
+       94,
+       133,
+       168
+      ],
+      "hospitalization.": [
+       13
+      ],
+      "Ischemic": [
+       14
+      ],
+      "heart": [
+       15,
+       25,
+       58,
+       92,
+       95,
+       166,
+       170
+      ],
+      "disease": [
+       16,
+       93,
+       167
+      ],
+      "one": [
+       18,
+       41
+      ],
+      "the": [
+       20,
+       38,
+       78,
+       83,
+       88,
+       115,
+       128,
+       146,
+       159
+      ],
+      "most": [
+       21
+      ],
+      "frequent": [
+       22
+      ],
+      "causes": [
+       23
+      ],
+      "it": [
+       28
+      ],
+      "normally": [
+       30
+      ],
+      "attributed": [
+       31
+      ],
+      "to": [
+       32,
+       74,
+       82,
+       108,
+       114,
+       127
+      ],
+      "coronary": [
+       33,
+       50,
+       61,
+       106,
+       118,
+       162
+      ],
+      "artery": [
+       34
+      ],
+      "disease,": [
+       35
+      ],
+      "defined": [
+       36
+      ],
+      "by": [
+       37
+      ],
+      "presence": [
+       39,
+       147
+      ],
+      "or": [
+       42
+      ],
+      "more": [
+       43
+      ],
+      "obstructive": [
+       44
+      ],
+      "plaques,": [
+       45
+      ],
+      "which": [
+       46,
+       136
+      ],
+      "determine": [
+       47,
+       138
+      ],
+      "reduced": [
+       49
+      ],
+      "blood": [
+       51,
+       119
+      ],
+      "flow,": [
+       52
+      ],
+      "causing": [
+       53
+      ],
+      "myocardial": [
+       54,
+       75,
+       110,
+       142
+      ],
+      "ischemia": [
+       55
+      ],
+      "consequent": [
+       57,
+       169
+      ],
+      "failure.": [
+       59,
+       171
+      ],
+      "However,": [
+       60
+      ],
+      "obstruction": [
+       62
+      ],
+      "only": [
+       64
+      ],
+      "an": [
+       65,
+       103
+      ],
+      "element": [
+       66
+      ],
+      "pathophysiological": [
+       70
+      ],
+      "process": [
+       71
+      ],
+      "that": [
+       72
+      ],
+      "leads": [
+       73
+      ],
+      "ischemia.": [
+       76
+      ],
+      "In": [
+       77
+      ],
+      "literature,": [
+       79
+      ],
+      "attention": [
+       80
+      ],
+      "paid": [
+       81
+      ],
+      "role": [
+       84
+      ],
+      "microcirculation,": [
+       86
+      ],
+      "in": [
+       87
+      ],
+      "pathophysiology": [
+       89
+      ],
+      "ischemic": [
+       91,
+       165
+      ],
+      "failure,": [
+       96
+      ],
+      "growing.": [
+       98
+      ],
+      "Coronary": [
+       99
+      ],
+      "microvascular": [
+       100,
+       163
+      ],
+      "dysfunction": [
+       101
+      ],
+      "determines": [
+       102
+      ],
+      "inability": [
+       104
+      ],
+      "circulation": [
+       107
+      ],
+      "satisfy": [
+       109
+      ],
+      "metabolic": [
+       111
+      ],
+      "demands,": [
+       112
+      ],
+      "due": [
+       113
+      ],
+      "imbalance": [
+       116
+      ],
+      "flow": [
+       120
+      ],
+      "regulatory": [
+       121
+      ],
+      "mechanisms,": [
+       122
+      ],
+      "including": [
+       123
+      ],
+      "ion": [
+       124,
+       155
+      ],
+      "channels,": [
+       125
+      ],
+      "leading": [
+       126
+      ],
+      "development": [
+       129
+      ],
+      "hypoxia,": [
+       131
+      ],
+      "fibrosis": [
+       132
+      ],
+      "tissue": [
+       134
+      ],
+      "death,": [
+       135
+      ],
+      "may": [
+       137,
+       157
+      ],
+      "loss": [
+       140
+      ],
+      "function,": [
+       143
+      ],
+      "even": [
+       144
+      ],
+      "beyond": [
+       145
+      ],
+      "atherosclerotic": [
+       149
+      ],
+      "epicardial": [
+       150
+      ],
+      "plaques.": [
+       151
+      ],
+      "For": [
+       152
+      ],
+      "this": [
+       153
+      ],
+      "reason,": [
+       154
+      ],
+      "channels": [
+       156
+      ],
+      "represent": [
+       158
+      ],
+      "link": [
+       160
+      ],
+      "among": [
+       161
+      ],
+      "dysfunction,": [
+       164
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Paolo Severino"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Andrea D’Amato"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Mariateresa Pucci"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Fabio Infusino"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Lucia Ilaria Birtolo"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Marco Valerio Mariani"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Carlo Lavalle"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Viviana Maestrini"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Massimo Mancone"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Francesco Fedele"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "International Journal of Molecular Sciences"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W2945043974",
+     "doi": "https://doi.org/10.1161/circresaha.118.313568",
+     "ids": {
+      "openalex": "https://openalex.org/W2945043974",
+      "doi": "https://doi.org/10.1161/circresaha.118.313568",
+      "mag": "2945043974",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/31120824"
+     },
+     "title": "Medical Therapy for Heart Failure Caused by Ischemic Heart Disease",
+     "publication_year": 2019,
+     "cited_by_count": 176,
+     "abstract_inverted_index": {
+      "Patients": [
+       0,
+       59
+      ],
+      "with": [
+       1,
+       11,
+       40,
+       60,
+       69,
+       90,
+       104,
+       124,
+       139,
+       175
+      ],
+      "heart": [
+       2,
+       168
+      ],
+      "failure": [
+       3
+      ],
+      "(HF)": [
+       4
+      ],
+      "syndromes": [
+       5
+      ],
+      "have": [
+       6,
+       67,
+       93,
+       106
+      ],
+      "been": [
+       7
+      ],
+      "categorized": [
+       8
+      ],
+      "as": [
+       9,
+       52
+      ],
+      "those": [
+       10
+      ],
+      "reduced": [
+       12,
+       70,
+       95,
+       176
+      ],
+      "ejection": [
+       13
+      ],
+      "fraction": [
+       14
+      ],
+      "(EF)": [
+       15
+      ],
+      "or": [
+       16
+      ],
+      "preserved": [
+       17
+      ],
+      "EF": [
+       18,
+       177
+      ],
+      "(HFpEF),": [
+       19
+      ],
+      "and": [
+       20,
+       36,
+       39,
+       84,
+       127,
+       135,
+       149,
+       178,
+       180
+      ],
+      "ischemia": [
+       21
+      ],
+      "plays": [
+       22
+      ],
+      "a": [
+       23,
+       31,
+       53
+      ],
+      "key": [
+       24,
+       156
+      ],
+      "role": [
+       25,
+       165
+      ],
+      "in": [
+       26,
+       81,
+       102,
+       116,
+       120,
+       137,
+       158,
+       170
+      ],
+      "both": [
+       27
+      ],
+      "types.": [
+       28
+      ],
+      "HF": [
+       29,
+       68,
+       174
+      ],
+      "remains": [
+       30
+      ],
+      "major": [
+       32
+      ],
+      "cause": [
+       33
+      ],
+      "of": [
+       34,
+       43,
+       55,
+       88,
+       166,
+       173
+      ],
+      "morbidity": [
+       35
+      ],
+      "mortality": [
+       37
+      ],
+      "worldwide,": [
+       38
+      ],
+      "the": [
+       41,
+       121,
+       164,
+       171,
+       182
+      ],
+      "aging": [
+       42
+      ],
+      "our": [
+       44
+      ],
+      "population": [
+       45
+      ],
+      "this": [
+       46
+      ],
+      "burden": [
+       47
+      ],
+      "continues": [
+       48
+      ],
+      "to": [
+       49,
+       76,
+       118,
+       152
+      ],
+      "rise,": [
+       50
+      ],
+      "predominantly": [
+       51
+      ],
+      "result": [
+       54
+      ],
+      "hospitalizations": [
+       56
+      ],
+      "for": [
+       57,
+       187
+      ],
+      "HFpEF.": [
+       58,
+       140,
+       159
+      ],
+      "obstructive": [
+       61
+      ],
+      "coronary": [
+       62
+      ],
+      "artery": [
+       63
+      ],
+      "disease": [
+       64,
+       169
+      ],
+      "more": [
+       65
+      ],
+      "likely": [
+       66
+      ],
+      "EF,": [
+       71
+      ],
+      "rather": [
+       72
+      ],
+      "than": [
+       73
+      ],
+      "HFpEF,": [
+       74,
+       179
+      ],
+      "secondary": [
+       75,
+       151
+      ],
+      "acute": [
+       77
+      ],
+      "ischemic": [
+       78,
+       167
+      ],
+      "injury": [
+       79
+      ],
+      "resulting": [
+       80
+      ],
+      "myocardial": [
+       82,
+       128,
+       147
+      ],
+      "infarction,": [
+       83
+      ],
+      "large": [
+       85
+      ],
+      "outcomes": [
+       86
+      ],
+      "trials": [
+       87
+      ],
+      "treatments": [
+       89,
+       101
+      ],
+      "neurohumoral": [
+       91
+      ],
+      "inhibition": [
+       92
+      ],
+      "documented": [
+       94
+      ],
+      "adverse": [
+       96
+      ],
+      "outcomes.": [
+       97
+      ],
+      "In": [
+       98
+      ],
+      "contrast,": [
+       99
+      ],
+      "similar": [
+       100,
+       132
+      ],
+      "patients": [
+       103,
+       138
+      ],
+      "HFpEF": [
+       105
+      ],
+      "not": [
+       107
+      ],
+      "proven": [
+       108
+      ],
+      "beneficial.": [
+       109
+      ],
+      "This": [
+       110
+      ],
+      "therapeutic": [
+       111
+      ],
+      "dilemma": [
+       112
+      ],
+      "may": [
+       113
+      ],
+      "be": [
+       114
+      ],
+      "attributed,": [
+       115
+      ],
+      "part,": [
+       117
+      ],
+      "heterogeneity": [
+       119
+      ],
+      "underlying": [
+       122
+      ],
+      "pathophysiology": [
+       123
+      ],
+      "different": [
+       125
+      ],
+      "systemic": [
+       126
+      ],
+      "signaling": [
+       129
+      ],
+      "pathways,": [
+       130
+      ],
+      "despite": [
+       131
+      ],
+      "clinical": [
+       133
+      ],
+      "presentations": [
+       134
+      ],
+      "findings,": [
+       136
+      ],
+      "Also,": [
+       141
+      ],
+      "emerging": [
+       142
+      ],
+      "evidence": [
+       143
+      ],
+      "indicates": [
+       144
+      ],
+      "that": [
+       145
+      ],
+      "impaired": [
+       146
+      ],
+      "perfusion": [
+       148
+      ],
+      "inflammation": [
+       150
+      ],
+      "multiple": [
+       153
+      ],
+      "comorbidities": [
+       154
+      ],
+      "are": [
+       155
+      ],
+      "mechanisms": [
+       157
+      ],
+      "We": [
+       160
+      ],
+      "will": [
+       161
+      ],
+      "thoroughly": [
+       162
+      ],
+      "review": [
+       163
+      ],
+      "pathogenesis": [
+       172
+      ],
+      "discuss": [
+       181
+      ],
+      "medical": [
+       183
+      ],
+      "management": [
+       184
+      ],
+      "strategies": [
+       185
+      ],
+      "available": [
+       186
+      ],
+      "these": [
+       188
+      ],
+      "conditions.": [
+       189
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Islam Y. Elgendy"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Dhruv Mahtta"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Carl J. Pepine"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "Circulation Research"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W2111267459",
+     "doi": "https://doi.org/10.1016/j.ejcts.2003.11.038",
+     "ids": {
+      "openalex": "https://openalex.org/W2111267459",
+      "doi": "https://doi.org/10.1016/j.ejcts.2003.11.038",
+      "mag": "2111267459",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/15019658"
+     },
+     "title": "Autologous peripheral stem cell transplantation in patients with congestive heart failure due to ischemic heart disease",
+     "publication_year": 2004,
+     "cited_by_count": 83,
+     "abstract_inverted_index": {
+      "OBJECTIVE:": [
+       0
+      ],
+      "Ischemic": [
+       1
+      ],
+      "heart": [
+       2,
+       18,
+       29,
+       72,
+       204
+      ],
+      "disease": [
+       3
+      ],
+      "accounts": [
+       4
+      ],
+      "for": [
+       5,
+       44,
+       146
+      ],
+      "50%": [
+       6
+      ],
+      "of": [
+       7,
+       16,
+       53,
+       62,
+       71,
+       119,
+       198
+      ],
+      "all": [
+       8
+      ],
+      "cardiovascular": [
+       9
+      ],
+      "deaths": [
+       10
+      ],
+      "and": [
+       11,
+       25,
+       34,
+       68,
+       74,
+       87,
+       95,
+       103,
+       110,
+       152,
+       173,
+       184
+      ],
+      "is": [
+       12
+      ],
+      "the": [
+       13,
+       51,
+       63,
+       129,
+       196
+      ],
+      "leading": [
+       14
+      ],
+      "cause": [
+       15
+      ],
+      "congestive": [
+       17,
+       203
+      ],
+      "failure.": [
+       19,
+       205
+      ],
+      "Medical": [
+       20
+      ],
+      "therapy,": [
+       21
+      ],
+      "cardiac": [
+       22
+      ],
+      "assist": [
+       23
+      ],
+      "devices": [
+       24
+      ],
+      "surgical": [
+       26
+      ],
+      "procedures": [
+       27
+      ],
+      "including": [
+       28
+      ],
+      "transplantation": [
+       30,
+       38
+      ],
+      "have": [
+       31
+      ],
+      "limited": [
+       32
+      ],
+      "efficiency": [
+       33
+      ],
+      "availability.": [
+       35
+      ],
+      "Stem": [
+       36
+      ],
+      "cell": [
+       37
+      ],
+      "represents": [
+       39
+      ],
+      "a": [
+       40,
+       167,
+       192
+      ],
+      "new": [
+       41,
+       193
+      ],
+      "therapeutic": [
+       42
+      ],
+      "opportunity": [
+       43
+      ],
+      "such": [
+       45
+      ],
+      "patients.": [
+       46
+      ],
+      "METHOD:": [
+       47
+      ],
+      "Six": [
+       48
+      ],
+      "patients": [
+       49,
+       64,
+       141,
+       201
+      ],
+      "with": [
+       50,
+       90,
+       121,
+       202
+      ],
+      "diagnosis": [
+       52
+      ],
+      "ischemic": [
+       54
+      ],
+      "cardiomyopathy": [
+       55
+      ],
+      "were": [
+       56,
+       108,
+       115,
+       142,
+       156
+      ],
+      "included": [
+       57
+      ],
+      "in": [
+       58,
+       170,
+       195
+      ],
+      "this": [
+       59
+      ],
+      "study.": [
+       60
+      ],
+      "All": [
+       61
+      ],
+      "had": [
+       65
+      ],
+      "clinical,": [
+       66
+      ],
+      "radiological": [
+       67
+      ],
+      "echocardiographic": [
+       69
+      ],
+      "signs": [
+       70
+      ],
+      "failure,": [
+       73
+      ],
+      "reduced": [
+       75
+      ],
+      "left": [
+       76
+      ],
+      "ventricular": [
+       77
+      ],
+      "ejection": [
+       78
+      ],
+      "fraction": [
+       79
+      ],
+      "(LVEF<": [
+       80
+      ],
+      "or": [
+       81
+      ],
+      "=25%).": [
+       82
+      ],
+      "They": [
+       83,
+       114
+      ],
+      "underwent": [
+       84
+      ],
+      "coronary": [
+       85,
+       132
+      ],
+      "angiography": [
+       86
+      ],
+      "stress": [
+       88
+      ],
+      "tests": [
+       89
+      ],
+      "dobutamine": [
+       91
+      ],
+      "echocardiography,": [
+       92,
+       181
+      ],
+      "thallium": [
+       93,
+       150,
+       182
+      ],
+      "scintigraphy": [
+       94,
+       151
+      ],
+      "positron": [
+       96,
+       153,
+       185
+      ],
+      "emission": [
+       97,
+       154,
+       186
+      ],
+      "tomography": [
+       98,
+       155
+      ],
+      "to": [
+       99,
+       128
+      ],
+      "assess": [
+       100
+      ],
+      "myocardial": [
+       101
+      ],
+      "ischemia": [
+       102
+      ],
+      "viability.": [
+       104
+      ],
+      "Peripheral": [
+       105
+      ],
+      "stem": [
+       106
+      ],
+      "cells": [
+       107
+      ],
+      "mobilized": [
+       109
+      ],
+      "collected": [
+       111
+      ],
+      "by": [
+       112
+      ],
+      "apheresis.": [
+       113
+      ],
+      "transplanted": [
+       116
+      ],
+      "into": [
+       117
+      ],
+      "areas": [
+       118
+      ],
+      "injury": [
+       120
+      ],
+      "open-heart": [
+       122
+      ],
+      "surgery.": [
+       123,
+       164
+      ],
+      "To": [
+       124
+      ],
+      "increase": [
+       125,
+       169
+      ],
+      "blood": [
+       126
+      ],
+      "flow": [
+       127
+      ],
+      "engrafted": [
+       130
+      ],
+      "areas,": [
+       131
+      ],
+      "artery": [
+       133
+      ],
+      "by-pass": [
+       134
+      ],
+      "surgery": [
+       135
+      ],
+      "was": [
+       136,
+       166,
+       178
+      ],
+      "also": [
+       137
+      ],
+      "performed.": [
+       138
+      ],
+      "RESULTS:": [
+       139
+      ],
+      "The": [
+       140
+      ],
+      "followed": [
+       143
+      ],
+      "at": [
+       144,
+       159
+      ],
+      "least": [
+       145,
+       160
+      ],
+      "4": [
+       147
+      ],
+      "months.": [
+       148
+      ],
+      "Echocardiography,": [
+       149
+      ],
+      "repeated": [
+       157
+      ],
+      "after": [
+       158
+      ],
+      "6": [
+       161
+      ],
+      "weeks": [
+       162
+      ],
+      "following": [
+       163
+      ],
+      "There": [
+       165
+      ],
+      "significant": [
+       168
+      ],
+      "life": [
+       171
+      ],
+      "quality": [
+       172
+      ],
+      "NYHA": [
+       174
+      ],
+      "class.": [
+       175
+      ],
+      "Some": [
+       176
+      ],
+      "benefit": [
+       177
+      ],
+      "documented": [
+       179
+      ],
+      "on": [
+       180
+      ],
+      "scintigraphy,": [
+       183
+      ],
+      "tomography.": [
+       187
+      ],
+      "CONCLUSION:": [
+       188
+      ],
+      "This": [
+       189
+      ],
+      "approach": [
+       190
+      ],
+      "opens": [
+       191
+      ],
+      "window": [
+       194
+      ],
+      "treatment": [
+       197
+      ],
+      "'no": [
+       199
+      ],
+      "hope'": [
+       200
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Mustafa Özbaran"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "European Journal of Cardio-Thoracic Surgery"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W2073668622",
+     "doi": "https://doi.org/10.1016/j.yjmcc.2008.03.019",
+     "ids": {
+      "openalex": "https://openalex.org/W2073668622",
+      "doi": "https://doi.org/10.1016/j.yjmcc.2008.03.019",
+      "mag": "2073668622",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/18462746"
+     },
+     "title": "Late sodium current inhibition as a new cardioprotective approach",
+     "publication_year": 2008,
+     "cited_by_count": 150,
+     "abstract_inverted_index": null,
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Sharon L. Hale"
+       }
+      },
+      {
+       "author": {
+        "display_name": "John C. Shryock"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Luiz Belardinelli"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Michael L. Sweeney"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Robert Alan Kloner"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "Journal of Molecular and Cellular Cardiology"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W1994937120",
+     "doi": "https://doi.org/10.1002/clc.4960230703",
+     "ids": {
+      "openalex": "https://openalex.org/W1994937120",
+      "doi": "https://doi.org/10.1002/clc.4960230703",
+      "mag": "1994937120",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/10894449"
+     },
+     "title": "Overview of the relationship between ischemia and congestive heart failure",
+     "publication_year": 2000,
+     "cited_by_count": 41,
+     "abstract_inverted_index": {
+      "Ischemic": [
+       0
+      ],
+      "heart": [
+       1,
+       8,
+       36,
+       45,
+       91,
+       109,
+       123,
+       221
+      ],
+      "disease": [
+       2,
+       204
+      ],
+      "is": [
+       3,
+       16,
+       51,
+       161
+      ],
+      "the": [
+       4,
+       11,
+       30,
+       35,
+       40,
+       56,
+       70,
+       79,
+       119,
+       174,
+       187,
+       192,
+       216,
+       224
+      ],
+      "principal": [
+       5
+      ],
+      "etiology": [
+       6
+      ],
+      "of": [
+       7,
+       34,
+       42,
+       58,
+       72,
+       81,
+       90,
+       121,
+       141,
+       171,
+       191,
+       213,
+       226,
+       234
+      ],
+      "failure": [
+       9,
+       92,
+       110,
+       222
+      ],
+      "in": [
+       10,
+       18,
+       29,
+       55,
+       75,
+       164,
+       199,
+       230
+      ],
+      "Western": [
+       12
+      ],
+      "world.": [
+       13
+      ],
+      "Myocardial": [
+       14
+      ],
+      "ischemia": [
+       15,
+       219
+      ],
+      "important": [
+       17,
+       53
+      ],
+      "cardiac": [
+       19
+      ],
+      "remodeling,": [
+       20
+      ],
+      "a": [
+       21,
+       26,
+       158,
+       231
+      ],
+      "process": [
+       22
+      ],
+      "that": [
+       23,
+       113,
+       145,
+       160
+      ],
+      "leads": [
+       24
+      ],
+      "to": [
+       25,
+       68
+      ],
+      "progressive": [
+       27,
+       122
+      ],
+      "change": [
+       28
+      ],
+      "shape": [
+       31
+      ],
+      "and": [
+       32,
+       37,
+       83,
+       126,
+       205,
+       220,
+       223
+      ],
+      "size": [
+       33
+      ],
+      "significantly": [
+       38
+      ],
+      "worsens": [
+       39
+      ],
+      "prognosis": [
+       41
+      ],
+      "patients": [
+       43,
+       59,
+       99,
+       152,
+       200
+      ],
+      "with": [
+       44,
+       60,
+       100,
+       153,
+       201
+      ],
+      "failure.": [
+       46
+      ],
+      "Preventing": [
+       47
+      ],
+      "ischemic": [
+       48,
+       73,
+       88,
+       127
+      ],
+      "events,": [
+       49,
+       128
+      ],
+      "therefore,": [
+       50
+      ],
+      "an": [
+       52
+      ],
+      "goal": [
+       54
+      ],
+      "management": [
+       57
+      ],
+      "coronary": [
+       61,
+       202
+      ],
+      "artery": [
+       62,
+       203
+      ],
+      "disease.": [
+       63
+      ],
+      "Statins": [
+       64
+      ],
+      "have": [
+       65,
+       111,
+       143
+      ],
+      "been": [
+       66
+      ],
+      "shown": [
+       67,
+       112
+      ],
+      "reduce": [
+       69,
+       118
+      ],
+      "number": [
+       71
+      ],
+      "events": [
+       74
+      ],
+      "these": [
+       76,
+       137,
+       172
+      ],
+      "patients,": [
+       77
+      ],
+      "whereas": [
+       78
+      ],
+      "benefit": [
+       80,
+       151
+      ],
+      "beta-blocker": [
+       82
+      ],
+      "aldosterone": [
+       84
+      ],
+      "antagonist": [
+       85
+      ],
+      "therapy": [
+       86,
+       135,
+       148
+      ],
+      "on": [
+       87,
+       196
+      ],
+      "causes": [
+       89
+      ],
+      "remains": [
+       93
+      ],
+      "unclear.": [
+       94
+      ],
+      "Several": [
+       95
+      ],
+      "large": [
+       96
+      ],
+      "trials": [
+       97
+      ],
+      "involving": [
+       98
+      ],
+      "asymptomatic": [
+       101
+      ],
+      "left": [
+       102,
+       155,
+       207
+      ],
+      "ventricular": [
+       103,
+       156,
+       208
+      ],
+      "dysfunction": [
+       104
+      ],
+      "after": [
+       105
+      ],
+      "myocardial": [
+       106
+      ],
+      "infarction": [
+       107
+      ],
+      "or": [
+       108
+      ],
+      "angiotensin-converting": [
+       114
+      ],
+      "enzyme": [
+       115
+      ],
+      "(ACE)": [
+       116
+      ],
+      "inhibitors": [
+       117,
+       132
+      ],
+      "incidence": [
+       120
+      ],
+      "failure,": [
+       124
+      ],
+      "death,": [
+       125
+      ],
+      "thus": [
+       129
+      ],
+      "establishing": [
+       130
+      ],
+      "ACE": [
+       131,
+       146,
+       193,
+       227
+      ],
+      "as": [
+       133
+      ],
+      "first-line": [
+       134
+      ],
+      "for": [
+       136
+      ],
+      "patients.": [
+       138,
+       236
+      ],
+      "Other": [
+       139
+      ],
+      "lines": [
+       140
+      ],
+      "evidence": [
+       142
+      ],
+      "suggested": [
+       144
+      ],
+      "inhibitor": [
+       147,
+       194,
+       228
+      ],
+      "may": [
+       149
+      ],
+      "also": [
+       150
+      ],
+      "preserved": [
+       154,
+       206
+      ],
+      "function,": [
+       157
+      ],
+      "hypothesis": [
+       159
+      ],
+      "being": [
+       162
+      ],
+      "evaluated": [
+       163
+      ],
+      "three": [
+       165
+      ],
+      "large,": [
+       166
+      ],
+      "controlled,": [
+       167
+      ],
+      "randomized": [
+       168
+      ],
+      "trials.": [
+       169
+      ],
+      "One": [
+       170
+      ],
+      "trials,": [
+       173
+      ],
+      "Heart": [
+       175
+      ],
+      "Outcomes": [
+       176
+      ],
+      "Prevention": [
+       177
+      ],
+      "Evaluation": [
+       178
+      ],
+      "(HOPE)": [
+       179
+      ],
+      "study,": [
+       180
+      ],
+      "was": [
+       181
+      ],
+      "terminated": [
+       182
+      ],
+      "prematurely": [
+       183
+      ],
+      "because": [
+       184
+      ],
+      "it": [
+       185
+      ],
+      "demonstrated": [
+       186
+      ],
+      "significant": [
+       188
+      ],
+      "positive": [
+       189
+      ],
+      "effects": [
+       190
+      ],
+      "ramipril": [
+       195
+      ],
+      "cardiovascular": [
+       197
+      ],
+      "outcomes": [
+       198
+      ],
+      "function.": [
+       209
+      ],
+      "A": [
+       210
+      ],
+      "growing": [
+       211
+      ],
+      "body": [
+       212
+      ],
+      "data": [
+       214
+      ],
+      "confirms": [
+       215
+      ],
+      "relationship": [
+       217
+      ],
+      "between": [
+       218
+      ],
+      "benefits": [
+       225
+      ],
+      "treatment": [
+       229
+      ],
+      "broad": [
+       232
+      ],
+      "range": [
+       233
+      ],
+      "high-risk": [
+       235
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Willem J. Remme"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "Clinical Cardiology"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W2406921274",
+     "doi": null,
+     "ids": {
+      "openalex": "https://openalex.org/W2406921274",
+      "mag": "2406921274",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/8331800"
+     },
+     "title": "[Surgical treatment of patients with congestive heart failure].",
+     "publication_year": 1993,
+     "cited_by_count": 0,
+     "abstract_inverted_index": {
+      "Surgical": [
+       0
+      ],
+      "intervention": [
+       1
+      ],
+      "is": [
+       2,
+       25,
+       48,
+       95
+      ],
+      "a": [
+       3,
+       26,
+       33,
+       96
+      ],
+      "treatment": [
+       4,
+       47,
+       98
+      ],
+      "of": [
+       5,
+       45,
+       65,
+       109,
+       115
+      ],
+      "choice": [
+       6
+      ],
+      "in": [
+       7,
+       43
+      ],
+      "chronic": [
+       8,
+       85
+      ],
+      "congestive": [
+       9,
+       102
+      ],
+      "heart": [
+       10,
+       23,
+       88,
+       103
+      ],
+      "failure": [
+       11,
+       24,
+       89
+      ],
+      "from": [
+       12,
+       56,
+       118
+      ],
+      "long": [
+       13
+      ],
+      "standing": [
+       14
+      ],
+      "myocardial": [
+       15,
+       19,
+       41
+      ],
+      "ischemia": [
+       16,
+       42
+      ],
+      "or": [
+       17
+      ],
+      "old": [
+       18
+      ],
+      "infarction.": [
+       20
+      ],
+      "Right": [
+       21
+      ],
+      "sided": [
+       22,
+       35,
+       87
+      ],
+      "higher": [
+       27
+      ],
+      "risk": [
+       28
+      ],
+      "factor": [
+       29
+      ],
+      "for": [
+       30,
+       51,
+       74,
+       99
+      ],
+      "surgery": [
+       31
+      ],
+      "than": [
+       32
+      ],
+      "left": [
+       34
+      ],
+      "one.": [
+       36
+      ],
+      "Hemodynamic": [
+       37,
+       54
+      ],
+      "instability": [
+       38
+      ],
+      "following": [
+       39
+      ],
+      "acute": [
+       40,
+       57
+      ],
+      "spite": [
+       44
+      ],
+      "medical": [
+       46
+      ],
+      "an": [
+       49,
+       112
+      ],
+      "indication": [
+       50
+      ],
+      "urgent": [
+       52,
+       75
+      ],
+      "surgery.": [
+       53,
+       76
+      ],
+      "deterioration": [
+       55
+      ],
+      "valvular": [
+       58
+      ],
+      "lesions,": [
+       59
+      ],
+      "such": [
+       60
+      ],
+      "as": [
+       61
+      ],
+      "infectious": [
+       62
+      ],
+      "endocarditis,": [
+       63
+      ],
+      "malfunction": [
+       64
+      ],
+      "the": [
+       66,
+       91
+      ],
+      "prosthetic": [
+       67
+      ],
+      "valve,": [
+       68
+      ],
+      "and": [
+       69,
+       111
+      ],
+      "trauma,": [
+       70
+      ],
+      "are": [
+       71,
+       80
+      ],
+      "also": [
+       72
+      ],
+      "indications": [
+       73
+      ],
+      "Although": [
+       77
+      ],
+      "surgical": [
+       78
+      ],
+      "results": [
+       79
+      ],
+      "correlated": [
+       81
+      ],
+      "with": [
+       82
+      ],
+      "NYHA": [
+       83,
+       116
+      ],
+      "classification,": [
+       84
+      ],
+      "right": [
+       86
+      ],
+      "increases": [
+       90
+      ],
+      "morbidity.": [
+       92
+      ],
+      "Dynamic": [
+       93
+      ],
+      "cardiomyoplasty": [
+       94
+      ],
+      "new": [
+       97
+      ],
+      "otherwise": [
+       100
+      ],
+      "uncorrectable": [
+       101
+      ],
+      "failure.": [
+       104
+      ],
+      "Multicenter": [
+       105
+      ],
+      "trial": [
+       106
+      ],
+      "reported": [
+       107
+      ],
+      "40%": [
+       108
+      ],
+      "mortality": [
+       110
+      ],
+      "average": [
+       113
+      ],
+      "improvement": [
+       114
+      ],
+      "class": [
+       117
+      ],
+      "3.5": [
+       119
+      ],
+      "to": [
+       120
+      ],
+      "2.1.": [
+       121
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "M Kawauchi"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Akira Furuse"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "PubMed"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W3013950932",
+     "doi": "https://doi.org/10.1016/j.biopha.2020.110012",
+     "ids": {
+      "openalex": "https://openalex.org/W3013950932",
+      "doi": "https://doi.org/10.1016/j.biopha.2020.110012",
+      "mag": "3013950932",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/32213428"
+     },
+     "title": "An updated role of astragaloside IV in heart failure",
+     "publication_year": 2020,
+     "cited_by_count": 119,
+     "abstract_inverted_index": {
+      "Heart": [
+       0
+      ],
+      "failure": [
+       1
+      ],
+      "(HF)": [
+       2
+      ],
+      "has": [
+       3,
+       23
+      ],
+      "become": [
+       4
+      ],
+      "a": [
+       5,
+       45,
+       52,
+       139
+      ],
+      "worldwide": [
+       6
+      ],
+      "public": [
+       7
+      ],
+      "health": [
+       8
+      ],
+      "problem": [
+       9
+      ],
+      "that": [
+       10,
+       87
+      ],
+      "seriously": [
+       11
+      ],
+      "threatens": [
+       12
+      ],
+      "human’s": [
+       13
+      ],
+      "health.": [
+       14
+      ],
+      "Due": [
+       15
+      ],
+      "to": [
+       16,
+       68
+      ],
+      "\"multi-target\"": [
+       17
+      ],
+      "effect,": [
+       18
+      ],
+      "traditional": [
+       19
+      ],
+      "Chinese": [
+       20,
+       29,
+       55
+      ],
+      "medicine": [
+       21,
+       57
+      ],
+      "(TCM)": [
+       22
+      ],
+      "unique": [
+       24
+      ],
+      "advantages": [
+       25
+      ],
+      "in": [
+       26,
+       75,
+       119,
+       125,
+       143
+      ],
+      "this": [
+       27
+      ],
+      "field.": [
+       28
+      ],
+      "herb-derived": [
+       30
+      ],
+      "active": [
+       31
+      ],
+      "components": [
+       32
+      ],
+      "would": [
+       33
+      ],
+      "provide": [
+       34,
+       78
+      ],
+      "valuable": [
+       35
+      ],
+      "candidate": [
+       36
+      ],
+      "compounds": [
+       37
+      ],
+      "for": [
+       38,
+       58,
+       81
+      ],
+      "new": [
+       39
+      ],
+      "drug": [
+       40,
+       142
+      ],
+      "development.": [
+       41
+      ],
+      "Astragaloside": [
+       42
+      ],
+      "IV(AS-IV)": [
+       43
+      ],
+      "is": [
+       44,
+       67
+      ],
+      "main": [
+       46
+      ],
+      "effective": [
+       47
+      ],
+      "ingredient": [
+       48
+      ],
+      "of": [
+       49,
+       73,
+       123,
+       130,
+       147
+      ],
+      "Astragalus": [
+       50
+      ],
+      "membranaceus,": [
+       51
+      ],
+      "commonly": [
+       53
+      ],
+      "used": [
+       54
+      ],
+      "patent": [
+       56
+      ],
+      "the": [
+       59,
+       70,
+       120,
+       144
+      ],
+      "patients": [
+       60
+      ],
+      "with": [
+       61
+      ],
+      "chronic": [
+       62
+      ],
+      "heart": [
+       63
+      ],
+      "failure(CHF).": [
+       64
+      ],
+      "Our": [
+       65
+      ],
+      "aim": [
+       66
+      ],
+      "review": [
+       69
+      ],
+      "recent": [
+       71
+      ],
+      "progresses": [
+       72
+      ],
+      "AS-IV": [
+       74,
+       88,
+       124,
+       132
+      ],
+      "HF,": [
+       76
+      ],
+      "and": [
+       77,
+       106
+      ],
+      "potential": [
+       79,
+       140
+      ],
+      "evidence": [
+       80
+      ],
+      "its": [
+       82,
+       134
+      ],
+      "clinical": [
+       83,
+       145
+      ],
+      "application.": [
+       84
+      ],
+      "Data": [
+       85
+      ],
+      "showed": [
+       86
+      ],
+      "could": [
+       89
+      ],
+      "protect": [
+       90
+      ],
+      "myocardial": [
+       91,
+       109
+      ],
+      "ischemia,": [
+       92
+      ],
+      "regulate": [
+       93
+      ],
+      "sarcoplasmic": [
+       94
+      ],
+      "reticulum": [
+       95
+      ],
+      "Ca2+": [
+       96
+      ],
+      "pump,": [
+       97
+      ],
+      "promote": [
+       98
+      ],
+      "angiogenesis,": [
+       99
+      ],
+      "improve": [
+       100
+      ],
+      "energy": [
+       101
+      ],
+      "metabolism,": [
+       102
+      ],
+      "inhibit": [
+       103
+      ],
+      "cardiac": [
+       104
+      ],
+      "hypertrophy": [
+       105
+      ],
+      "fibrosis,": [
+       107
+      ],
+      "reduce": [
+       108
+      ],
+      "cell": [
+       110
+      ],
+      "apoptosis,": [
+       111
+      ],
+      "etc,": [
+       112
+      ],
+      "which": [
+       113
+      ],
+      "are": [
+       114
+      ],
+      "direct": [
+       115
+      ],
+      "or": [
+       116,
+       127,
+       133
+      ],
+      "indirect": [
+       117
+      ],
+      "involved": [
+       118
+      ],
+      "beneficial": [
+       121
+      ],
+      "effects": [
+       122
+      ],
+      "rodents": [
+       126
+      ],
+      "cellular": [
+       128
+      ],
+      "models": [
+       129
+      ],
+      "HF.": [
+       131,
+       148
+      ],
+      "derivatives": [
+       135
+      ],
+      "may": [
+       136
+      ],
+      "act": [
+       137
+      ],
+      "as": [
+       138
+      ],
+      "therapeutic": [
+       141
+      ],
+      "treatment": [
+       146
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Yibei Zang"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Jingjing Wan"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Zhen Zhang"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Sihong Huang"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Xia Liu"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Weidong Zhang"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "Biomedicine & Pharmacotherapy"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W2090153899",
+     "doi": "https://doi.org/10.1056/nejm197512042932309",
+     "ids": {
+      "openalex": "https://openalex.org/W2090153899",
+      "doi": "https://doi.org/10.1056/nejm197512042932309",
+      "mag": "2090153899",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/171570"
+     },
+     "title": "Congestive Heart Failure",
+     "publication_year": 1975,
+     "cited_by_count": 68,
+     "abstract_inverted_index": {
+      "CARDIAC": [
+       0
+      ],
+      "hyperfunction,": [
+       1
+      ],
+      "when": [
+       2,
+       85
+      ],
+      "sustained,": [
+       3
+      ],
+      "commonly": [
+       4
+      ],
+      "leads": [
+       5
+      ],
+      "to": [
+       6,
+       20
+      ],
+      "a": [
+       7,
+       42,
+       93
+      ],
+      "decline": [
+       8
+      ],
+      "in": [
+       9,
+       35
+      ],
+      "myocardial": [
+       10,
+       32
+      ],
+      "contractility.": [
+       11
+      ],
+      "Long": [
+       12
+      ],
+      "standing": [
+       13
+      ],
+      "hemodynamic": [
+       14,
+       58
+      ],
+      "overloading,": [
+       15
+      ],
+      "whether": [
+       16
+      ],
+      "it": [
+       17
+      ],
+      "is": [
+       18,
+       76,
+       81
+      ],
+      "due": [
+       19
+      ],
+      "systemic": [
+       21
+      ],
+      "or": [
+       22,
+       28
+      ],
+      "pulmonary": [
+       23
+      ],
+      "hypertension,": [
+       24
+      ],
+      "valvular": [
+       25
+      ],
+      "heart": [
+       26,
+       37
+      ],
+      "disease": [
+       27
+      ],
+      "loss": [
+       29
+      ],
+      "of": [
+       30,
+       44,
+       66,
+       73,
+       95
+      ],
+      "functional": [
+       31
+      ],
+      "tissue": [
+       33
+      ],
+      "(as": [
+       34
+      ],
+      "ischemic": [
+       36
+      ],
+      "disease),": [
+       38
+      ],
+      "calls": [
+       39
+      ],
+      "into": [
+       40
+      ],
+      "play": [
+       41
+      ],
+      "number": [
+       43
+      ],
+      "mechanisms": [
+       45
+      ],
+      "that": [
+       46,
+       79
+      ],
+      "compensate": [
+       47
+      ],
+      "for": [
+       48,
+       52
+      ],
+      "the": [
+       49,
+       57,
+       60,
+       70,
+       74,
+       96
+      ],
+      "increased": [
+       50
+      ],
+      "demands": [
+       51
+      ],
+      "mechanical": [
+       53
+      ],
+      "energy.": [
+       54,
+       68
+      ],
+      "To": [
+       55
+      ],
+      "overcome": [
+       56
+      ],
+      "overload,": [
+       59
+      ],
+      "myocardium": [
+       61,
+       75
+      ],
+      "must": [
+       62
+      ],
+      "increase": [
+       63
+      ],
+      "its": [
+       64
+      ],
+      "expenditure": [
+       65
+      ],
+      "chemical": [
+       67
+      ],
+      "Yet": [
+       69
+      ],
+      "energy-generating": [
+       71
+      ],
+      "capacity": [
+       72
+      ],
+      "limited,": [
+       77
+      ],
+      "so": [
+       78
+      ],
+      "there": [
+       80
+      ],
+      "little": [
+       82
+      ],
+      "reserve": [
+       83
+      ],
+      "even": [
+       84
+      ],
+      "circulatory": [
+       86
+      ],
+      "hemodynamics": [
+       87
+      ],
+      "are": [
+       88
+      ],
+      "normal.": [
+       89
+      ],
+      "For": [
+       90
+      ],
+      "this": [
+       91
+      ],
+      "reason": [
+       92
+      ],
+      "rebudgeting": [
+       94
+      ],
+      "energy-producing": [
+       97
+      ],
+      "and": [
+       98
+      ],
+      "energy-consuming": [
+       99
+      ],
+      ".": [
+       100,
+       101,
+       102
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Arnold M. Katz"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "New England Journal of Medicine"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W2113865982",
+     "doi": "https://doi.org/10.1161/01.cir.88.1.107",
+     "ids": {
+      "openalex": "https://openalex.org/W2113865982",
+      "doi": "https://doi.org/10.1161/01.cir.88.1.107",
+      "mag": "2113865982",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/8319323"
+     },
+     "title": "Survival after the onset of congestive heart failure in Framingham Heart Study subjects.",
+     "publication_year": 1993,
+     "cited_by_count": 1870,
+     "abstract_inverted_index": {
+      "BACKGROUND:": [
+       0
+      ],
+      "Relatively": [
+       1
+      ],
+      "limited": [
+       2
+      ],
+      "epidemiological": [
+       3
+      ],
+      "data": [
+       4
+      ],
+      "are": [
+       5
+      ],
+      "available": [
+       6
+      ],
+      "regarding": [
+       7
+      ],
+      "the": [
+       8,
+       37,
+       46,
+       54,
+       77,
+       83,
+       100,
+       107,
+       114,
+       122,
+       130,
+       223,
+       228,
+       275,
+       286,
+       301
+      ],
+      "prognosis": [
+       9,
+       224,
+       266
+      ],
+      "of": [
+       10,
+       39,
+       48,
+       53,
+       79,
+       86,
+       132,
+       196,
+       208,
+       225,
+       231,
+       277,
+       289,
+       303
+      ],
+      "congestive": [
+       11
+      ],
+      "heart": [
+       12,
+       80,
+       92,
+       133,
+       283
+      ],
+      "failure": [
+       13,
+       81,
+       93,
+       134
+      ],
+      "(CHF)": [
+       14
+      ],
+      "and": [
+       15,
+       71,
+       116,
+       140,
+       147,
+       153,
+       157,
+       159,
+       269,
+       281
+      ],
+      "temporal": [
+       16,
+       220
+      ],
+      "changes": [
+       17
+      ],
+      "in": [
+       18,
+       23,
+       82,
+       99,
+       106,
+       113,
+       121,
+       138,
+       143,
+       155,
+       161,
+       167,
+       170,
+       186,
+       222,
+       267,
+       270,
+       274,
+       297,
+       305
+      ],
+      "survival": [
+       19,
+       44,
+       128,
+       149,
+       299
+      ],
+      "after": [
+       20,
+       45,
+       129,
+       300
+      ],
+      "its": [
+       21
+      ],
+      "onset": [
+       22,
+       47,
+       131,
+       302
+      ],
+      "a": [
+       24
+      ],
+      "population-based": [
+       25
+      ],
+      "setting.": [
+       26
+      ],
+      "METHODS": [
+       27
+      ],
+      "AND": [
+       28
+      ],
+      "RESULTS:": [
+       29
+      ],
+      "Proportional": [
+       30
+      ],
+      "hazards": [
+       31,
+       173,
+       201,
+       246
+      ],
+      "models": [
+       32
+      ],
+      "were": [
+       33,
+       74,
+       151
+      ],
+      "used": [
+       34
+      ],
+      "to": [
+       35
+      ],
+      "evaluate": [
+       36
+      ],
+      "effects": [
+       38
+      ],
+      "selected": [
+       40
+      ],
+      "clinical": [
+       41
+      ],
+      "variables": [
+       42
+      ],
+      "on": [
+       43
+      ],
+      "CHF": [
+       49,
+       68,
+       226,
+       260,
+       304
+      ],
+      "among": [
+       50
+      ],
+      "652": [
+       51
+      ],
+      "members": [
+       52
+      ],
+      "Framingham": [
+       55
+      ],
+      "Heart": [
+       56
+      ],
+      "Study": [
+       57
+      ],
+      "(51%": [
+       58
+      ],
+      "men;": [
+       59
+      ],
+      "mean": [
+       60
+      ],
+      "age,": [
+       61,
+       215
+      ],
+      "70.0": [
+       62
+      ],
+      "+/-": [
+       63,
+       96,
+       103,
+       110,
+       118
+      ],
+      "10.8": [
+       64
+      ],
+      "years)": [
+       65
+      ],
+      "who": [
+       66
+      ],
+      "developed": [
+       67
+      ],
+      "between": [
+       69
+      ],
+      "1948": [
+       70
+      ],
+      "1988.": [
+       72
+      ],
+      "Subjects": [
+       73
+      ],
+      "older": [
+       75
+      ],
+      "at": [
+       76,
+       91
+      ],
+      "diagnosis": [
+       78
+      ],
+      "later": [
+       84
+      ],
+      "decades": [
+       85,
+       288
+      ],
+      "this": [
+       87,
+       306
+      ],
+      "study": [
+       88
+      ],
+      "(mean": [
+       89
+      ],
+      "age": [
+       90,
+       185
+      ],
+      "diagnosis,": [
+       94
+      ],
+      "57.3": [
+       95
+      ],
+      "7.6": [
+       97
+      ],
+      "years": [
+       98,
+       105,
+       112,
+       120,
+       137,
+       142,
+       230
+      ],
+      "1950s,": [
+       101
+      ],
+      "65.9": [
+       102
+      ],
+      "7.9": [
+       104
+      ],
+      "1960s,": [
+       108
+      ],
+      "71.6": [
+       109
+      ],
+      "9.4": [
+       111
+      ],
+      "1970s,": [
+       115
+      ],
+      "76.4": [
+       117
+      ],
+      "10.0": [
+       119
+      ],
+      "1980s;": [
+       123
+      ],
+      "p": [
+       124
+      ],
+      "<": [
+       125
+      ],
+      "0.001).": [
+       126
+      ],
+      "Median": [
+       127
+      ],
+      "was": [
+       135,
+       165,
+       217
+      ],
+      "1.7": [
+       136
+      ],
+      "men": [
+       139,
+       156,
+       171,
+       236
+      ],
+      "3.2": [
+       141
+      ],
+      "women.": [
+       144
+      ],
+      "Overall,": [
+       145
+      ],
+      "1-year": [
+       146
+      ],
+      "5-year": [
+       148
+      ],
+      "rates": [
+       150
+      ],
+      "57%": [
+       152
+      ],
+      "25%": [
+       154
+      ],
+      "64%": [
+       158
+      ],
+      "38%": [
+       160
+      ],
+      "women,": [
+       162,
+       204
+      ],
+      "respectively.": [
+       163
+      ],
+      "Survival": [
+       164
+      ],
+      "better": [
+       166,
+       265
+      ],
+      "women": [
+       168,
+       249,
+       268
+      ],
+      "than": [
+       169
+      ],
+      "(age-adjusted": [
+       172
+      ],
+      "ratio": [
+       174,
+       190,
+       202,
+       234,
+       247
+      ],
+      "for": [
+       175,
+       191,
+       203,
+       214,
+       235,
+       237,
+       248,
+       250
+      ],
+      "mortality,": [
+       176,
+       238,
+       251
+      ],
+      "0.64;": [
+       177
+      ],
+      "95%": [
+       178,
+       198,
+       210,
+       243,
+       256
+      ],
+      "CI,": [
+       179,
+       199,
+       211,
+       244,
+       257
+      ],
+      "0.54-0.77).": [
+       180
+      ],
+      "Mortality": [
+       181
+      ],
+      "increased": [
+       182
+      ],
+      "with": [
+       183,
+       264
+      ],
+      "advancing": [
+       184
+      ],
+      "both": [
+       187
+      ],
+      "sexes": [
+       188
+      ],
+      "(hazards": [
+       189,
+       233
+      ],
+      "men,": [
+       192
+      ],
+      "1.27": [
+       193
+      ],
+      "per": [
+       194,
+       206,
+       240,
+       253
+      ],
+      "decade": [
+       195,
+       207
+      ],
+      "age;": [
+       197,
+       209
+      ],
+      "1.09-1.47;": [
+       200
+      ],
+      "1.61": [
+       205
+      ],
+      "1.37-1.90).": [
+       212
+      ],
+      "Adjusting": [
+       213
+      ],
+      "there": [
+       216
+      ],
+      "no": [
+       218
+      ],
+      "significant": [
+       219
+      ],
+      "change": [
+       221
+      ],
+      "during": [
+       227,
+       285
+      ],
+      "40": [
+       229
+      ],
+      "observation": [
+       232,
+       290
+      ],
+      "1.08": [
+       239
+      ],
+      "calendar": [
+       241,
+       254
+      ],
+      "decade;": [
+       242,
+       255
+      ],
+      "0.92-1.27;": [
+       245
+      ],
+      "1.02": [
+       252
+      ],
+      "0.83-1.26).": [
+       258
+      ],
+      "CONCLUSIONS:": [
+       259
+      ],
+      "remains": [
+       261
+      ],
+      "highly": [
+       262
+      ],
+      "lethal,": [
+       263
+      ],
+      "younger": [
+       271
+      ],
+      "individuals.": [
+       272
+      ],
+      "Advances": [
+       273
+      ],
+      "treatment": [
+       276
+      ],
+      "hypertension,": [
+       278
+      ],
+      "myocardial": [
+       279
+      ],
+      "ischemia,": [
+       280
+      ],
+      "valvular": [
+       282
+      ],
+      "disease": [
+       284
+      ],
+      "four": [
+       287
+      ],
+      "did": [
+       291
+      ],
+      "not": [
+       292
+      ],
+      "translate": [
+       293
+      ],
+      "into": [
+       294
+      ],
+      "appreciable": [
+       295
+      ],
+      "improvements": [
+       296
+      ],
+      "overall": [
+       298
+      ],
+      "large,": [
+       307
+      ],
+      "unselected": [
+       308
+      ],
+      "population.": [
+       309
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Kalon K.L. Ho"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Keaven M. Anderson"
+       }
+      },
+      {
+       "author": {
+        "display_name": "William B. Kannel"
+       }
+      },
+      {
+       "author": {
+        "display_name": "William Grossman"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Daniel A Levy"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "Circulation"
+      }
+     }
+    }
+   ]
+  },
+  "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&term=%28%22Heart+Failure%22%5BMeSH+Terms%5D+OR+%22Heart+Failure%22%5Btiab%5D+OR+%22Congestive+Heart+Failure%22%5Btiab%5D+OR+%22Right-Sided+Heart+Failure%22%5Btiab%5D+OR+%22Left-Sided+Heart+Failure%22%5Btiab%5D+OR+%22Cardiac+Failure%22%5Btiab%5D+OR+%22chronic+heart+failure%22%5Btiab%5D%29+AND+%28%22Myocardial+Ischemia%22%5BMeSH+Terms%5D+OR+%22Myocardial+Ischemia%22%5Btiab%5D+OR+%22Ischemic+Heart+Disease%22%5Btiab%5D+OR+%22myocardial+ischaemia%22%5Btiab%5D%29&retmax=10&sort=relevance": {
+   "header": {
+    "type": "esearch",
+    "version": "0.3"
+   },
+   "esearchresult": {
+    "count": "44344",
+    "retmax": "10",
+    "retstart": "0",
+    "idlist": [
+     "26226871",
+     "40005328",
+     "23470072",
+     "11565492",
+     "33121952",
+     "31382288",
+     "11779722",
+     "25704330",
+     "28607164",
+     "5122894"
+    ],
+    "translationset": [],
+    "querytranslation": "(\"Heart Failure\"[MeSH Terms] OR \"Heart Failure\"[Title/Abstract] OR \"Congestive Heart Failure\"[Title/Abstract] OR \"Right-Sided Heart Failure\"[Title/Abstract] OR \"Left-Sided Heart Failure\"[Title/Abstract] OR \"Cardiac Failure\"[Title/Abstract] OR \"chronic heart failure\"[Title/Abstract]) AND (\"Myocardial Ischemia\"[MeSH Terms] OR \"Myocardial Ischemia\"[Title/Abstract] OR \"Ischemic Heart Disease\"[Title/Abstract] OR \"myocardial ischaemia\"[Title/Abstract])"
+   }
+  },
+  "https://api.openalex.org/works?search=%28%22Carcinoid+Heart+Disease%22+OR+%22carcinoid+heart%22%29+AND+%28%22Mendelian+Randomization+Analysis%22+OR+%22mendelian+randomization%22%29&per-page=10&select=id%2Cdoi%2Cids%2Ctitle%2Cpublication_year%2Cauthorships%2Cprimary_location%2Ccited_by_count%2Cabstract_inverted_index": {
+   "results": [
+    {
+     "id": "https://openalex.org/W4390111570",
+     "doi": "https://doi.org/10.3389/fmicb.2023.1291699",
+     "ids": {
+      "openalex": "https://openalex.org/W4390111570",
+      "doi": "https://doi.org/10.3389/fmicb.2023.1291699",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/38188562"
+     },
+     "title": "The cause-and-effect relationship between gut microbiota abundance and carcinoid syndrome: a bidirectional Mendelian randomization study",
+     "publication_year": 2023,
+     "cited_by_count": 13,
+     "abstract_inverted_index": {
+      "Objective": [
+       0
+      ],
+      "Carcinoid": [
+       1
+      ],
+      "syndrome": [
+       2
+      ],
+      "(CS)": [
+       3
+      ],
+      "commonly": [
+       4
+      ],
+      "results": [
+       5,
+       169
+      ],
+      "from": [
+       6,
+       54
+      ],
+      "neuroendocrine": [
+       7
+      ],
+      "tumors.": [
+       8
+      ],
+      "While": [
+       9
+      ],
+      "active": [
+       10
+      ],
+      "substances": [
+       11
+      ],
+      "are": [
+       12,
+       299
+      ],
+      "recognized": [
+       13
+      ],
+      "as": [
+       14,
+       23,
+       89
+      ],
+      "the": [
+       15,
+       19,
+       28,
+       55,
+       69,
+       79,
+       96,
+       128,
+       156,
+       182,
+       187,
+       204,
+       207,
+       217,
+       227,
+       237,
+       275
+      ],
+      "main": [
+       16
+      ],
+      "causes": [
+       17
+      ],
+      "of": [
+       18,
+       95,
+       130
+      ],
+      "typical": [
+       20
+      ],
+      "symptoms": [
+       21
+      ],
+      "such": [
+       22
+      ],
+      "diarrhea": [
+       24
+      ],
+      "and": [
+       25,
+       35,
+       50,
+       76,
+       84,
+       110,
+       164,
+       179,
+       247,
+       294
+      ],
+      "skin": [
+       26
+      ],
+      "flush,": [
+       27
+      ],
+      "cause-and-effect": [
+       29,
+       158
+      ],
+      "relationship": [
+       30,
+       71,
+       159,
+       173,
+       273,
+       291
+      ],
+      "between": [
+       31,
+       72,
+       160,
+       174
+      ],
+      "gut": [
+       32,
+       47,
+       73,
+       161,
+       176,
+       184,
+       278
+      ],
+      "microbiota": [
+       33,
+       48,
+       74,
+       162,
+       177,
+       185,
+       279,
+       283
+      ],
+      "abundance": [
+       34,
+       49,
+       75,
+       163
+      ],
+      "CS": [
+       36,
+       51,
+       264
+      ],
+      "remains": [
+       37
+      ],
+      "unclear.": [
+       38
+      ],
+      "Methods": [
+       39
+      ],
+      "The": [
+       40,
+       59,
+       92,
+       107,
+       121,
+       132,
+       167,
+       263
+      ],
+      "Single": [
+       41
+      ],
+      "Nucleotide": [
+       42
+      ],
+      "Polymorphisms": [
+       43
+      ],
+      "(SNPs)": [
+       44
+      ],
+      "related": [
+       45
+      ],
+      "to": [
+       46,
+       67,
+       101,
+       115,
+       126,
+       137,
+       154,
+       268,
+       287
+      ],
+      "were": [
+       52,
+       87,
+       113,
+       285
+      ],
+      "obtained": [
+       53
+      ],
+      "GWAS": [
+       56
+      ],
+      "summary": [
+       57
+      ],
+      "data.": [
+       58
+      ],
+      "inverse": [
+       60
+      ],
+      "variance": [
+       61
+      ],
+      "weighted": [
+       62
+      ],
+      "(IVW)": [
+       63
+      ],
+      "method": [
+       64
+      ],
+      "was": [
+       65,
+       99,
+       124,
+       135,
+       152,
+       265
+      ],
+      "used": [
+       66,
+       114
+      ],
+      "assess": [
+       68,
+       102,
+       116
+      ],
+      "causal": [
+       70,
+       144,
+       172,
+       272,
+       290
+      ],
+      "CS.": [
+       77,
+       165,
+       180,
+       202,
+       262
+      ],
+      "Additionally,": [
+       78
+      ],
+      "MR-Egger,": [
+       80
+      ],
+      "Weighted": [
+       81,
+       85
+      ],
+      "Median": [
+       82
+      ],
+      "model,": [
+       83
+      ],
+      "model": [
+       86
+      ],
+      "employed": [
+       88,
+       125
+      ],
+      "supplementary": [
+       90
+      ],
+      "approaches.": [
+       91
+      ],
+      "heterogeneity": [
+       93
+      ],
+      "function": [
+       94
+      ],
+      "TwoSampleMR": [
+       97
+      ],
+      "package": [
+       98
+      ],
+      "utilized": [
+       100,
+       136
+      ],
+      "whether": [
+       103,
+       117,
+       139
+      ],
+      "SNPs": [
+       104,
+       118,
+       140
+      ],
+      "exhibit": [
+       105,
+       119
+      ],
+      "heterogeneity.": [
+       106
+      ],
+      "Egger": [
+       108
+      ],
+      "intercept": [
+       109
+      ],
+      "Presso": [
+       111
+      ],
+      "test": [
+       112,
+       123,
+       134
+      ],
+      "pleiotropy.": [
+       120
+      ],
+      "Leave-One-Out": [
+       122
+      ],
+      "evaluate": [
+       127
+      ],
+      "sensitivity": [
+       129
+      ],
+      "SNPs.": [
+       131
+      ],
+      "Steiger": [
+       133
+      ],
+      "examine": [
+       138
+      ],
+      "have": [
+       141,
+       269,
+       288
+      ],
+      "a": [
+       142,
+       171,
+       198,
+       258,
+       270,
+       289
+      ],
+      "reverse": [
+       143,
+       271
+      ],
+      "relationship.": [
+       145
+      ],
+      "A": [
+       146
+      ],
+      "bidirectional": [
+       147
+      ],
+      "mendelian": [
+       148
+      ],
+      "randomization": [
+       149
+      ],
+      "(MR)": [
+       150
+      ],
+      "study": [
+       151
+      ],
+      "conducted": [
+       153
+      ],
+      "elucidate": [
+       155
+      ],
+      "inferred": [
+       157
+      ],
+      "Results": [
+       166
+      ],
+      "IVW": [
+       168
+      ],
+      "indicated": [
+       170
+      ],
+      "6": [
+       175,
+       183,
+       277
+      ],
+      "taxa": [
+       178,
+       284
+      ],
+      "Among": [
+       181
+      ],
+      "taxa,": [
+       186
+      ],
+      "genus": [
+       188,
+       218,
+       228,
+       238,
+       248
+      ],
+      "Anaerofilum": [
+       189
+      ],
+      "(IVW": [
+       190,
+       210,
+       220,
+       230,
+       240,
+       250
+      ],
+      "OR:": [
+       191,
+       211,
+       221,
+       231,
+       241,
+       251
+      ],
+      "0.3606,": [
+       192
+      ],
+      "95%CI:": [
+       193,
+       213,
+       223,
+       233,
+       243,
+       253
+      ],
+      "0.1554–0.8367,": [
+       194
+      ],
+      "p-value:": [
+       195,
+       215,
+       225,
+       235,
+       245,
+       255
+      ],
+      "0.0175)": [
+       196
+      ],
+      "exhibited": [
+       197
+      ],
+      "protective": [
+       199
+      ],
+      "effect": [
+       200,
+       260
+      ],
+      "against": [
+       201
+      ],
+      "On": [
+       203
+      ],
+      "other": [
+       205
+      ],
+      "hand,": [
+       206
+      ],
+      "family": [
+       208
+      ],
+      "Coriobacteriaceae": [
+       209
+      ],
+      "3.4572,": [
+       212
+      ],
+      "1.0571–11.3066,": [
+       214
+      ],
+      "0.0402),": [
+       216
+      ],
+      "Enterorhabdus": [
+       219
+      ],
+      "4.2496,": [
+       222
+      ],
+      "1.3314–13.5640,": [
+       224
+      ],
+      "0.0146),": [
+       226
+      ],
+      "Ruminiclostridium6": [
+       229
+      ],
+      "4.0116,": [
+       232
+      ],
+      "1.2711–12.6604,": [
+       234
+      ],
+      "0.0178),": [
+       236
+      ],
+      "Veillonella": [
+       239
+      ],
+      "3.7023,": [
+       242
+      ],
+      "1.0155–13.4980,": [
+       244
+      ],
+      "0.0473)": [
+       246
+      ],
+      "Holdemanella": [
+       249
+      ],
+      "2.2400,": [
+       252
+      ],
+      "1.0376–4.8358,": [
+       254
+      ],
+      "0.0400)": [
+       256
+      ],
+      "demonstrated": [
+       257
+      ],
+      "detrimental": [
+       259
+      ],
+      "on": [
+       261
+      ],
+      "not": [
+       266
+      ],
+      "found": [
+       267,
+       286
+      ],
+      "with": [
+       274,
+       292
+      ],
+      "above": [
+       276
+      ],
+      "taxa.": [
+       280
+      ],
+      "Conclusion": [
+       281
+      ],
+      "Six": [
+       282
+      ],
+      "CS,": [
+       293
+      ],
+      "further": [
+       295
+      ],
+      "randomized": [
+       296
+      ],
+      "controlled": [
+       297
+      ],
+      "trials": [
+       298
+      ],
+      "needed": [
+       300
+      ],
+      "for": [
+       301
+      ],
+      "verification.": [
+       302
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Zexin Zhang"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Dongting Li"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Fengxi Xie"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Gulizeba Muhetaer"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Haibo Zhang"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "Frontiers in Microbiology"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W4396889703",
+     "doi": "https://doi.org/10.31965/infokes.vol21.iss4.1407",
+     "ids": {
+      "openalex": "https://openalex.org/W4396889703",
+      "doi": "https://doi.org/10.31965/infokes.vol21.iss4.1407"
+     },
+     "title": "Nutrition Counseling, Lipid Profile Improvement and Weight Loss in Obese Patients with Dyslipidemia",
+     "publication_year": 2023,
+     "cited_by_count": 0,
+     "abstract_inverted_index": {
+      "Obesity": [
+       0
+      ],
+      "with": [
+       1,
+       49,
+       78,
+       85,
+       120,
+       255
+      ],
+      "dyslipidemia": [
+       2,
+       50,
+       121
+      ],
+      "is": [
+       3,
+       44,
+       81,
+       138,
+       150,
+       225,
+       238
+      ],
+      "a": [
+       4,
+       82,
+       233
+      ],
+      "serious": [
+       5
+      ],
+      "problem": [
+       6
+      ],
+      "because": [
+       7
+      ],
+      "it": [
+       8,
+       43
+      ],
+      "risks": [
+       9
+      ],
+      "various": [
+       10
+      ],
+      "degenerative": [
+       11,
+       38
+      ],
+      "and": [
+       12,
+       40,
+       54,
+       71,
+       89,
+       101,
+       113,
+       144,
+       165,
+       183,
+       199,
+       215,
+       247
+      ],
+      "metabolic": [
+       13,
+       41
+      ],
+      "diseases.": [
+       14
+      ],
+      "The": [
+       15,
+       93,
+       126,
+       133,
+       147,
+       220,
+       228
+      ],
+      "prevalence": [
+       16
+      ],
+      "of": [
+       17,
+       37,
+       65,
+       99,
+       136,
+       141,
+       191,
+       241,
+       249,
+       252
+      ],
+      "obesity": [
+       18,
+       48,
+       100
+      ],
+      "in": [
+       19,
+       27,
+       68,
+       75,
+       155,
+       206,
+       223
+      ],
+      "Indonesia": [
+       20
+      ],
+      "continues": [
+       21
+      ],
+      "to": [
+       22,
+       46,
+       61
+      ],
+      "increase": [
+       23
+      ],
+      "every": [
+       24
+      ],
+      "year,": [
+       25
+      ],
+      "currently": [
+       26
+      ],
+      "the": [
+       28,
+       35,
+       63,
+       97,
+       139,
+       156
+      ],
+      "adult": [
+       29
+      ],
+      "population": [
+       30
+      ],
+      "reaching": [
+       31
+      ],
+      "21.8%.": [
+       32
+      ],
+      "To": [
+       33
+      ],
+      "prevent": [
+       34
+      ],
+      "onset": [
+       36
+      ],
+      "diseases": [
+       39
+      ],
+      "disorders,": [
+       42
+      ],
+      "important": [
+       45
+      ],
+      "control": [
+       47
+      ],
+      "through": [
+       51
+      ],
+      "weight": [
+       52,
+       70,
+       143,
+       161,
+       168,
+       173,
+       245
+      ],
+      "loss": [
+       53,
+       174,
+       246
+      ],
+      "lipid": [
+       55,
+       73,
+       102,
+       145,
+       250
+      ],
+      "profile": [
+       56
+      ],
+      "improvement.": [
+       57
+      ],
+      "This": [
+       58,
+       80
+      ],
+      "study": [
+       59,
+       84
+      ],
+      "aims": [
+       60
+      ],
+      "determine": [
+       62
+      ],
+      "effect": [
+       64,
+       240
+      ],
+      "nutritional": [
+       66,
+       242
+      ],
+      "counseling": [
+       67,
+       131,
+       243
+      ],
+      "losing": [
+       69
+      ],
+      "improving": [
+       72
+      ],
+      "profiles": [
+       74,
+       251
+      ],
+      "obese": [
+       76,
+       118,
+       253
+      ],
+      "patients": [
+       77,
+       254
+      ],
+      "dyslipidemia.": [
+       79,
+       256
+      ],
+      "pseudo-experimental": [
+       83
+      ],
+      "One": [
+       86
+      ],
+      "group": [
+       87
+      ],
+      "Pre": [
+       88
+      ],
+      "Post": [
+       90
+      ],
+      "Test": [
+       91
+      ],
+      "Design.": [
+       92
+      ],
+      "initial": [
+       94,
+       159,
+       179,
+       195,
+       211
+      ],
+      "stage": [
+       95,
+       128,
+       135
+      ],
+      "was": [
+       96,
+       129,
+       162,
+       169,
+       175
+      ],
+      "identification": [
+       98
+      ],
+      "profile.": [
+       103,
+       146
+      ],
+      "In": [
+       104
+      ],
+      "100": [
+       105
+      ],
+      "respondents": [
+       106,
+       119,
+       153
+      ],
+      "identified": [
+       107
+      ],
+      "as": [
+       108,
+       124
+      ],
+      "obese,": [
+       109
+      ],
+      "total": [
+       110
+      ],
+      "cholesterol,": [
+       111
+      ],
+      "LDL": [
+       112,
+       196,
+       201,
+       207
+      ],
+      "triglycerides": [
+       114,
+       212,
+       217,
+       224
+      ],
+      "were": [
+       115,
+       122
+      ],
+      "examined.": [
+       116
+      ],
+      "40": [
+       117
+      ],
+      "determined": [
+       123
+      ],
+      "samples.": [
+       125
+      ],
+      "second": [
+       127
+      ],
+      "nutrition": [
+       130
+      ],
+      "intervention.": [
+       132
+      ],
+      "third": [
+       134
+      ],
+      "evaluation": [
+       137
+      ],
+      "re-measurement": [
+       140
+      ],
+      "body": [
+       142,
+       160,
+       167
+      ],
+      "research": [
+       148
+      ],
+      "result": [
+       149
+      ],
+      "only": [
+       151
+      ],
+      "30": [
+       152
+      ],
+      "participated": [
+       154
+      ],
+      "evaluation.": [
+       157
+      ],
+      "Average": [
+       158,
+       172,
+       178,
+       188,
+       194,
+       204,
+       210
+      ],
+      "75.11": [
+       163
+      ],
+      "kg": [
+       164
+      ],
+      "final": [
+       166,
+       184,
+       200,
+       216
+      ],
+      "73.14": [
+       170
+      ],
+      "kg.": [
+       171,
+       177
+      ],
+      "1.97": [
+       176
+      ],
+      "cholesterol": [
+       180,
+       185,
+       189
+      ],
+      "233.20": [
+       181
+      ],
+      "mg/dL": [
+       182,
+       198,
+       209,
+       214
+      ],
+      "224.70": [
+       186
+      ],
+      "mg/dL.": [
+       187,
+       193,
+       203,
+       219,
+       227
+      ],
+      "reduction": [
+       190
+      ],
+      "8.5": [
+       192
+      ],
+      "152.37": [
+       197
+      ],
+      "139.47": [
+       202
+      ],
+      "decrease": [
+       205,
+       222
+      ],
+      "12.9": [
+       208
+      ],
+      "161.23": [
+       213
+      ],
+      "143.97": [
+       218
+      ],
+      "average": [
+       221
+      ],
+      "17.26": [
+       226
+      ],
+      "statistical": [
+       229
+      ],
+      "test": [
+       230
+      ],
+      "results": [
+       231
+      ],
+      "showed": [
+       232
+      ],
+      "p-value": [
+       234
+      ],
+      "=": [
+       235
+      ],
+      "0.000.": [
+       236
+      ],
+      "There": [
+       237
+      ],
+      "an": [
+       239
+      ],
+      "on": [
+       244
+      ],
+      "improvement": [
+       248
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Salman Salman"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Novian Swasono Hadi"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Liean A. Ntau"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Nancy Olii"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Siti Choirul Dwi Astuti"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "JURNAL INFO KESEHATAN"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W4414975773",
+     "doi": "https://doi.org/10.12968/hmed.2024.0780",
+     "ids": {
+      "openalex": "https://openalex.org/W4414975773",
+      "doi": "https://doi.org/10.12968/hmed.2024.0780",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/41134179"
+     },
+     "title": "Neuroendocrine Tumours in the Gastrointestinal Tract: What You Need to Know",
+     "publication_year": 2025,
+     "cited_by_count": 1,
+     "abstract_inverted_index": {
+      "Neuroendocrine": [
+       0
+      ],
+      "neoplasms": [
+       1
+      ],
+      "(NENs)": [
+       2
+      ],
+      "comprise": [
+       3
+      ],
+      "well": [
+       4
+      ],
+      "differentiated": [
+       5,
+       11
+      ],
+      "neuroendocrine": [
+       6,
+       12
+      ],
+      "tumours": [
+       7
+      ],
+      "(NETs)": [
+       8
+      ],
+      "and": [
+       9,
+       30,
+       48,
+       59,
+       61,
+       69,
+       111,
+       134
+      ],
+      "poorly": [
+       10
+      ],
+      "carcinomas": [
+       13
+      ],
+      "(NECs).": [
+       14
+      ],
+      "NENs": [
+       15,
+       76,
+       84
+      ],
+      "can": [
+       16
+      ],
+      "develop": [
+       17
+      ],
+      "at": [
+       18
+      ],
+      "various": [
+       19
+      ],
+      "anatomical": [
+       20
+      ],
+      "sites,": [
+       21
+      ],
+      "the": [
+       22,
+       27
+      ],
+      "most": [
+       23
+      ],
+      "common": [
+       24
+      ],
+      "being": [
+       25
+      ],
+      "in": [
+       26,
+       71,
+       122
+      ],
+      "gastrointestinal": [
+       28
+      ],
+      "tract": [
+       29
+      ],
+      "their": [
+       31
+      ],
+      "incidence": [
+       32
+      ],
+      "is": [
+       33,
+       66,
+       128
+      ],
+      "increasing.": [
+       34
+      ],
+      "Although": [
+       35
+      ],
+      "uncommon,": [
+       36
+      ],
+      "they": [
+       37
+      ],
+      "are": [
+       38,
+       51,
+       77,
+       85,
+       98
+      ],
+      "no": [
+       39
+      ],
+      "longer": [
+       40
+      ],
+      "considered": [
+       41
+      ],
+      "to": [
+       42,
+       53,
+       62,
+       108,
+       130
+      ],
+      "be": [
+       43,
+       109
+      ],
+      "rare.": [
+       44
+      ],
+      "Comprehensive": [
+       45
+      ],
+      "biochemical,": [
+       46
+      ],
+      "histopathological": [
+       47
+      ],
+      "imaging": [
+       49
+      ],
+      "investigations": [
+       50
+      ],
+      "required": [
+       52
+      ],
+      "assess": [
+       54
+      ],
+      "an": [
+       55,
+       132
+      ],
+      "NEN's": [
+       56
+      ],
+      "site,": [
+       57
+      ],
+      "grade": [
+       58
+      ],
+      "stage": [
+       60
+      ],
+      "determine": [
+       63
+      ],
+      "whether": [
+       64
+      ],
+      "it": [
+       65
+      ],
+      "producing": [
+       67
+      ],
+      "hormones": [
+       68
+      ],
+      "resulting": [
+       70
+      ],
+      "a": [
+       72,
+       114
+      ],
+      "hormonal": [
+       73
+      ],
+      "syndrome.": [
+       74
+      ],
+      "Localised": [
+       75
+      ],
+      "typically": [
+       78
+      ],
+      "managed": [
+       79,
+       112
+      ],
+      "with": [
+       80,
+       89
+      ],
+      "surgery,": [
+       81
+      ],
+      "while": [
+       82
+      ],
+      "metastatic": [
+       83
+      ],
+      "often": [
+       86
+      ],
+      "treated": [
+       87
+      ],
+      "initially": [
+       88
+      ],
+      "systemic": [
+       90
+      ],
+      "therapy,": [
+       91
+      ],
+      "such": [
+       92
+      ],
+      "as": [
+       93
+      ],
+      "somatostatin": [
+       94
+      ],
+      "analogue": [
+       95
+      ],
+      "injections.": [
+       96
+      ],
+      "There": [
+       97
+      ],
+      "multiple": [
+       99
+      ],
+      "options": [
+       100
+      ],
+      "for": [
+       101,
+       136
+      ],
+      "NEN": [
+       102
+      ],
+      "management,": [
+       103
+      ],
+      "so": [
+       104
+      ],
+      "these": [
+       105
+      ],
+      "patients": [
+       106
+      ],
+      "need": [
+       107
+      ],
+      "discussed": [
+       110
+      ],
+      "by": [
+       113
+      ],
+      "multidisciplinary": [
+       115
+      ],
+      "team": [
+       116
+      ],
+      "of": [
+       117,
+       143
+      ],
+      "clinicians": [
+       118,
+       137
+      ],
+      "who": [
+       119,
+       138
+      ],
+      "have": [
+       120,
+       139
+      ],
+      "expertise": [
+       121
+      ],
+      "this": [
+       123
+      ],
+      "tumour": [
+       124
+      ],
+      "type.": [
+       125
+      ],
+      "This": [
+       126
+      ],
+      "article": [
+       127
+      ],
+      "intended": [
+       129
+      ],
+      "provide": [
+       131
+      ],
+      "introduction": [
+       133
+      ],
+      "summary": [
+       135
+      ],
+      "little": [
+       140
+      ],
+      "prior": [
+       141
+      ],
+      "experience": [
+       142
+      ],
+      "NENs.": [
+       144
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "David Mark Pritchard"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "British Journal of Hospital Medicine"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W4386084227",
+     "doi": "https://doi.org/10.1161/jaha.123.029785",
+     "ids": {
+      "openalex": "https://openalex.org/W4386084227",
+      "doi": "https://doi.org/10.1161/jaha.123.029785",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/37609990"
+     },
+     "title": "Plasma Serotonin and Cardiovascular Outcomes in Chronic Kidney Disease",
+     "publication_year": 2023,
+     "cited_by_count": 10,
+     "abstract_inverted_index": {
+      "Background": [
+       0
+      ],
+      "Platelet-poor": [
+       1
+      ],
+      "plasma": [
+       2,
+       12,
+       45,
+       103,
+       141,
+       159,
+       196,
+       216
+      ],
+      "serotonin": [
+       3,
+       13,
+       76,
+       99,
+       104,
+       113,
+       121,
+       125,
+       142,
+       160,
+       197,
+       205,
+       217
+      ],
+      "levels": [
+       4,
+       14,
+       198,
+       206
+      ],
+      "are": [
+       5
+      ],
+      "associated": [
+       6,
+       78,
+       144,
+       163,
+       208,
+       219
+      ],
+      "with": [
+       7,
+       79,
+       129,
+       137,
+       145,
+       164,
+       200,
+       209,
+       220
+      ],
+      "adverse": [
+       8
+      ],
+      "cardiovascular": [
+       9,
+       21,
+       81,
+       89
+      ],
+      "outcomes.": [
+       10,
+       123
+      ],
+      "Although": [
+       11
+      ],
+      "increase": [
+       15
+      ],
+      "in": [
+       16,
+       93,
+       117
+      ],
+      "chronic": [
+       17,
+       192
+      ],
+      "kidney": [
+       18,
+       193
+      ],
+      "disease,": [
+       19
+      ],
+      "the": [
+       20,
+       32,
+       42,
+       109,
+       118,
+       165,
+       221
+      ],
+      "implications": [
+       22
+      ],
+      "remain": [
+       23
+      ],
+      "unknown.": [
+       24
+      ],
+      "Methods": [
+       25
+      ],
+      "and": [
+       26,
+       51,
+       56,
+       69,
+       87,
+       122,
+       134,
+       179,
+       203,
+       227
+      ],
+      "Results": [
+       27
+      ],
+      "In": [
+       28,
+       156,
+       189,
+       213
+      ],
+      "1114": [
+       29
+      ],
+      "participants": [
+       30
+      ],
+      "from": [
+       31
+      ],
+      "prospective": [
+       33
+      ],
+      "CRIC": [
+       34
+      ],
+      "(Chronic": [
+       35
+      ],
+      "Renal": [
+       36
+      ],
+      "Insufficiency": [
+       37
+      ],
+      "Cohort)": [
+       38
+      ],
+      "Study,": [
+       39
+      ],
+      "we": [
+       40,
+       106
+      ],
+      "evaluated": [
+       41,
+       108
+      ],
+      "association": [
+       43
+      ],
+      "between": [
+       44,
+       120
+      ],
+      "serotonin,": [
+       46
+      ],
+      "categorized": [
+       47
+      ],
+      "as": [
+       48
+      ],
+      "undetectable,": [
+       49
+      ],
+      "intermediate,": [
+       50
+      ],
+      "high": [
+       52
+      ],
+      "(≥20": [
+       53
+      ],
+      "ng/mL)": [
+       54
+      ],
+      "levels,": [
+       55,
+       105
+      ],
+      "cross-sectional": [
+       57
+      ],
+      "findings": [
+       58
+      ],
+      "on": [
+       59
+      ],
+      "echocardiography,": [
+       60
+      ],
+      "including": [
+       61,
+       83
+      ],
+      "left": [
+       62,
+       65,
+       146,
+       210
+      ],
+      "ventricular": [
+       63,
+       66,
+       147,
+       211
+      ],
+      "hypertrophy,": [
+       64
+      ],
+      "ejection": [
+       67
+      ],
+      "fraction,": [
+       68
+      ],
+      "pulmonary": [
+       70
+      ],
+      "hypertension.": [
+       71
+      ],
+      "We": [
+       72
+      ],
+      "also": [
+       73
+      ],
+      "analyzed": [
+       74
+      ],
+      "whether": [
+       75
+      ],
+      "was": [
+       77,
+       143,
+       162,
+       218
+      ],
+      "time-to-event": [
+       80
+      ],
+      "outcomes,": [
+       82
+      ],
+      "heart": [
+       84,
+       169,
+       225
+      ],
+      "failure": [
+       85,
+       170,
+       226
+      ],
+      "hospitalization": [
+       86
+      ],
+      "atherosclerotic": [
+       88
+      ],
+      "disease": [
+       90,
+       194
+      ],
+      "(ASCVD)": [
+       91
+      ],
+      "events,": [
+       92
+      ],
+      "addition": [
+       94
+      ],
+      "to": [
+       95
+      ],
+      "mortality.": [
+       96
+      ],
+      "Because": [
+       97
+      ],
+      "selective": [
+       98,
+       112
+      ],
+      "reuptake": [
+       100,
+       114
+      ],
+      "inhibitors": [
+       101
+      ],
+      "decrease": [
+       102
+      ],
+      "specifically": [
+       107
+      ],
+      "influence": [
+       110
+      ],
+      "of": [
+       111,
+       168,
+       224
+      ],
+      "inhibitor": [
+       115
+      ],
+      "use": [
+       116
+      ],
+      "relationship": [
+       119
+      ],
+      "Plasma": [
+       124
+      ],
+      "level": [
+       126,
+       161
+      ],
+      "inversely": [
+       127
+      ],
+      "correlated": [
+       128,
+       136,
+       199
+      ],
+      "estimated": [
+       130
+      ],
+      "glomerular": [
+       131
+      ],
+      "filtration": [
+       132
+      ],
+      "rate": [
+       133
+      ],
+      "directly": [
+       135
+      ],
+      "blood": [
+       138,
+       201
+      ],
+      "pressure.": [
+       139
+      ],
+      "High": [
+       140
+      ],
+      "hypertrophy": [
+       148
+      ],
+      "(adjusted": [
+       149,
+       171,
+       182
+      ],
+      "odds": [
+       150
+      ],
+      "ratio,": [
+       151
+      ],
+      "2.74": [
+       152
+      ],
+      "[95%": [
+       153,
+       176,
+       185
+      ],
+      "CI,": [
+       154,
+       177,
+       186
+      ],
+      "1.11-7.41]).": [
+       155
+      ],
+      "contrast,": [
+       157,
+       214
+      ],
+      "undetectable": [
+       158,
+       215
+      ],
+      "highest": [
+       166,
+       222
+      ],
+      "risk": [
+       167,
+       223
+      ],
+      "hazard": [
+       172
+      ],
+      "ratio": [
+       173
+      ],
+      "[HR],": [
+       174
+      ],
+      "2.26": [
+       175
+      ],
+      "1.40-3.66])": [
+       178
+      ],
+      "ASCVD": [
+       180,
+       228
+      ],
+      "events": [
+       181
+      ],
+      "HR,": [
+       183
+      ],
+      "1.96": [
+       184
+      ],
+      "1.15-3.32]).": [
+       187
+      ],
+      "Conclusions": [
+       188
+      ],
+      "a": [
+       190
+      ],
+      "large": [
+       191
+      ],
+      "cohort,": [
+       195
+      ],
+      "pressure,": [
+       202
+      ],
+      "elevated": [
+       204
+      ],
+      "were": [
+       207
+      ],
+      "hypertrophy.": [
+       212
+      ],
+      "events.": [
+       229
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Daniel L. Edmonston"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Tamara Isakova"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Myles Selig Wolf"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Lawrence J. Appel"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Jing Chen"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Harold I. Feldman"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Debbie L. Cohen"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Alan S. Go"
+       }
+      },
+      {
+       "author": {
+        "display_name": "James Phillip Lash"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Robert G. Nelson"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Mahboob Rahman"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Panduranga S. Rao"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Vallabh O. Shah"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Mark L. Unruh"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "Journal of the American Heart Association"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W4415451770",
+     "doi": "https://doi.org/10.3390/cancers17213405",
+     "ids": {
+      "openalex": "https://openalex.org/W4415451770",
+      "doi": "https://doi.org/10.3390/cancers17213405",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/41228199"
+     },
+     "title": "The Clinical Utility of Selected Coagulation Parameters in Predicting the Risk of Venous Thromboembolism in Neuroendocrine Tumours: A Prospective, Single-Centre Study",
+     "publication_year": 2025,
+     "cited_by_count": 0,
+     "abstract_inverted_index": {
+      "The": [
+       0
+      ],
+      "incidence": [
+       1
+      ],
+      "of": [
+       2
+      ],
+      "venous": [
+       3
+      ],
+      "thromboembolism": [
+       4
+      ],
+      "(VTE)": [
+       5
+      ],
+      "markedly": [
+       6
+      ],
+      "increases": [
+       7
+      ],
+      "mortality": [
+       8
+      ],
+      "in": [
+       9
+      ],
+      "cancer": [
+       10
+      ],
+      "patients,": [
+       11
+      ],
+      "potentially": [
+       12
+      ],
+      "by": [
+       13
+      ],
+      "as": [
+       14,
+       16
+      ],
+      "much": [
+       15
+      ],
+      "fourfold": [
+       17
+      ],
+      "[...].": [
+       18
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Monika Wójcik-Giertuga"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Anna Malczewska"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Arkadiusz Orzeł"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Beata Kos‐Kudła"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "Cancers"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W4394815275",
+     "doi": "https://doi.org/10.1007/s42000-024-00549-8",
+     "ids": {
+      "openalex": "https://openalex.org/W4394815275",
+      "doi": "https://doi.org/10.1007/s42000-024-00549-8",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/38619812"
+     },
+     "title": "EndoBridge 2023: highlights and pearls",
+     "publication_year": 2024,
+     "cited_by_count": 5,
+     "abstract_inverted_index": null,
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Bülent Okan Yıldız"
+       }
+      },
+      {
+       "author": {
+        "display_name": "César Luiz Boguszewski"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Margaret Cristina da Silva Boguszewski"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Luca Busetto"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Ozlem Celik"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Ghada El‐Hajj Fuleihan"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Dimitrios G. Goulis"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Gary Douglas Hammer"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Megan R. Haymart"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Gregory Kaltsas"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Jennifer Rachel Law"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Amanda Yuan Ling Lim"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Anton Luger"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Djuro Μacut"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Barbara M. McGowan"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Michael R. McClung"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Alexander Dimitri Miras"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Mary‐Elizabeth Patti"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Robin Patrick Peeters"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Duarte Pignatelli"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Hamayle Saeed"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Jennifer A. Sipos"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Constantine A. Stratakis"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Marina Tsoli"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Aart Jan van der Lely"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Selma  Feldman Witchel"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Dilek Yazıcı"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "HORMONES"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W4414751944",
+     "doi": "https://doi.org/10.1186/s12885-025-14905-3",
+     "ids": {
+      "openalex": "https://openalex.org/W4414751944",
+      "doi": "https://doi.org/10.1186/s12885-025-14905-3",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/41029582"
+     },
+     "title": "Impact of cardiovascular disease on colorectal cancer morbidity and prognosis",
+     "publication_year": 2025,
+     "cited_by_count": 2,
+     "abstract_inverted_index": {
+      "BACKGROUND:": [
+       0
+      ],
+      "Colorectal": [
+       1
+      ],
+      "cancer": [
+       2,
+       88,
+       146
+      ],
+      "(CRC)": [
+       3,
+       147
+      ],
+      "and": [
+       4,
+       20,
+       45,
+       48,
+       72,
+       94,
+       125,
+       168,
+       197,
+       216,
+       244,
+       264
+      ],
+      "cardiovascular": [
+       5
+      ],
+      "disease": [
+       6,
+       137
+      ],
+      "(CVD)": [
+       7,
+       138
+      ],
+      "are": [
+       8
+      ],
+      "major": [
+       9
+      ],
+      "global": [
+       10
+      ],
+      "health": [
+       11
+      ],
+      "burdens,": [
+       12
+      ],
+      "sharing": [
+       13
+      ],
+      "common": [
+       14
+      ],
+      "risk": [
+       15,
+       187
+      ],
+      "factors": [
+       16
+      ],
+      "like": [
+       17
+      ],
+      "obesity,": [
+       18
+      ],
+      "smoking,": [
+       19
+      ],
+      "diabetes.": [
+       21
+      ],
+      "While": [
+       22
+      ],
+      "CRC's": [
+       23
+      ],
+      "impact": [
+       24
+      ],
+      "on": [
+       25
+      ],
+      "CVD": [
+       26,
+       44,
+       235,
+       263
+      ],
+      "has": [
+       27
+      ],
+      "been": [
+       28
+      ],
+      "studied,": [
+       29
+      ],
+      "the": [
+       30,
+       41,
+       46
+      ],
+      "reverse": [
+       31
+      ],
+      "association": [
+       32
+      ],
+      "remains": [
+       33
+      ],
+      "less": [
+       34
+      ],
+      "explored.": [
+       35
+      ],
+      "The": [
+       36,
+       82
+      ],
+      "study": [
+       37,
+       54,
+       97
+      ],
+      "aims": [
+       38
+      ],
+      "to": [
+       39,
+       78,
+       152,
+       166,
+       175,
+       195,
+       204,
+       214,
+       228,
+       254
+      ],
+      "investigate": [
+       40
+      ],
+      "relationship": [
+       42
+      ],
+      "between": [
+       43,
+       262
+      ],
+      "morbidity": [
+       47,
+       123
+      ],
+      "prognosis": [
+       49,
+       83,
+       91
+      ],
+      "of": [
+       50,
+       65,
+       86,
+       108,
+       241
+      ],
+      "CRC.": [
+       51,
+       233
+      ],
+      "MATERIALS:": [
+       52
+      ],
+      "This": [
+       53,
+       96
+      ],
+      "was": [
+       55,
+       98,
+       139,
+       236
+      ],
+      "conducted": [
+       56
+      ],
+      "across": [
+       57
+      ],
+      "9": [
+       58,
+       131
+      ],
+      "databases": [
+       59
+      ],
+      "(PubMed,": [
+       60
+      ],
+      "Embase,": [
+       61
+      ],
+      "Cochrane,": [
+       62
+      ],
+      "Scopus,": [
+       63
+      ],
+      "Web": [
+       64
+      ],
+      "Science,": [
+       66
+      ],
+      "CINAHL": [
+       67
+      ],
+      "complete,": [
+       68
+      ],
+      "SPORT": [
+       69
+      ],
+      "Discus,": [
+       70
+      ],
+      "PsycINFO": [
+       71
+      ],
+      "CNKI)": [
+       73
+      ],
+      "from": [
+       74,
+       117,
+       130
+      ],
+      "January": [
+       75
+      ],
+      "1,": [
+       76
+      ],
+      "2000,": [
+       77
+      ],
+      "February": [
+       79
+      ],
+      "27,": [
+       80
+      ],
+      "2025.": [
+       81
+      ],
+      "were": [
+       84,
+       111
+      ],
+      "diagnosis": [
+       85
+      ],
+      "colorectal": [
+       87,
+       145
+      ],
+      "or": [
+       89,
+       120
+      ],
+      "postoperative": [
+       90,
+       134,
+       160,
+       265
+      ],
+      "(including": [
+       92
+      ],
+      "death": [
+       93
+      ],
+      "complications).": [
+       95
+      ],
+      "analyzed": [
+       99
+      ],
+      "by": [
+       100
+      ],
+      "Stata": [
+       101
+      ],
+      "(V.": [
+       102
+      ],
+      "16.0)": [
+       103
+      ],
+      "software.": [
+       104
+      ],
+      "RESULTS:": [
+       105
+      ],
+      "A": [
+       106
+      ],
+      "total": [
+       107
+      ],
+      "23": [
+       109
+      ],
+      "studies": [
+       110,
+       114,
+       127
+      ],
+      "included:": [
+       112
+      ],
+      "11": [
+       113
+      ],
+      "(5,462,791": [
+       115
+      ],
+      "patients)": [
+       116,
+       129
+      ],
+      "6": [
+       118
+      ],
+      "countries": [
+       119,
+       132
+      ],
+      "regions": [
+       121
+      ],
+      "assessed": [
+       122
+      ],
+      "risk,": [
+       124
+      ],
+      "12": [
+       126
+      ],
+      "(307,857": [
+       128
+      ],
+      "evaluated": [
+       133
+      ],
+      "prognosis.": [
+       135
+      ],
+      "Cardiovascular": [
+       136
+      ],
+      "associated": [
+       140,
+       237
+      ],
+      "with": [
+       141,
+       219,
+       232,
+       238,
+       250
+      ],
+      "increased": [
+       142,
+       239
+      ],
+      "risks": [
+       143,
+       240
+      ],
+      "for": [
+       144,
+       189
+      ],
+      "(RR": [
+       148,
+       162,
+       171,
+       191,
+       200,
+       210,
+       224
+      ],
+      "1.24,": [
+       149
+      ],
+      "95%CI": [
+       150,
+       164,
+       173,
+       193,
+       202,
+       212,
+       226
+      ],
+      "1.04": [
+       151
+      ],
+      "1.48)": [
+       153
+      ],
+      "(CI,": [
+       154
+      ],
+      "confidence": [
+       155
+      ],
+      "intervals)": [
+       156
+      ],
+      "(RR,": [
+       157
+      ],
+      "relative": [
+       158
+      ],
+      "risk),": [
+       159
+      ],
+      "arrhythmia": [
+       161
+      ],
+      "3.05,": [
+       163
+      ],
+      "1.27": [
+       165
+      ],
+      "7.35),": [
+       167
+      ],
+      "all-cause": [
+       169,
+       198,
+       245
+      ],
+      "mortality": [
+       170,
+       199,
+       246
+      ],
+      "1.56,": [
+       172
+      ],
+      "1.26": [
+       174
+      ],
+      "1.94).": [
+       176
+      ],
+      "Subgroup": [
+       177
+      ],
+      "analysis": [
+       178
+      ],
+      "shows": [
+       179
+      ],
+      "that": [
+       180
+      ],
+      "heart": [
+       181,
+       217
+      ],
+      "failure": [
+       182,
+       218
+      ],
+      "(HF)": [
+       183
+      ],
+      "may": [
+       184
+      ],
+      "be": [
+       185
+      ],
+      "a": [
+       186
+      ],
+      "factor": [
+       188
+      ],
+      "CRC": [
+       190,
+       242,
+       248
+      ],
+      "1.39,": [
+       192
+      ],
+      "1.03": [
+       194
+      ],
+      "1.89)": [
+       196
+      ],
+      "1.68,": [
+       201
+      ],
+      "1.49": [
+       203
+      ],
+      "1.90).": [
+       205
+      ],
+      "Among": [
+       206
+      ],
+      "female": [
+       207
+      ],
+      "patients,": [
+       208,
+       249
+      ],
+      "HF": [
+       209,
+       251
+      ],
+      "2.32,": [
+       211
+      ],
+      "1.39": [
+       213
+      ],
+      "3.88)": [
+       215
+      ],
+      "preserved": [
+       220
+      ],
+      "ejection": [
+       221
+      ],
+      "fraction": [
+       222
+      ],
+      "(HFpEF)": [
+       223
+      ],
+      "2.54,": [
+       225
+      ],
+      "1.52": [
+       227
+      ],
+      "4.24)": [
+       229
+      ],
+      "show": [
+       230
+      ],
+      "associations": [
+       231,
+       260
+      ],
+      "CONCLUSIONS:": [
+       234
+      ],
+      "incidence": [
+       243
+      ],
+      "in": [
+       247
+      ],
+      "specifically": [
+       252
+      ],
+      "linked": [
+       253
+      ],
+      "both": [
+       255
+      ],
+      "outcomes.": [
+       256
+      ],
+      "However,": [
+       257
+      ],
+      "no": [
+       258
+      ],
+      "conclusive": [
+       259
+      ],
+      "emerged": [
+       261
+      ],
+      "complications": [
+       266
+      ],
+      "beyond": [
+       267
+      ],
+      "arrhythmia.": [
+       268
+      ],
+      "Further": [
+       269
+      ],
+      "investigation": [
+       270
+      ],
+      "into": [
+       271
+      ],
+      "physiological": [
+       272
+      ],
+      "mechanism": [
+       273
+      ],
+      "is": [
+       274
+      ],
+      "required.": [
+       275
+      ],
+      "PROSPERO": [
+       276
+      ],
+      "ID:": [
+       277
+      ],
+      ":": [
+       278
+      ],
+      "CRD420251020352.": [
+       279
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Siqi Li"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Lang Wang"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Xiaoyu Liu"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Xu‐Rui Liu"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Lingyun Xie"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "BMC Cancer"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W4224075685",
+     "doi": "https://doi.org/10.1016/j.hrthm.2022.03.1225",
+     "ids": {
+      "openalex": "https://openalex.org/W4224075685",
+      "doi": "https://doi.org/10.1016/j.hrthm.2022.03.1225",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/35390533"
+     },
+     "title": "European Heart Rhythm Association (EHRA)/Heart Rhythm Society (HRS)/Asia Pacific Heart Rhythm Society (APHRS)/Latin American Heart Rhythm Society (LAHRS) Expert Consensus Statement on the State of Genetic Testing for Cardiac Diseases",
+     "publication_year": 2022,
+     "cited_by_count": 274,
+     "abstract_inverted_index": {
+      "for": [
+       0
+      ],
+      "Cardiac": [
+       1
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Arthur A.M. Wilde"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Christopher Semsarian"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Manlio Fabio Márquez"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Alireza Sepehri Shamloo"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Michael John Ackerman"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Euan Angus Ashley"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Eduardo Back Sternick"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Héctor Barajas-Martínez"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Elijah Raphael Behr"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Connie R. Bezzina"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Jeroen Breckpot"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Philippe Charron"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Priya Sethu Chockalingam"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Lia Crotti"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Michael H. Gollob"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Steven A. Lubitz"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Naomasa Makita"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Seiko Ohno"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Martín Ortiz-Genga"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Luciana Sacilotto"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Eric Schulze‐Bahr"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Wataru Shimizu"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Nona Sotoodehnia"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Rafik Tadros"
+       }
+      },
+      {
+       "author": {
+        "display_name": "James S. Ware"
+       }
+      },
+      {
+       "author": {
+        "display_name": "David Scott Winlaw"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Elizabeth S. Kaufman"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Takeshi Aiba"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Andreas Bollmann"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Jong‐Il Choi"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Aarti Dalal"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Francisco Darrieux"
+       }
+      },
+      {
+       "author": {
+        "display_name": "John R. Giudicessi"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Mariana Guerchicoff"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Kui Hong"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Andrew David Krahn"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Ciorsti J. Macintyre"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Judith A. Mackall"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Lluı́s Mont"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Carlo Napolitano"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Juan Pablo Ochoa"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Petr Peichl"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Alexandre C. Pereira"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Peter J. Schwartz"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Jon Skinner"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Christoph Stellbrink"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Jacob Tfelt‐Hansen"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Thomas Deneke"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "Heart Rhythm"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W4225832278",
+     "doi": "https://doi.org/10.1093/europace/euac030",
+     "ids": {
+      "openalex": "https://openalex.org/W4225832278",
+      "doi": "https://doi.org/10.1093/europace/euac030",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/35373836"
+     },
+     "title": "European Heart Rhythm Association (EHRA)/Heart Rhythm Society (HRS)/Asia Pacific Heart Rhythm Society (APHRS)/Latin American Heart Rhythm Society (LAHRS) Expert Consensus Statement on the state of genetic testing for cardiac diseases",
+     "publication_year": 2022,
+     "cited_by_count": 380,
+     "abstract_inverted_index": {
+      "for": [
+       0
+      ],
+      "Cardiac": [
+       1
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Arthur A.M. Wilde"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Christopher Semsarian"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Manlio Fabio Márquez"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Alireza Sepehri Shamloo"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Michael John Ackerman"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Euan Angus Ashley"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Eduardo Back Sternick"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Héctor Barajas-Martínez"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Elijah Raphael Behr"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Connie R. Bezzina"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Jeroen Breckpot"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Philippe Charron"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Priya Sethu Chockalingam"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Lia Crotti"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Michael H. Gollob"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Steven A. Lubitz"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Naomasa Makita"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Seiko Ohno"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Martín Ortiz-Genga"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Luciana Sacilotto"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Eric Schulze‐Bahr"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Wataru Shimizu"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Nona Sotoodehnia"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Rafik Tadros"
+       }
+      },
+      {
+       "author": {
+        "display_name": "James S. Ware"
+       }
+      },
+      {
+       "author": {
+        "display_name": "David Scott Winlaw"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Elizabeth S. Kaufman"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Document Reviewers"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Takeshi Aiba"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Andreas Bollmann"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Jong‐Il Choi"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Aarti S Dalal"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Francisco Darrieux"
+       }
+      },
+      {
+       "author": {
+        "display_name": "John R. Giudicessi"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Mariana Guerchicoff"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Kui Hong"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Andrew David Krahn"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Ciorsti J. Macintyre"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Judith A. Mackall"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Lluı́s Mont"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Carlo Napolitano"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Juan Pablo Ochoa"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Petr Peichl"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Alexandre C. Pereira"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Peter J. Schwartz"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Jon Skinner"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Christoph Stellbrink"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Jacob Tfelt‐Hansen"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Thomas Deneke"
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "EP Europace"
+      }
+     }
+    },
+    {
+     "id": "https://openalex.org/W4293567253",
+     "doi": "https://doi.org/10.1093/europace/euac106",
+     "ids": {
+      "openalex": "https://openalex.org/W4293567253",
+      "doi": "https://doi.org/10.1093/europace/euac106",
+      "pmid": "https://pubmed.ncbi.nlm.nih.gov/36040308"
+     },
+     "title": "Corrigendum to: European Heart Rhythm Association (EHRA)/Heart Rhythm Society (HRS)/Asia Pacific Heart Rhythm Society (APHRS)/Latin American Heart Rhythm Society (LAHRS) Expert Consensus Statement on the state of genetic testing for cardiac diseases",
+     "publication_year": 2022,
+     "cited_by_count": 8,
+     "abstract_inverted_index": {
+      "Member": [
+       0,
+       19
+      ],
+      "of": [
+       1,
+       13,
+       20
+      ],
+      "the": [
+       2,
+       14,
+       21
+      ],
+      "European": [
+       3,
+       22
+      ],
+      "Reference": [
+       4
+      ],
+      "Network": [
+       5
+      ],
+      "for": [
+       6
+      ],
+      "rare,": [
+       7
+      ],
+      "low": [
+       8
+      ],
+      "prevalence": [
+       9
+      ],
+      "and": [
+       10
+      ],
+      "complex": [
+       11
+      ],
+      "diseases": [
+       12
+      ],
+      "heart:": [
+       15
+      ],
+      "ERN": [
+       16
+      ],
+      "GUARD-Heart.": [
+       17
+      ],
+      "¶": [
+       18
+      ],
+      "Cardiac": [
+       23
+      ],
+      "Arrhythmia": [
+       24
+      ]
+     },
+     "authorships": [
+      {
+       "author": {
+        "display_name": "Arthur A.M. Wilde"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Christopher Semsarian"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Marquez, Manlio F."
+       }
+      },
+      {
+       "author": {
+        "display_name": "Shamloo, Alireza Sepehri"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Ackerman, Michael J."
+       }
+      },
+      {
+       "author": {
+        "display_name": "Euan Angus Ashley"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Sternick, Eduardo Back"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Barajas-Martinez, Hector"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Elijah Raphael Behr"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Connie R. Bezzina"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Jeroen Breckpot"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Philippe Charron"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Chockalingam, Priya"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Lia Crotti"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Gollob, Michael H."
+       }
+      },
+      {
+       "author": {
+        "display_name": "Steven A. Lubitz"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Naomasa Makita"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Ohno, Seiko"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Ortiz-Genga, Martin"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Luciana Sacilotto"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Schulze-Bahr, Eric"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Shimizu, Wataru"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Sotoodehnia, Nona"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Rafik Tadros"
+       }
+      },
+      {
+       "author": {
+        "display_name": "Ware, James S."
+       }
+      },
+      {
+       "author": {
+        "display_name": "Winlaw, David S."
+       }
+      },
+      {
+       "author": {
+        "display_name": "Kaufman, Elizabeth S."
+       }
+      }
+     ],
+     "primary_location": {
+      "source": {
+       "display_name": "EP Europace"
+      }
+     }
+    }
+   ]
+  },
+  "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmode=json&term=%28%22Carcinoid+Heart+Disease%22%5BMeSH+Terms%5D+OR+%22Carcinoid+Heart+Disease%22%5Btiab%5D+OR+%22carcinoid+heart%22%5Btiab%5D%29+AND+%28%22Mendelian+Randomization+Analysis%22%5BMeSH+Terms%5D+OR+%22Mendelian+Randomization+Analysis%22%5Btiab%5D+OR+%22mendelian+randomization%22%5Btiab%5D%29&retmax=10&sort=relevance": {
+   "header": {
+    "type": "esearch",
+    "version": "0.3"
+   },
+   "esearchresult": {
+    "count": "0",
+    "retmax": "0",
+    "retstart": "0",
+    "idlist": [],
+    "translationset": [],
+    "querytranslation": "(\"Carcinoid Heart Disease\"[MeSH Terms] OR \"Carcinoid Heart Disease\"[Title/Abstract] OR \"carcinoid heart\"[Title/Abstract]) AND (\"Mendelian Randomization Analysis\"[MeSH Terms] OR \"Mendelian Randomization Analysis\"[Title/Abstract] OR \"mendelian randomization\"[Title/Abstract])",
+    "warninglist": {
+     "phrasesignored": [],
+     "quotedphrasesnotfound": [],
+     "outputmessages": [
+      "No items found."
+     ]
+    }
+   }
+  }
+ },
+ "text": {
+  "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&retmode=xml&id=26226871%2C40005328%2C23470072%2C11565492%2C33121952%2C31382288%2C11779722%2C25704330%2C28607164%2C5122894": "<PubmedArticleSet><PubmedArticle><MedlineCitation><PMID Version=\"1\">26226871</PMID><Article><Journal><ISSN IssnType=\"Electronic\">1558-0539</ISSN><JournalIssue CitedMedium=\"Internet\"><Volume>33</Volume><Issue>3</Issue><PubDate><Year>2015</Year><Month>Aug</Month></PubDate></JournalIssue><Title>Emergency medicine clinics of North America</Title><ISOAbbreviation>Emerg Med Clin North Am</ISOAbbreviation></Journal><ArticleTitle>Cardiogenic Shock.</ArticleTitle><Abstract><AbstractText>Cardiogenic shock is the leading cause of morbidity and mortality in patients presenting with acute coronary syndrome. Although early reperfusion strategies are essential to the management of these critically ill patients, additional treatment plans are often needed to stabilize and treat the patient before reperfusion may be possible. This article discusses pharmacologic and surgical interventions, their indications and contraindications, management strategies, and treatment algorithms.</AbstractText><CopyrightInformation>Copyright © 2015 Elsevier Inc. All rights reserved.</CopyrightInformation></Abstract><AuthorList CompleteYN=\"Y\"><Author ValidYN=\"Y\"><LastName>Moskovitz</LastName><ForeName>Joshua B</ForeName><Initials>JB</Initials><AffiliationInfo><Affiliation>Department of Emergency Medicine, Hofstra North Shore-LIJ School of Medicine, 300 Community Drive, Hempstead, NY 11030, USA. Electronic address: joshmoskovitz@gmail.com.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Levy</LastName><ForeName>Zachary D</ForeName><Initials>ZD</Initials><AffiliationInfo><Affiliation>Department of Emergency Medicine, Hofstra North Shore-LIJ School of Medicine, 300 Community Drive, Hempstead, NY 11030, USA.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Slesinger</LastName><ForeName>Todd L</ForeName><Initials>TL</Initials><AffiliationInfo><Affiliation>Department of Emergency Medicine, Hofstra North Shore-LIJ School of Medicine, 300 Community Drive, Hempstead, NY 11030, USA.</Affiliation></AffiliationInfo></Author></AuthorList><ELocationID EIdType=\"doi\" ValidYN=\"Y\">10.1016/j.emc.2015.04.013</ELocationID><ELocationID EIdType=\"pii\" ValidYN=\"Y\">S0733-8627(15)00037-1</ELocationID></Article></MedlineCitation><PubmedData><ArticleIdList><ArticleId IdType=\"pubmed\">26226871</ArticleId><ArticleId IdType=\"doi\">10.1016/j.emc.2015.04.013</ArticleId><ArticleId IdType=\"pii\">S0733-8627(15)00037-1</ArticleId></ArticleIdList></PubmedData></PubmedArticle><PubmedArticle><MedlineCitation><PMID Version=\"1\">40005328</PMID><Article><Journal><ISSN IssnType=\"Electronic\">1648-9144</ISSN><JournalIssue CitedMedium=\"Internet\"><Volume>61</Volume><Issue>2</Issue><PubDate><Year>2025</Year><Month>Jan</Month><Day>24</Day></PubDate></JournalIssue><Title>Medicina (Kaunas, Lithuania)</Title><ISOAbbreviation>Medicina (Kaunas)</ISOAbbreviation></Journal><ArticleTitle>Chronic Heart Failure and Coronary Artery Disease: Pharmacological Treatment and Cardiac Rehabilitation.</ArticleTitle><Abstract><AbstractText>Coronary artery disease is the leading cause of acute and chronic heart failure. Patients with heart failure and ischemic heart disease need a tailored assessment to define the appropriate treatment, while a specific multidisciplinary management plan should be followed. Indeed, several factors should be assessed before starting treatment, such as heart failure symptoms and/or signs, angina, electrocardiographic features, right and left ventricular systolic and diastolic function, serological abnormalities, cardiac structural and functional integrity, and pulmonary function. New scenarios and developments have emerged recently in this field, increasing our knowledge regarding pathophysiology, exercise, and pharmacology. Effective and appropriate management and treatment reduce the risk of death and hospitalization for heart failure. Herein, we provide an updated, state-of-the-art overview of pharmacological treatment and cardiac rehabilitation in patients with chronic heart failure and coronary artery disease. Furthermore, tailored and contemporary management in clinical practice will be proposed for this specific and fragile patient population.</AbstractText></Abstract><AuthorList CompleteYN=\"Y\"><Author ValidYN=\"Y\"><LastName>Ciuca-Pană</LastName><ForeName>Maria-Alexandra</ForeName><Initials>MA</Initials><Identifier Source=\"ORCID\">0000-0001-8520-6478</Identifier><AffiliationInfo><Affiliation>Cardiology Department, Carol Davila University of Medicine and Pharmacy, Bagdasar-Arseni Emergency Clinical Hospital, 041915 Bucharest, Romania.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Boulmpou</LastName><ForeName>Aristi</ForeName><Initials>A</Initials><Identifier Source=\"ORCID\">0000-0002-5008-114X</Identifier><AffiliationInfo><Affiliation>Third Department of Cardiology, Aristotle University of Thessaloniki, Ippokratio General Hospital, 54636 Thessaloniki, Greece.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Ileri</LastName><ForeName>Cigdem</ForeName><Initials>C</Initials><AffiliationInfo><Affiliation>Cardiology Department, LIV Hospital Vadi Istanbul, Istanbul 34396, Turkey.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Manzi</LastName><ForeName>Giovanna</ForeName><Initials>G</Initials><Identifier Source=\"ORCID\">0000-0003-0676-3132</Identifier><AffiliationInfo><Affiliation>Department of Clinical, Internal, Anesthesiology and Cardiovascular Sciences, Policlinico Universitario Umberto I, Sapienza University of Rome, 00161 Rome, Italy.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Golino</LastName><ForeName>Michele</ForeName><Initials>M</Initials><Identifier Source=\"ORCID\">0000-0003-0141-0127</Identifier><AffiliationInfo><Affiliation>Pauley Heart Center, Virginia Commonwealth University, Richmond, VA 23284, USA.</Affiliation></AffiliationInfo><AffiliationInfo><Affiliation>Robert M. Berne Cardiovascular Research Center, Division of Cardiology, University of Virginia, Charlottesville, VA 22903, USA.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Ostojic</LastName><ForeName>Marina</ForeName><Initials>M</Initials><Identifier Source=\"ORCID\">0000-0002-2448-1799</Identifier><AffiliationInfo><Affiliation>Cardiology Clinic, University Clinical Center of Serbia, 11000 Belgrade, Serbia.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Galimzhanov</LastName><ForeName>Akhmetzhan</ForeName><Initials>A</Initials><Identifier Source=\"ORCID\">0000-0002-1605-9512</Identifier><AffiliationInfo><Affiliation>Department of the Propaedeutics of Internal Diseases, Semey Medical University, Semey 071400, Abai Region, Kazakhstan.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Busnatu</LastName><ForeName>Stefan</ForeName><Initials>S</Initials><Identifier Source=\"ORCID\">0000-0002-4678-9655</Identifier><AffiliationInfo><Affiliation>Cardiology Department, Carol Davila University of Medicine and Pharmacy, Bagdasar-Arseni Emergency Clinical Hospital, 041915 Bucharest, Romania.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Mega</LastName><ForeName>Simona</ForeName><Initials>S</Initials><Identifier Source=\"ORCID\">0009-0009-0544-5651</Identifier><AffiliationInfo><Affiliation>Department of Cardiovascular Science, Campus Bio-Medico University of Rome, 00128 Rome, Italy.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Perone</LastName><ForeName>Francesco</ForeName><Initials>F</Initials><Identifier Source=\"ORCID\">0000-0002-1418-7908</Identifier><AffiliationInfo><Affiliation>Cardiac Rehabilitation Unit, Rehabilitation Clinic \"Villa delle Magnolie\", Castel Morrone, 81020 Caserta, Italy.</Affiliation></AffiliationInfo></Author></AuthorList><ELocationID EIdType=\"pii\" ValidYN=\"Y\">211</ELocationID><ELocationID EIdType=\"doi\" ValidYN=\"Y\">10.3390/medicina61020211</ELocationID></Article></MedlineCitation><PubmedData><ArticleIdList><ArticleId IdType=\"pubmed\">40005328</ArticleId><ArticleId IdType=\"pmc\">PMC11857519</ArticleId><ArticleId IdType=\"doi\">10.3390/medicina61020211</ArticleId><ArticleId IdType=\"pii\">medicina61020211</ArticleId></ArticleIdList></PubmedData></PubmedArticle><PubmedArticle><MedlineCitation><PMID Version=\"1\">23470072</PMID><Article><Journal><ISSN IssnType=\"Electronic\">1873-4294</ISSN><JournalIssue CitedMedium=\"Internet\"><Volume>13</Volume><Issue>2</Issue><PubDate><Year>2013</Year></PubDate></JournalIssue><Title>Current topics in medicinal chemistry</Title><ISOAbbreviation>Curr Top Med Chem</ISOAbbreviation></Journal><ArticleTitle>NTproBNP: an important biomarker in cardiac diseases.</ArticleTitle><Abstract><AbstractText>Natriuretic neuropeptides (ANP, BNP, CNP) are produced primarily in the cardiac atria under normal conditions. The main stimulus for ANP and BNP peptide synthesis and secretion is cardiac wall stress. Cardiac ventricular myocytes constitute the major source of BNP-related peptides. Ventricular NT-proBNP production is upregulated in cardiac failure and locally in the area surrounding a myocardial infarct. NT-proBNP is cleared passively by organs with high rate of blood flow (muscle, liver, kidney). It has a longer half life than BNP and higher plasma concentration. BNP and NTproBNP tend to be higher in women and lower in obese individuals. They are also higher in elderly, in left ventricular tachycardia, right ventricular overload, myocardial ischemia, hypoxaemia, renal dysfunction, liver cirrhosis, sepsis and infection. NT-proBNP is useful both in the diagnosis and prognosis of heart failure and is considered to be a gold standard biomarker in heart failure similar to BNP. A cut-off point 300 pg/ml has 99% sensitivity, 60%specificity and NPV 98%for exclusion of acute heart failure. NT proBNP has also a strong prognostic value of death in acute and chronic heart failure and also predicts short and long term mortality in patient with suspected or confirmed unstable CVD. Natriuretic peptides are also prognostic markers for the RV (Right Ventricular) Dysfunction. Their release is due to myocardial stretch from right ventricular pressure overload.Finally, there are data supporting that NT-proBNP might be useful to put a time frame on atrial fibrillation of unknown onset.</AbstractText></Abstract><AuthorList CompleteYN=\"Y\"><Author ValidYN=\"Y\"><LastName>Panagopoulou</LastName><ForeName>Vasiliki</ForeName><Initials>V</Initials><AffiliationInfo><Affiliation>Cardiology Department and Cardiac Catheterization Laboratory, Athens General Hospital G.Gennimatas, Athens, Greece. vipanag75@yahoo.gr</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Deftereos</LastName><ForeName>Spyridon</ForeName><Initials>S</Initials></Author><Author ValidYN=\"Y\"><LastName>Kossyvakis</LastName><ForeName>Charalampos</ForeName><Initials>C</Initials></Author><Author ValidYN=\"Y\"><LastName>Raisakis</LastName><ForeName>Konstantinos</ForeName><Initials>K</Initials></Author><Author ValidYN=\"Y\"><LastName>Giannopoulos</LastName><ForeName>Georgios</ForeName><Initials>G</Initials></Author><Author ValidYN=\"Y\"><LastName>Bouras</LastName><ForeName>Georgios</ForeName><Initials>G</Initials></Author><Author ValidYN=\"Y\"><LastName>Pyrgakis</LastName><ForeName>Vlasios</ForeName><Initials>V</Initials></Author><Author ValidYN=\"Y\"><LastName>Cleman</LastName><ForeName>Michael W</ForeName><Initials>MW</Initials></Author></AuthorList></Article></MedlineCitation><PubmedData><ArticleIdList><ArticleId IdType=\"pubmed\">23470072</ArticleId><ArticleId IdType=\"doi\">10.2174/1568026611313020002</ArticleId><ArticleId IdType=\"pii\">CTMC-EPUB-20130304-2</ArticleId></ArticleIdList></PubmedData></PubmedArticle><PubmedArticle><MedlineCitation><PMID Version=\"1\">11565492</PMID><Article><Journal><ISSN IssnType=\"Print\">0025-7125</ISSN><JournalIssue CitedMedium=\"Print\"><Volume>85</Volume><Issue>5</Issue><PubDate><Year>2001</Year><Month>Sep</Month></PubDate></JournalIssue><Title>The Medical clinics of North America</Title><ISOAbbreviation>Med Clin North Am</ISOAbbreviation></Journal><ArticleTitle>Perioperative cardiac complications.</ArticleTitle><Abstract><AbstractText>Although infrequent, perioperative cardiac complications are a source of major morbidity and mortality. As the population ages, the prevalence of cardiovascular disease is increasing. For physicians who refer patients for surgery as well as for clinicians directly involved in perioperative medical care, an understanding of perioperative cardiac complications, reduction of such complications, and treatment of complications is essential. This article summarizes the approach to perioperative hypertension, hypotension, myocardial ischemia, myocardial infarction, and congestive heart failure.</AbstractText></Abstract><AuthorList CompleteYN=\"Y\"><Author ValidYN=\"Y\"><LastName>Weitz</LastName><ForeName>H H</ForeName><Initials>HH</Initials><AffiliationInfo><Affiliation>Department of Medicine, Jefferson Medical College, Jefferson Heart Institute of Thomas Jefferson University Hospital, Philadelphia, Pennsylvania, USA. Howard.H.Weitz@mail.tju.edu</Affiliation></AffiliationInfo></Author></AuthorList></Article></MedlineCitation><PubmedData><ArticleIdList><ArticleId IdType=\"pubmed\">11565492</ArticleId><ArticleId IdType=\"doi\">10.1016/s0025-7125(05)70370-9</ArticleId><ArticleId IdType=\"pii\">S0025-7125(05)70370-9</ArticleId></ArticleIdList></PubmedData></PubmedArticle><PubmedArticle><MedlineCitation><PMID Version=\"1\">33121952</PMID><Article><Journal><ISSN IssnType=\"Electronic\">1879-0712</ISSN><JournalIssue CitedMedium=\"Internet\"><Volume>891</Volume><PubDate><Year>2021</Year><Month>Jan</Month><Day>15</Day></PubDate></JournalIssue><Title>European journal of pharmacology</Title><ISOAbbreviation>Eur J Pharmacol</ISOAbbreviation></Journal><ArticleTitle>Morphine and myocardial ischaemia-reperfusion.</ArticleTitle><Abstract><AbstractText>Coronary heart disease (CHD) is a cardiovascular disease with high mortality and disability worldwide. The main pathological manifestation of CHD is myocardial injury due to ischaemia-reperfusion, resulting in the death of cardiomyocytes (apoptosis and necrosis) and the occurrence of cardiac failure. Morphine is a nonselective opioid receptor agonist that has been commonly used for analgesia and to treat ischaemic heart disease. The present review focused on morphine-induced protection in an animal model of myocardial ischaemia-reperfusion and chronic heart failure and the effects of morphine on ST segment elevation myocardial infarction (STEMI) patients who underwent pre-primary percutaneous coronary intervention (pre-PPCI) or PPCI. The signalling pathways involved are also briefly described.</AbstractText><CopyrightInformation>Copyright © 2020. Published by Elsevier B.V.</CopyrightInformation></Abstract><AuthorList CompleteYN=\"Y\"><Author ValidYN=\"Y\"><LastName>Wu</LastName><ForeName>Li-Ning</ForeName><Initials>LN</Initials><AffiliationInfo><Affiliation>Institutions: Department of Anesthesiology, The Third Affiliated Hospital of Anhui Medical University, Hefei, 230061, China.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Hu</LastName><ForeName>Rui</ForeName><Initials>R</Initials><AffiliationInfo><Affiliation>Institutions: Department of Anesthesiology, The Third Affiliated Hospital of Anhui Medical University, Hefei, 230061, China.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Yu</LastName><ForeName>Jun-Ma</ForeName><Initials>JM</Initials><AffiliationInfo><Affiliation>Institutions: Department of Anesthesiology, The Third Affiliated Hospital of Anhui Medical University, Hefei, 230061, China. Electronic address: majuny163@163.com.</Affiliation></AffiliationInfo></Author></AuthorList><ELocationID EIdType=\"doi\" ValidYN=\"Y\">10.1016/j.ejphar.2020.173683</ELocationID><ELocationID EIdType=\"pii\" ValidYN=\"Y\">S0014-2999(20)30775-5</ELocationID></Article></MedlineCitation><PubmedData><ArticleIdList><ArticleId IdType=\"pubmed\">33121952</ArticleId><ArticleId IdType=\"doi\">10.1016/j.ejphar.2020.173683</ArticleId><ArticleId IdType=\"pii\">S0014-2999(20)30775-5</ArticleId></ArticleIdList></PubmedData></PubmedArticle><PubmedArticle><MedlineCitation><PMID Version=\"1\">31382288</PMID><Article><Journal><ISSN IssnType=\"Electronic\">1539-3704</ISSN><JournalIssue CitedMedium=\"Internet\"><Volume>171</Volume><Issue>3</Issue><PubDate><Year>2019</Year><Month>Aug</Month><Day>06</Day></PubDate></JournalIssue><Title>Annals of internal medicine</Title><ISOAbbreviation>Ann Intern Med</ISOAbbreviation></Journal><ArticleTitle>Stable Ischemic Heart Disease.</ArticleTitle><Abstract><AbstractText>Stable ischemic heart disease (SIHD) is a leading cause of death in the United States and many other countries. The defining pathobiology is an imbalance between the metabolic demands of the myocardium and its oxygen supply, which most often results from coronary artery atherosclerosis. The classic presenting symptom of SIHD is angina, but clinical presentation varies greatly among patients. Since the last In the Clinic on SIHD in 2014, several new drugs have been approved to reduce ischemic complications, such as myocardial infarction and congestive heart failure.</AbstractText></Abstract><AuthorList CompleteYN=\"Y\"><Author ValidYN=\"Y\"><LastName>Katz</LastName><ForeName>Daniel</ForeName><Initials>D</Initials><AffiliationInfo><Affiliation>Beth Israel Deaconess Medical Center, Boston, Massachusetts (D.K., M.C.G.).</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Gavin</LastName><ForeName>Michael C</ForeName><Initials>MC</Initials><AffiliationInfo><Affiliation>Beth Israel Deaconess Medical Center, Boston, Massachusetts (D.K., M.C.G.).</Affiliation></AffiliationInfo></Author></AuthorList><ELocationID EIdType=\"doi\" ValidYN=\"Y\">10.7326/AITC201908060</ELocationID></Article></MedlineCitation><PubmedData><ArticleIdList><ArticleId IdType=\"pubmed\">31382288</ArticleId><ArticleId IdType=\"doi\">10.7326/AITC201908060</ArticleId><ArticleId IdType=\"pii\">2747535</ArticleId></ArticleIdList></PubmedData></PubmedArticle><PubmedArticle><MedlineCitation><PMID Version=\"1\">11779722</PMID><Article><Journal><ISSN IssnType=\"Print\">1073-449X</ISSN><JournalIssue CitedMedium=\"Print\"><Volume>165</Volume><Issue>1</Issue><PubDate><Year>2002</Year><Month>Jan</Month><Day>01</Day></PubDate></JournalIssue><Title>American journal of respiratory and critical care medicine</Title><ISOAbbreviation>Am J Respir Crit Care Med</ISOAbbreviation></Journal><ArticleTitle>Congestive heart failure.</ArticleTitle><AuthorList CompleteYN=\"Y\"><Author ValidYN=\"Y\"><LastName>Poppas</LastName><ForeName>Athena</ForeName><Initials>A</Initials><AffiliationInfo><Affiliation>Cardiology Section, The Rhode Island Hospital, Providence, Rhode Island 02903, USA. Athena_Poppas@Brown.edu</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Rounds</LastName><ForeName>Sharon</ForeName><Initials>S</Initials></Author></AuthorList></Article></MedlineCitation><PubmedData><ArticleIdList><ArticleId IdType=\"pubmed\">11779722</ArticleId><ArticleId IdType=\"doi\">10.1164/ajrccm.165.1.2102075</ArticleId></ArticleIdList></PubmedData></PubmedArticle><PubmedArticle><MedlineCitation><PMID Version=\"1\">25704330</PMID><Article><Journal><ISSN IssnType=\"Electronic\">1879-0828</ISSN><JournalIssue CitedMedium=\"Internet\"><Volume>26</Volume><Issue>4</Issue><PubDate><Year>2015</Year><Month>May</Month></PubDate></JournalIssue><Title>European journal of internal medicine</Title><ISOAbbreviation>Eur J Intern Med</ISOAbbreviation></Journal><ArticleTitle>Heart rate and cardiovascular protection.</ArticleTitle><Abstract><AbstractText>Recent large epidemiological studies have confirmed that an elevated resting heart rate is an independent predictor of cardiovascular and overall mortality in the general population as well as in patients with hypertension, coronary heart disease and chronic heart failure. Pathophysiological studies indicate that a higher heart rate has detrimental effects that favor myocardial ischemia, ventricular arrhythmias, as well as an increase in vascular oxidative stress, endothelial dysfunction and atherosclerosis progression. Benefits of heart rate lowering drugs, such as beta-blockers and ivabradine, in reducing overall and cardiovascular-related mortality, have been demonstrated particularly in patients with coronary heart disease and heart failure. However, despite these evidences, resting heart rate is still an overlooked cardiovascular risk factor.</AbstractText><CopyrightInformation>Copyright © 2015 European Federation of Internal Medicine. Published by Elsevier B.V. All rights reserved.</CopyrightInformation></Abstract><AuthorList CompleteYN=\"Y\"><Author ValidYN=\"Y\"><LastName>Caetano</LastName><ForeName>Joana</ForeName><Initials>J</Initials><AffiliationInfo><Affiliation>Department Medicine IV, Fernando Fonseca Hospital, IC-19, 2720-276, Amadora, Portugal. Electronic address: caetano.joana@gmail.com.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Delgado Alves</LastName><ForeName>José</ForeName><Initials>J</Initials><AffiliationInfo><Affiliation>Department Medicine IV, Fernando Fonseca Hospital, IC-19, 2720-276, Amadora, Portugal; CEDOC - Center for Chronic Diseases of Faculty of Medical Sciences of Lisbon, Rua Câmara Pestana no 6, 6-A, Edifício CEDOC II, 1150-082 Lisbon, Portugal.</Affiliation></AffiliationInfo></Author></AuthorList><ELocationID EIdType=\"doi\" ValidYN=\"Y\">10.1016/j.ejim.2015.02.009</ELocationID><ELocationID EIdType=\"pii\" ValidYN=\"Y\">S0953-6205(15)00044-8</ELocationID></Article></MedlineCitation><PubmedData><ArticleIdList><ArticleId IdType=\"pubmed\">25704330</ArticleId><ArticleId IdType=\"doi\">10.1016/j.ejim.2015.02.009</ArticleId><ArticleId IdType=\"pii\">S0953-6205(15)00044-8</ArticleId></ArticleIdList></PubmedData></PubmedArticle><PubmedArticle><MedlineCitation><PMID Version=\"1\">28607164</PMID><Article><Journal><ISSN IssnType=\"Electronic\">1468-201X</ISSN><JournalIssue CitedMedium=\"Internet\"><Volume>104</Volume><Issue>1</Issue><PubDate><Year>2018</Year><Month>Jan</Month></PubDate></JournalIssue><Title>Heart (British Cardiac Society)</Title><ISOAbbreviation>Heart</ISOAbbreviation></Journal><ArticleTitle>Cochrane Corner: stem cell therapy for chronic ischaemic heart disease and congestive heart failure.</ArticleTitle><AuthorList CompleteYN=\"Y\"><Author ValidYN=\"Y\"><LastName>Fisher</LastName><ForeName>Sheila A</ForeName><Initials>SA</Initials><AffiliationInfo><Affiliation>NHS Blood and Transplant, National Health Services, Watford, UK.</Affiliation></AffiliationInfo><AffiliationInfo><Affiliation>Barts and the London NHS Trust, The London Chest Hospital, London, UK.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Doree</LastName><ForeName>Carolyn</ForeName><Initials>C</Initials><AffiliationInfo><Affiliation>NHS Blood and Transplant, National Health Services, Watford, UK.</Affiliation></AffiliationInfo><AffiliationInfo><Affiliation>Barts and the London NHS Trust, The London Chest Hospital, London, UK.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Mathur</LastName><ForeName>Anthony</ForeName><Initials>A</Initials><AffiliationInfo><Affiliation>Department of Clinical Pharmacology, William Harvey Research Institute, London, UK.</Affiliation></AffiliationInfo><AffiliationInfo><Affiliation>Oxford Heart Centre, John Radcliffe Hospital, Oxford, UK.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Taggart</LastName><ForeName>David P</ForeName><Initials>DP</Initials><AffiliationInfo><Affiliation>Radcliffe Department of Medicine, University of Oxford, Oxford, UK.</Affiliation></AffiliationInfo></Author><Author ValidYN=\"Y\"><LastName>Martin-Rendon</LastName><ForeName>Enca</ForeName><Initials>E</Initials><AffiliationInfo><Affiliation>Barts and the London NHS Trust, The London Chest Hospital, London, UK.</Affiliation></AffiliationInfo></Author></AuthorList><ELocationID EIdType=\"doi\" ValidYN=\"Y\">10.1136/heartjnl-2017-311684</ELocationID></Article></MedlineCitation><PubmedData><ArticleIdList><ArticleId IdType=\"pubmed\">28607164</ArticleId><ArticleId IdType=\"doi\">10.1136/heartjnl-2017-311684</ArticleId><ArticleId IdType=\"pii\">heartjnl-2017-311684</ArticleId></ArticleIdList></PubmedData></PubmedArticle><PubmedArticle><MedlineCitation><PMID Version=\"1\">5122894</PMID><Article><Journal><ISSN IssnType=\"Print\">0028-4793</ISSN><JournalIssue CitedMedium=\"Print\"><Volume>285</Volume><Issue>26</Issue><PubDate><Year>1971</Year><Month>Dec</Month><Day>23</Day></PubDate></JournalIssue><Title>The New England journal of medicine</Title><ISOAbbreviation>N Engl J Med</ISOAbbreviation></Journal><ArticleTitle>The natural history of congestive heart failure: the Framingham study.</ArticleTitle><AuthorList CompleteYN=\"Y\"><Author ValidYN=\"Y\"><LastName>McKee</LastName><ForeName>P A</ForeName><Initials>PA</Initials></Author><Author ValidYN=\"Y\"><LastName>Castelli</LastName><ForeName>W P</ForeName><Initials>WP</Initials></Author><Author ValidYN=\"Y\"><LastName>McNamara</LastName><ForeName>P M</ForeName><Initials>PM</Initials></Author><Author ValidYN=\"Y\"><LastName>Kannel</LastName><ForeName>W B</ForeName><Initials>WB</Initials></Author></AuthorList></Article></MedlineCitation><PubmedData><ArticleIdList><ArticleId IdType=\"pubmed\">5122894</ArticleId><ArticleId IdType=\"doi\">10.1056/NEJM197112232852601</ArticleId></ArticleIdList></PubmedData></PubmedArticle></PubmedArticleSet>"
+ }
+}

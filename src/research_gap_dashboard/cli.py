@@ -46,10 +46,13 @@ from research_gap_dashboard.retrieval import (
   DEFAULT_MIN_OVERLAP,
   detect_retrieval_gaps,
 )
+from research_gap_dashboard.saturate import SaturationError, saturate_gap
 from research_gap_dashboard.sources import (
+  DEFAULT_SEARCH_LIMIT,
   OpenAlexAdapter,
   PubMedAdapter,
   SourceIdentity,
+  TopicSearchSource,
 )
 from research_gap_dashboard.taxonomy import (
   AXES,
@@ -73,6 +76,9 @@ from research_gap_dashboard.vocabulary import (
 )
 
 LLM_CACHE_DIR = ".llm-cache"
+
+# Works fetched per source per saturation-check query.
+SATURATE_SEARCH_LIMIT = DEFAULT_SEARCH_LIMIT
 
 logger = logging.getLogger("research_gap_dashboard")
 
@@ -231,6 +237,20 @@ def build_parser() -> argparse.ArgumentParser:
       "(default: OPENALEX_MAILTO)."
     ),
   )
+  saturate = subcommands.add_parser(
+    "saturate",
+    help=(
+      "Search OpenAlex and PubMed for work that would close a gap "
+      "(saturation check, needs network)."
+    ),
+  )
+  saturate.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  saturate.add_argument(
+    "--gap",
+    required=True,
+    help="Gap id to check, e.g. topicxtopic:heart-failure:myocardial-ischemia.",
+  )
+  _add_taxonomy_option(saturate)
   promote = subcommands.add_parser(
     "promote-gold",
     help="Turn a reviewed Extraction plus its overlay into a Gold Extraction fixture.",
@@ -277,6 +297,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     "aggregate": _run_aggregate,
     "detect": _run_detect,
     "retrieve": _run_retrieve,
+    "saturate": _run_saturate,
     "promote-gold": _run_promote_gold,
     "taxonomy": _run_taxonomy,
     "aliases": _run_aliases,
@@ -340,6 +361,51 @@ def _run_retrieve(arguments: argparse.Namespace) -> int:
     report.min_overlap,
   )
   return EXIT_OK
+
+
+def _build_search_sources() -> list[TopicSearchSource]:
+  """Build the sources a saturation check searches, identified to the APIs."""
+  identity = SourceIdentity.from_env()
+  return [
+    OpenAlexAdapter(mailto=identity.openalex_mailto),
+    PubMedAdapter(api_key=identity.pubmed_api_key),
+  ]
+
+
+def _run_saturate(arguments: argparse.Namespace) -> int:
+  """Check one gap against the wider literature and append the dated snapshot."""
+  paths = arguments.taxonomy or list(SEED_PATHS.values())
+  try:
+    taxonomies = load_pipeline_taxonomies(paths, corpus=arguments.corpus)
+  except TaxonomyError as error:
+    logger.error("Taxonomies are invalid:")
+    for problem in error.problems:
+      logger.error("  - %s", problem)
+    return EXIT_ERROR
+
+  try:
+    check = saturate_gap(
+      arguments.corpus,
+      arguments.gap,
+      _build_search_sources(),
+      taxonomies,
+      limit=SATURATE_SEARCH_LIMIT,
+    )
+  except SaturationError as error:
+    logger.error("%s", error)
+    return EXIT_ERROR
+  except FileNotFoundError as error:
+    logger.error("Run `ingest` and `detect` first: %s", error)
+    return EXIT_ERROR
+
+  for search in check.searches:
+    logger.info("  %s: %s", search.source, search.query)
+    if search.error:
+      logger.warning("    not searched: %s", search.error)
+  logger.info("%s", check.status_reason)
+  # Offline or rate-limited: the run completes, but the check did not happen
+  # (ADR 0009: surface, don't block).
+  return EXIT_INCOMPLETE if check.status == "not_run" else EXIT_OK
 
 
 def _run_parse(arguments: argparse.Namespace) -> int:

@@ -7,6 +7,7 @@ the rerun that follows, so the page redraws with the new artifact while the
 outcome and the captured output stay on screen.
 """
 
+from collections.abc import Sequence
 from pathlib import Path
 
 import streamlit as st
@@ -16,13 +17,30 @@ from research_gap_dashboard.dashboard.pipeline_runner import RunOutcome, RunResu
 from research_gap_dashboard.dashboard.views.session_keys import LAST_RUN_KEY
 
 
-def render_run_button(corpus_root: Path, stage: str, label: str) -> None:
-  """Render a button that runs `stage` on the Corpus, then redraws the page."""
-  if not st.button(label, key=f"run-{stage}", type="primary"):
+def render_run_button(  # pylint: disable=too-many-arguments
+  corpus_root: Path,
+  stage: str,
+  label: str,
+  *,
+  args: Sequence[str] = (),
+  key: str | None = None,
+  primary: bool = True,
+) -> None:
+  """
+  Render a button that runs `stage` on the Corpus, then redraws the page.
+
+  `args` are the stage's options; `key` tells apart several buttons for one
+  stage on a page (e.g. one "Check wider literature" per gap card).
+  """
+  if not st.button(
+    label,
+    key=key or f"run-{stage}",
+    type="primary" if primary else "secondary",
+  ):
     return
   with st.spinner(text.RUN_IN_PROGRESS.format(stage=stage)):
     # Looked up on the module at call time so tests can patch the subprocess.
-    result = pipeline_runner.run_stage(corpus_root, stage)
+    result = pipeline_runner.run_stage(corpus_root, stage, args=args)
   st.session_state[LAST_RUN_KEY] = (str(corpus_root), result)
   st.rerun()
 
@@ -64,4 +82,7 @@ def _outcome_message(result: RunResult) -> str:
     RunOutcome.LOCKED: text.RUN_LOCKED,
     RunOutcome.MISSING_KEY: text.RUN_MISSING_KEY,
   }
-  return templates[result.outcome].format(stage=result.stage)
+  template = templates[result.outcome]
+  if result.outcome == RunOutcome.INCOMPLETE:
+    template = text.RUN_INCOMPLETE_BY_STAGE.get(result.stage, template)
+  return template.format(stage=result.stage)

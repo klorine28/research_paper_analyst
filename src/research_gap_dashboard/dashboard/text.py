@@ -285,6 +285,13 @@ RUN_INCOMPLETE = (
   "`{stage}` completed but incomplete: some Papers fell out. See Needs "
   "Attention and the run output below."
 )
+# Stages whose exit code 2 means something other than Papers falling out.
+RUN_INCOMPLETE_BY_STAGE: dict[str, str] = {
+  "saturate": (
+    "`{stage}` completed, but no source could be searched (offline or "
+    "rate-limited). The check is recorded as not run; see the run output below."
+  ),
+}
 RUN_FAILED = "`{stage}` failed. See the run output below for the reason."
 RUN_LOCKED = (
   "Another run is already in progress on this Corpus. Wait for it to finish, "
@@ -374,6 +381,44 @@ GAP_NEXT_UNDECIDED_BUTTON = "Next undecided"
 GAP_NO_UNDECIDED_SHOWN = "No undecided gaps among the cards shown."
 GAP_FOCUS_HEADING = "Current gap"
 GAP_OTHERS_HEADING = "Other gaps"
+# Saturation check (ADR 0009, issue #85): a search of the wider literature for
+# work that would close a gap. It can only weaken a gap, never confirm it, and
+# its hits are out-of-Corpus works: never cited, never Evidence.
+GAP_SATURATION_BADGES: dict[str, str] = {
+  "not_checked": "Wider literature: not checked",
+  "possibly_addressed": (
+    "Wider literature: possibly addressed ({count} screened hit(s), {date})"
+  ),
+  "no_closing_work_found": "Wider literature: no closing work found ({date})",
+  "not_run": "Wider literature: check not run ({date})",
+}
+GAP_SATURATION_BUTTON = "\U0001f50e Check wider literature"
+GAP_SATURATION_HEADING = "Wider literature check"
+GAP_SATURATION_OUT_OF_CORPUS = (
+  "Out-of-corpus works: found by searching the wider literature, not Papers in "
+  "the Corpus. They are never cited and never count as Evidence; a check can "
+  "only suggest a gap is possibly addressed, never confirm it."
+)
+GAP_SATURATION_NOT_CHECKED = (
+  "Not checked against the wider literature yet. Use \u201cCheck wider "
+  "literature\u201d to search OpenAlex and PubMed for work that would close it."
+)
+GAP_SATURATION_CHECKED_AT = "Checked on {date} (UTC) \u00b7 screening: {method}."
+GAP_SATURATION_QUERIES_HEADING = "Queries, verbatim"
+GAP_SATURATION_QUERY = "**{source}** returned {count} work(s):"
+GAP_SATURATION_QUERY_ERROR = "**{source}** was not searched: {error}"
+GAP_SATURATION_IN_CORPUS = (
+  "{count} returned work(s) already in the Corpus were left out."
+)
+GAP_SATURATION_HITS_HEADING = "Hits ({screened} of {total} mention both concepts)"
+GAP_SATURATION_NO_HITS = "The searches returned no works outside the Corpus."
+GAP_SATURATION_HIT = "{marker} {title}{meta} \u2014 {reason}"
+GAP_SATURATION_HIT_META = " ({details})"
+GAP_SATURATION_FROM = "from {sources}"
+GAP_SATURATION_SCREENED_MARKER = "\u2714"
+GAP_SATURATION_UNSCREENED_MARKER = "\u2716"
+GAP_SATURATION_HISTORY_HEADING = "Check history"
+GAP_SATURATION_HISTORY_ENTRY = "- {date}: {badge}"
 
 # How each Candidate Gap's kind and confidence read to the researcher; kept here
 # so the dashboard never imports the detect stage's labels (ADR 0002).

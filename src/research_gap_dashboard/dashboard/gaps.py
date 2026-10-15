@@ -13,7 +13,7 @@ from collections.abc import Collection, Iterable, Sequence
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from research_gap_dashboard.analytics import (
   GapEvidence,
@@ -25,6 +25,8 @@ from research_gap_dashboard.dashboard.artifacts import (
   CandidateGapRecord,
   CandidateGapsArtifact,
   CoverageMatrixRecord,
+  SaturationCheckRecord,
+  SaturationChecksArtifact,
 )
 from research_gap_dashboard.dashboard.evidence_context import (
   EvidenceExpander,
@@ -76,12 +78,53 @@ class GapData(BaseModel):
   reasons: list[str]
 
 
+class SaturationSearchView(BaseModel):
+  """One search a saturation check ran, as the card's Tier 3 lists it."""
+
+  source: str
+  query: str
+  returned_count: int
+  in_corpus_count: int
+  error: str
+
+
+class SaturationHitView(BaseModel):
+  """One out-of-Corpus hit of a saturation check, never a Corpus Paper."""
+
+  title: str
+  details: str = Field(description="Year, venue, DOI or PMID and sources.")
+  screened: bool = Field(description="Its title/abstract mention both concepts.")
+  reason: str
+
+
+class SaturationView(BaseModel):
+  """
+  A card's wider-literature check (ADR 0009 §14): badge, result, drill-down.
+
+  `status` is "not_checked" until a check runs; afterwards the latest snapshot
+  fills the rest and `history` lists every snapshot, newest first. Only cell
+  gaps (Knowledge and Coverage) are `checkable` so far.
+  """
+
+  checkable: bool
+  status: str = "not_checked"
+  badge: str
+  summary: str = ""
+  checked_on: str = ""
+  screening_method: str = ""
+  searches: list[SaturationSearchView] = []
+  hits: list[SaturationHitView] = []
+  screened_count: int = 0
+  history: list[str] = []
+
+
 class GapCard(BaseModel):
   """
   One Candidate Gap card the view renders, with its judgment state.
 
   Fields map onto ADR 0008's three tiers: Tier 1 is the title, confidence, `why`
-  and cell count; Tier 2 the Evidence; Tier 3 `data`.
+  and cell count; Tier 2 the Evidence; Tier 3 `data`. `saturation` is the
+  wider-literature check, shown across all three tiers.
   """
 
   gap_id: str
@@ -99,6 +142,7 @@ class GapCard(BaseModel):
   evidence: list[EvidencePassage]
   data: GapData
   status: Status
+  saturation: SaturationView
 
 
 class GapCardsData(BaseModel):
@@ -281,11 +325,81 @@ def _data(record: CandidateGapRecord, matrices: list[CoverageMatrixRecord]) -> G
   )
 
 
-def _card(
+def _badge(check: SaturationCheckRecord) -> str:
+  """Return the one-line badge for a check snapshot."""
+  template = text.GAP_SATURATION_BADGES.get(
+    check.status, text.GAP_SATURATION_BADGES["not_run"]
+  )
+  return template.format(
+    count=sum(1 for hit in check.hits if hit.verdict == "mentions_both"),
+    date=check.checked_at.date().isoformat(),
+  )
+
+
+def _hit_details(hit_sources: list[str], year: int | None, venue: str, ref: str) -> str:
+  """Join a hit's year, venue, identifier and sources into one line."""
+  parts = [str(year) if year else "", venue, ref]
+  parts.append(text.GAP_SATURATION_FROM.format(sources=", ".join(hit_sources)))
+  return " \u00b7 ".join(part for part in parts if part)
+
+
+def _saturation(
+  record: CandidateGapRecord, checks: list[SaturationCheckRecord]
+) -> SaturationView:
+  """Build a card's wider-literature view from its checks, latest last."""
+  checkable = _is_cell_gap(record)
+  if not checks:
+    return SaturationView(
+      checkable=checkable, badge=text.GAP_SATURATION_BADGES["not_checked"]
+    )
+  latest = checks[-1]
+  return SaturationView(
+    checkable=checkable,
+    status=latest.status,
+    badge=_badge(latest),
+    summary=latest.status_reason,
+    checked_on=latest.checked_at.strftime("%Y-%m-%d %H:%M"),
+    screening_method=latest.screening_method,
+    searches=[
+      SaturationSearchView(
+        source=search.source,
+        query=search.query,
+        returned_count=len(search.returned_work_ids),
+        in_corpus_count=len(search.in_corpus_work_ids),
+        error=search.error,
+      )
+      for search in latest.searches
+    ],
+    hits=[
+      SaturationHitView(
+        title=hit.title or hit.work_id,
+        details=_hit_details(
+          hit.sources,
+          hit.year,
+          hit.venue,
+          f"DOI {hit.doi}" if hit.doi else f"PMID {hit.pmid}" if hit.pmid else "",
+        ),
+        screened=hit.verdict == "mentions_both",
+        reason=hit.reason,
+      )
+      for hit in latest.hits
+    ],
+    screened_count=sum(1 for hit in latest.hits if hit.verdict == "mentions_both"),
+    history=[
+      text.GAP_SATURATION_HISTORY_ENTRY.format(
+        date=check.checked_at.strftime("%Y-%m-%d %H:%M"), badge=_badge(check)
+      )
+      for check in reversed(checks)
+    ],
+  )
+
+
+def _card(  # pylint: disable=too-many-arguments,too-many-positional-arguments
   record: CandidateGapRecord,
   status: Status,
   expander: EvidenceExpander,
   matrices: list[CoverageMatrixRecord],
+  checks: list[SaturationCheckRecord],
 ) -> GapCard:
   """Assemble one display card from an artifact record and its judgment."""
   return GapCard(
@@ -313,6 +427,7 @@ def _card(
     ],
     data=_data(record, matrices),
     status=status,
+    saturation=_saturation(record, checks),
   )
 
 
@@ -404,6 +519,7 @@ def build_gap_cards(
   artifact: CandidateGapsArtifact,
   judgments: JudgmentLog,
   corpus_root: Path | None = None,
+  saturation: SaturationChecksArtifact | None = None,
 ) -> GapCardsData:
   """
   Merge the Candidate Gaps with the researcher's saved accept/reject state.
@@ -411,16 +527,21 @@ def build_gap_cards(
   When a corpus root is given, each Evidence passage is deterministically widened
   to its containing paragraph (`evidence_context`) so a card shows the anchor in
   situ; without one the passages stay bare, keeping this callable in unit tests
-  that have no parsed text on disk.
+  that have no parsed text on disk. `saturation`, the check log, gives each card
+  its wider-literature badge; without it every card reads "not checked".
   """
   decided = judgments.by_gap_id()
   expander = EvidenceExpander(corpus_root)
+  checks_by_gap: dict[str, list[SaturationCheckRecord]] = {}
+  for check in (saturation or SaturationChecksArtifact()).checks:
+    checks_by_gap.setdefault(check.gap_id, []).append(check)
   cards = [
     _card(
       record,
       decided[record.gap_id].decision if record.gap_id in decided else None,
       expander,
       artifact.matrices,
+      checks_by_gap.get(record.gap_id, []),
     )
     for record in artifact.gaps
   ]

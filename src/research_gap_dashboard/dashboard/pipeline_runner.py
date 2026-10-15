@@ -22,7 +22,7 @@ import fcntl
 import logging
 import os
 import subprocess
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from enum import StrEnum
 from pathlib import Path
@@ -74,9 +74,9 @@ class _CorpusLocked(Exception):
   """Another run already holds this Corpus."""
 
 
-def build_command(corpus_root: Path, stage: str) -> list[str]:
-  """Return the argv that runs one CLI stage on a Corpus."""
-  return [*CLI_COMMAND, stage, str(corpus_root.resolve())]
+def build_command(corpus_root: Path, stage: str, args: Sequence[str] = ()) -> list[str]:
+  """Return the argv that runs one CLI stage on a Corpus, with stage options."""
+  return [*CLI_COMMAND, stage, str(corpus_root.resolve()), *args]
 
 
 def needs_api_key(stage: str) -> bool:
@@ -116,16 +116,20 @@ def _outcome_for(exit_code: int) -> RunOutcome:
 
 
 def run_stage(
-  corpus_root: Path, stage: str, env: Mapping[str, str] | None = None
+  corpus_root: Path,
+  stage: str,
+  env: Mapping[str, str] | None = None,
+  args: Sequence[str] = (),
 ) -> RunResult:
   """
   Run one CLI stage on a Corpus as a blocking subprocess and report how it ended.
 
-  `env` defaults to the process environment (already populated from `.env` by
-  the app shell); the subprocess inherits it unchanged.
+  `args` are the stage's options (e.g. `--gap <id>` for `saturate`). `env`
+  defaults to the process environment (already populated from `.env` by the
+  app shell); the subprocess inherits it unchanged.
   """
   env = os.environ if env is None else env
-  command = build_command(corpus_root, stage)
+  command = build_command(corpus_root, stage, args)
   if needs_api_key(stage) and not env.get(API_KEY_ENV):
     return RunResult(stage=stage, command=command, outcome=RunOutcome.MISSING_KEY)
 
