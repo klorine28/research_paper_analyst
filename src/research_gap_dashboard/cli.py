@@ -18,6 +18,7 @@ from research_gap_dashboard.dashboard.extraction_review import (
   FIELD_NAMES as _GOLD_FIELD_NAMES,
 )
 from research_gap_dashboard.apply_corrections import apply_parse_corrections
+from research_gap_dashboard.baseline import baseline_corpus, render_baseline
 from research_gap_dashboard.detect import detect_corpus
 from research_gap_dashboard.diagnose import diagnose_corpus, render_funnel
 from research_gap_dashboard.env import load_env
@@ -127,6 +128,14 @@ def build_parser() -> argparse.ArgumentParser:
       "(e.g. 0.9 to gate on the >=90%% target); default: report only."
     ),
   )
+  baseline = subcommands.add_parser(
+    "baseline",
+    help=(
+      "Report Papers kept and lost, facts, terms per axis, and Candidate Gaps "
+      "as Markdown."
+    ),
+  )
+  baseline.add_argument("corpus", type=Path, help="Path to the corpus directory.")
   apply_corrections = subcommands.add_parser(
     "apply-parse-corrections",
     help="Write the dashboard's manual parse corrections into paper-data/.",
@@ -256,6 +265,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     "ingest": _run_ingest,
     "parse": _run_parse,
     "diagnose": _run_diagnose,
+    "baseline": _run_baseline,
     "apply-parse-corrections": _run_apply_parse_corrections,
     "extract": _run_extract,
     "explain": _run_explain,
@@ -368,6 +378,18 @@ def _run_diagnose(arguments: argparse.Namespace) -> int:
       arguments.min_rate * 100,
     )
     return EXIT_ERROR
+  return EXIT_OK
+
+
+def _run_baseline(arguments: argparse.Namespace) -> int:
+  """Report what every stage kept and lost over the Corpus, as Markdown."""
+  try:
+    report = baseline_corpus(arguments.corpus)
+  except FileNotFoundError as error:
+    logger.error("Run `ingest` first: %s", error)
+    return EXIT_ERROR
+
+  logger.info("%s", render_baseline(report))
   return EXIT_OK
 
 
