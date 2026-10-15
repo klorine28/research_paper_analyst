@@ -7,7 +7,10 @@ Papers. This module does the two semantic steps the LLM is needed for, and
 nothing else (card wording lives in `detect`):
 
 1. **Group** every limitation and future-work statement in the Corpus by
-   meaning, in one call over all statements.
+   meaning, in one call over all statements. When an `Embedder` is available,
+   `merge_hints` first lists cross-Paper statement pairs whose vectors are
+   close, and the call receives them as hints; the model still decides, so
+   without the `embeddings` extra grouping simply runs LLM-only.
 2. **Match follow-ups**: for each group, ask which facts of the *later* Papers
    (published in a later year than the group's earliest source Paper) address
    it, in one call per group. A group with no later Paper makes no call.
@@ -21,11 +24,15 @@ client (ADR 0001), so a rerun on the same Extractions gives the same groups.
 """
 
 import logging
+import math
+import operator
+import re
 from collections.abc import Sequence
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from research_gap_dashboard.embeddings import Embedder, Vector
 from research_gap_dashboard.extract import (
   Evidence,
   ExtractedFact,
@@ -37,7 +44,7 @@ from research_gap_dashboard.llm import LlmClient, ModelTier, complete_model
 logger = logging.getLogger(__name__)
 
 # Bump when a prompt or output shape changes: they key the LLM cache (ADR 0001).
-GROUP_PROMPT_VERSION = "limitations-group-v1"
+GROUP_PROMPT_VERSION = "limitations-group-v2"
 FOLLOW_UP_PROMPT_VERSION = "limitations-follow-up-v1"
 
 ATTEMPTS = 3
@@ -106,6 +113,13 @@ class LimitationGroup(BaseModel):
     return bool(self.follow_ups)
 
 
+class MergeHint(BaseModel):
+  """Two statements from different Papers whose embeddings are close."""
+
+  statement_ids: tuple[str, str] = Field(description="Sorted statement ids.")
+  cosine: float
+
+
 class _ProposedGroup(BaseModel):
   """One group the model proposes, before its ids are validated."""
 
@@ -152,27 +166,68 @@ def collect_statements(extractions: Sequence[Extraction]) -> list[LimitationStat
   return statements
 
 
-def group_limitations(
+def merge_hints(
+  statements: Sequence[LimitationStatement],
+  embedder: Embedder,
+  threshold: float,
+) -> list[MergeHint]:
+  """
+  List every cross-Paper statement pair at or above `threshold` cosine.
+
+  Pairs within one Paper are left out: a Paper repeating itself is not the
+  cross-Paper recurrence the hints exist to surface (issue #54).
+  """
+  if len(statements) < 2:
+    return []
+  vectors = [
+    _unit(vector) for vector in embedder.embed([s.statement for s in statements])
+  ]
+  hints: list[MergeHint] = []
+  for i, left in enumerate(statements):
+    for j in range(i + 1, len(statements)):
+      right = statements[j]
+      if left.citation_key == right.citation_key:
+        continue
+      similarity = sum(map(operator.mul, vectors[i], vectors[j]))
+      if similarity >= threshold:
+        ids = sorted((left.statement_id, right.statement_id))
+        hints.append(
+          MergeHint(statement_ids=(ids[0], ids[1]), cosine=round(similarity, 4))
+        )
+  return sorted(hints, key=lambda hint: (-hint.cosine, hint.statement_ids))
+
+
+def _unit(vector: Vector) -> Vector:
+  """Scale a vector to length 1 so a dot product is its cosine."""
+  norm = math.sqrt(math.fsum(value * value for value in vector))
+  return [value / norm for value in vector] if norm else list(vector)
+
+
+def group_limitations(  # pylint: disable=too-many-arguments,too-many-locals
   extractions: Sequence[Extraction],
   years: dict[str, int | None],
   client: LlmClient,
   *,
   tier: ModelTier = "default",
+  hints: Sequence[MergeHint] = (),
 ) -> list[LimitationGroup]:
   """
   Group the Corpus's limitation statements and find each group's follow-ups.
 
   `years` maps Papers' citation keys to publication years (None when unknown);
   only Papers with an Extraction can count as later, and a Paper with no known
-  year never does.
+  year never does. `hints` (from `merge_hints`) are offered to the model as
+  likely merges; hints naming unknown statements are ignored.
   """
   statements = collect_statements(extractions)
   if not statements:
     return []
 
+  known = {statement.statement_id for statement in statements}
+  usable = [hint for hint in hints if set(hint.statement_ids) <= known]
   proposal = complete_model(
     client,
-    _grouping_prompt(statements),
+    _grouping_prompt(statements, usable),
     _ProposedGrouping,
     prompt_version=GROUP_PROMPT_VERSION,
     tier=tier,
@@ -201,7 +256,7 @@ def _validated_groups(
   for proposed in proposal.groups:
     members: list[LimitationStatement] = []
     notes: list[str] = []
-    for statement_id in proposed.statement_ids:
+    for statement_id in map(_unbracketed, proposed.statement_ids):
       if statement_id not in by_id:
         notes.append(f"dropped unknown statement id '{statement_id}'")
       elif statement_id in placed:
@@ -295,7 +350,8 @@ def _validated_follow_ups(
   """Keep only follow-ups citing a real later fact; note every one dropped."""
   follow_ups: list[FollowUp] = []
   for proposed in proposal.follow_ups:
-    pair = candidates.get(proposed.fact_id)
+    fact_id = _unbracketed(proposed.fact_id)
+    pair = candidates.get(fact_id)
     if pair is None:
       notes.append(f"dropped follow-up citing unknown fact '{proposed.fact_id}'")
       continue
@@ -303,13 +359,26 @@ def _validated_follow_ups(
     follow_ups.append(
       FollowUp(
         citation_key=citation_key,
-        fact_id=proposed.fact_id,
+        fact_id=fact_id,
         statement=fact.statement,
         evidence=fact.evidence,
         reason=proposed.reason,
       )
     )
   return sorted(follow_ups, key=lambda follow_up: follow_up.fact_id)
+
+
+def _unbracketed(reference: str) -> str:
+  """
+  Strip the outer brackets a model copies from the prompt's `[id]` rendering.
+
+  Ids are rendered `[key:field[index]]` and the model is told to copy them
+  "exactly as shown", so it often returns the bracketed form. Read literally,
+  every such id was unknown and every statement ended up alone (issue #54).
+  """
+  reference = reference.strip()
+  outer = re.fullmatch(r"\[(.+:.+\[\d+\])\]", reference)
+  return outer.group(1) if outer else reference
 
 
 def _follow_up_facts(
@@ -327,11 +396,24 @@ def _follow_up_facts(
   return facts
 
 
-def _grouping_prompt(statements: list[LimitationStatement]) -> str:
+def _grouping_prompt(
+  statements: list[LimitationStatement], hints: Sequence[MergeHint]
+) -> str:
   """Build the prompt asking the model to group statements by shared meaning."""
   lines = "\n".join(
     f"- [{s.statement_id}] ({s.kind}) {s.statement}" for s in statements
   )
+  hint_block = ""
+  if hints:
+    pairs = "\n".join(
+      f"- [{hint.statement_ids[0]}] ~ [{hint.statement_ids[1]}]" for hint in hints
+    )
+    hint_block = (
+      "\n\nSIMILAR PAIRS: a text-similarity model found these statements from "
+      "different papers close in meaning. Put each pair in the same group when "
+      "both describe the same limitation or open question; ignore a pair whose "
+      f"statements only share vocabulary.\n{pairs}"
+    )
   return (
     "Below are limitation and future-work statements from several research "
     "papers. Group statements that describe the same underlying limitation or "
@@ -339,7 +421,7 @@ def _grouping_prompt(statements: list[LimitationStatement]) -> str:
     "concern with no other statement forms a group on its own. Put every "
     "statement in exactly one group, citing it by its bracketed id exactly as "
     "shown, and give each group a short label naming the shared concern.\n\n"
-    f"STATEMENTS:\n{lines}"
+    f"STATEMENTS:\n{lines}{hint_block}"
   )
 
 

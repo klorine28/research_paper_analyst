@@ -21,6 +21,11 @@ from research_gap_dashboard.apply_corrections import apply_parse_corrections
 from research_gap_dashboard.baseline import baseline_corpus, render_baseline
 from research_gap_dashboard.detect import detect_corpus
 from research_gap_dashboard.diagnose import diagnose_corpus, render_funnel
+from research_gap_dashboard.embeddings import (
+  EmbeddingConfig,
+  EmbeddingConfigError,
+  build_embedder,
+)
 from research_gap_dashboard.env import load_env
 from research_gap_dashboard.explain import explain_corpus
 from research_gap_dashboard.extract import extract_corpus
@@ -506,12 +511,19 @@ def _run_detect(arguments: argparse.Namespace) -> int:
   """Find the Corpus's Candidate Gaps and write the CandidateGaps artifact."""
   try:
     client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
-  except LlmConfigError as error:
+    embedding_config = EmbeddingConfig.from_env()
+  except (LlmConfigError, EmbeddingConfigError) as error:
     logger.error("%s", error)
     return EXIT_ERROR
 
   try:
-    report = detect_corpus(arguments.corpus, client, tier=arguments.tier)
+    report = detect_corpus(
+      arguments.corpus,
+      client,
+      tier=arguments.tier,
+      embedder=build_embedder(embedding_config),
+      merge_threshold=embedding_config.merge_threshold,
+    )
   except FileNotFoundError as error:
     logger.error("Run `ingest`, `extract`, and `aggregate` first: %s", error)
     return EXIT_ERROR
