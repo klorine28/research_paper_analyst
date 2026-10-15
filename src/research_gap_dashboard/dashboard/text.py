@@ -93,6 +93,13 @@ VERIFY_PAPER_PICKER_LABEL = "Paper to verify"
 VERIFY_SUMMARY = (
   "{reviewed} of {extracted} extracted facts reviewed; {added} facts added."
 )
+VERIFY_CORPUS_PROGRESS = (
+  "{reviewed} of {total} extracted facts reviewed across the Corpus; "
+  "{fully} of {papers} Papers fully reviewed."
+)
+VERIFY_CORPUS_COMPLETE = (
+  "Every extracted fact in the Corpus has a verdict: verification is done."
+)
 VERIFY_PDF_LINK = "Open the PDF"
 VERIFY_NO_FACTS = "No facts extracted for this field."
 VERIFY_ADDED_BADGE = "added by reviewer"

@@ -1,6 +1,7 @@
 """Shared fixtures: the committed cardiology Corpus that every stage is tested on."""
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,9 @@ def _hermetic_env(monkeypatch: pytest.MonkeyPatch) -> None:
   services).
   """
   monkeypatch.setattr(env_module, "load_dotenv", lambda *args, **kwargs: False)
+  # Behave as if the optional `embeddings` extra were absent, so no test loads
+  # or downloads a model; tests of the embedder seam install a fake module.
+  monkeypatch.setitem(sys.modules, "sentence_transformers", None)
 
 
 class StubLlmClient:  # pylint: disable=too-few-public-methods

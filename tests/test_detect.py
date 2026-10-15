@@ -584,3 +584,37 @@ def test_limitations_of_papers_outside_the_manifest_are_never_cited(
   cited = {e.citation_key for card in _limitation_gaps(report) for e in card.evidence}
   statements = {s.citation_key for g in report.limitation_groups for s in g.statements}
   assert "stranger" not in cited | statements
+
+
+def test_bracketed_ids_copied_from_the_prompt_still_resolve(tmp_path: Path) -> None:
+  """
+  Ids returned in their `[id]` prompt form group and follow up as if bare.
+
+  Read literally they matched nothing, so every statement stood alone (#54).
+  """
+  bracketed = {
+    "groups": [
+      {
+        "label": "Small sample size",
+        "statement_ids": ["[early1:limitations[0]]", " [early2:limitations[0]] "],
+      },
+      {"label": "Sex differences", "statement_ids": ["[early1:future_work[0]]"]},
+    ]
+  }
+  follow_up = {
+    "follow_ups": [{"fact_id": "[later1:methods[0]]", "reason": "Larger cohort."}]
+  }
+  client = RoutedLlmClient(
+    {
+      GROUP_PROMPT_VERSION: [bracketed],
+      FOLLOW_UP_PROMPT_VERSION: [follow_up, _NONE_ADDRESSED],
+    }
+  )
+
+  report = detect_corpus(_limitations_root(tmp_path), client)
+
+  groups = {g.label: g for g in report.limitation_groups}
+  sample = groups["Small sample size"]
+  assert sample.source_citation_keys == ["early1", "early2"]
+  assert sample.notes == []
+  assert [f.fact_id for f in sample.follow_ups] == ["later1:methods[0]"]
