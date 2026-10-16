@@ -25,6 +25,31 @@ from research_gap_dashboard.dashboard.artifacts import (
 
 TrendStatus = Literal["emerging", "abandoned", "steady"]
 
+# Topic identity rides on colour *and* marker symbol, so no line depends on hue
+# alone (chart audit C5). The colours are Okabe & Ito's colour-blind-safe
+# qualitative palette minus its yellow, which falls below graphical contrast on
+# white. One colour per line means the palette length is the line cap: past it
+# colours would repeat, so the remaining Topics go to a table instead.
+TRENDS_PALETTE = (
+  "#000000",
+  "#E69F00",
+  "#56B4E9",
+  "#009E73",
+  "#0072B2",
+  "#D55E00",
+  "#CC79A7",
+)
+TRENDS_MARKERS = (
+  "circle",
+  "square",
+  "diamond",
+  "triangle-up",
+  "x",
+  "triangle-down",
+  "star",
+)
+MAX_TREND_LINES = len(TRENDS_PALETTE)
+
 
 class TopicTrend(BaseModel):
   """One Topic's publication volume over the Corpus's years, and its trend."""
@@ -60,6 +85,28 @@ class TrendsData(BaseModel):
   def abandoned(self) -> list[TopicTrend]:
     """Topics the Corpus stopped studying before the recent half of its span."""
     return [topic for topic in self.topics if topic.status == "abandoned"]
+
+  @property
+  def plotted_topics(self) -> list[TopicTrend]:
+    """
+    The Topics drawn as lines, at most ``MAX_TREND_LINES``, in volume order.
+
+    Emerging and abandoned Topics claim slots first because they are what the
+    chart exists to show; the remaining slots go to the most-covered steady
+    Topics.
+    """
+    ranked = sorted(
+      range(len(self.topics)),
+      key=lambda index: (self.topics[index].status == "steady", index),
+    )
+    kept = sorted(ranked[:MAX_TREND_LINES])
+    return [self.topics[index] for index in kept]
+
+  @property
+  def tabled_topics(self) -> list[TopicTrend]:
+    """The Topics past the line cap, listed in a table in volume order."""
+    plotted = {topic.category_id for topic in self.plotted_topics}
+    return [topic for topic in self.topics if topic.category_id not in plotted]
 
   @property
   def has_data(self) -> bool:
@@ -167,10 +214,14 @@ def build_trends_figure(trends: TrendsData) -> go.Figure:
   Build the Plotly line chart of publication volume per Topic over time.
 
   Emerging Topics are drawn solid and abandoned Topics dashed, so the lines the
-  eye should catch stand out; steady Topics stay in the background.
+  eye should catch stand out; steady Topics stay in the background. Each line
+  carries its own palette colour and marker symbol; Topics past the line cap
+  are left to the table (``TrendsData.tabled_topics``).
   """
   figure = go.Figure()
-  for topic in trends.topics:
+  for topic, colour, symbol in zip(
+    trends.plotted_topics, TRENDS_PALETTE, TRENDS_MARKERS, strict=False
+  ):
     dash = "solid" if topic.status != "abandoned" else "dash"
     width = 3 if topic.status in ("emerging", "abandoned") else 1.5
     figure.add_trace(
@@ -179,7 +230,8 @@ def build_trends_figure(trends: TrendsData) -> go.Figure:
         y=topic.counts,
         mode="lines+markers",
         name=f"{topic.label}{text.TRENDS_STATUS_SUFFIX.get(topic.status, '')}",
-        line={"dash": dash, "width": width},
+        line={"dash": dash, "width": width, "color": colour},
+        marker={"symbol": symbol, "color": colour, "size": 8},
       )
     )
   figure.update_layout(
@@ -189,3 +241,52 @@ def build_trends_figure(trends: TrendsData) -> go.Figure:
     legend_title=text.TRENDS_LEGEND_TITLE,
   )
   return figure
+
+
+def trends_cap_caption(trends: TrendsData) -> str | None:
+  """State how many Topics the line cap moved to the table, or None if none."""
+  tabled = len(trends.tabled_topics)
+  if not tabled:
+    return None
+  return text.TRENDS_CAPPED.format(
+    shown=len(trends.topics) - tabled, total=len(trends.topics), tabled=tabled
+  )
+
+
+def trends_table_rows(trends: TrendsData) -> list[dict[str, str | int]]:
+  """One row per Topic past the line cap: its volume, span, and status."""
+  return [
+    {
+      text.TRENDS_COL_TOPIC: topic.label,
+      text.TRENDS_COL_PAPERS: topic.total,
+      text.TRENDS_COL_FIRST_YEAR: topic.first_year,
+      text.TRENDS_COL_LAST_YEAR: topic.last_year,
+      text.TRENDS_COL_STATUS: text.TRENDS_STATUS_LABEL[topic.status],
+    }
+    for topic in trends.tabled_topics
+  ]
+
+
+def trends_text_summary(trends: TrendsData) -> str:
+  """
+  State the Trends chart in words: its lines, span, denominator and highlights.
+
+  The text alternative for readers who cannot see the lines (chart audit C7);
+  the per-year counts of Topics past the line cap are in the table already.
+  """
+  if not trends.has_data:
+    return text.TRENDS_NO_DATA
+  years = trends.years
+  span = f"{years[0]}\u2013{years[-1]}" if years[0] != years[-1] else str(years[0])
+  top = trends.topics[0]
+  return text.TRENDS_ALT.format(
+    shown=len(trends.plotted_topics),
+    topics=len(trends.topics),
+    span=span,
+    with_year=trends.papers_with_year,
+    total=trends.corpus_paper_count,
+    top=top.label,
+    top_total=top.total,
+    emerging=len(trends.emerging),
+    abandoned=len(trends.abandoned),
+  )

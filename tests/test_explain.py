@@ -18,7 +18,7 @@ from research_gap_dashboard.explain import (
   read_paper_explanation,
 )
 from research_gap_dashboard.ingest import ingest_corpus, read_manifest
-from research_gap_dashboard.llm import CachingLlmClient, DiskCache
+from research_gap_dashboard.llm import CachingLlmClient, DiskCache, LlmUsage
 from research_gap_dashboard.parsing import PARSED_SUFFIX, ParsedPaper, ParsedSection
 
 
@@ -194,3 +194,35 @@ def test_cli_explain_requires_an_api_key(parsed_corpus: Path, monkeypatch) -> No
   monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
   assert main(["explain", str(parsed_corpus)]) == cli.EXIT_ERROR
+
+
+def test_explanations_record_the_model_and_cache_status(parsed_corpus: Path) -> None:
+  """Each explanation records its model, and whether the cache served it (#105)."""
+  inner = StubLlmClient(_BOTH_REGISTERS)
+  key = read_manifest(parsed_corpus).papers[0].citation_key
+
+  def _run() -> None:
+    usage = LlmUsage()
+    client = CachingLlmClient(
+      inner, DiskCache(parsed_corpus / ".llm-cache"), usage=usage
+    )
+    explain_corpus(parsed_corpus, client, model="claude-test-1", usage=usage)
+
+  _run()
+  first = read_paper_explanation(parsed_corpus, key)
+  assert first.model == "claude-test-1"
+  assert first.prompt_version == "explain-v1"
+  assert first.cached is False
+
+  _run()
+  assert read_paper_explanation(parsed_corpus, key).cached is True
+
+
+def test_cache_status_is_unrecorded_without_a_usage_tally(
+  parsed_corpus: Path,
+) -> None:
+  """A run that does not tally its LLM usage says so rather than guessing."""
+  explain_corpus(parsed_corpus, StubLlmClient(_BOTH_REGISTERS))
+
+  key = read_manifest(parsed_corpus).papers[0].citation_key
+  assert read_paper_explanation(parsed_corpus, key).cached is None

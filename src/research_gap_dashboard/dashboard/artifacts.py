@@ -242,6 +242,10 @@ class NormalizedFactsArtifact(_ReadModel):
   """The NormalizedFacts artifact, projected onto what the Trends view shows."""
 
   corpus_root: Path
+  # Provenance (UI audit I7); defaulted so artifacts that predate a field load.
+  prompt_version: str = ""
+  tier: str = ""
+  model: str = ""
   normalized: list[NormalizedFactsRecord] = []
 
 
@@ -535,6 +539,10 @@ class ExtractionsArtifact(_ReadModel):
   """The Extractions artifact, projected onto what the dashboard shows."""
 
   corpus_root: Path
+  # Provenance (UI audit I7); defaulted so artifacts that predate a field load.
+  prompt_version: str = ""
+  tier: str = ""
+  model: str = ""
   extractions: list[ExtractionRecord] = []
   failures: list[ExtractionFailureRecord] = []
   unverified: list[UnverifiedFactRecord] = []
@@ -610,6 +618,11 @@ class PaperExplanationArtifact(_ReadModel):
   """One Paper's explanation file, projected onto what the Explainer view shows."""
 
   citation_key: str
+  # Provenance (UI audit I7); defaulted so artifacts that predate a field load.
+  prompt_version: str = ""
+  tier: str = ""
+  model: str = ""
+  cached: bool | None = None
   registers: PaperExplanationRegistersRecord = PaperExplanationRegistersRecord()
 
 

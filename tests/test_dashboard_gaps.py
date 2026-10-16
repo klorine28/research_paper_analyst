@@ -38,6 +38,7 @@ from research_gap_dashboard.dashboard.gaps import (
   narrative_scope,
   next_undecided_gap_id,
   scope_context_to_gap,
+  surfaced_gap_context,
 )
 from research_gap_dashboard.dashboard.judgments import load_judgments, record_judgment
 from research_gap_dashboard.detect import detect_corpus
@@ -150,7 +151,7 @@ def test_narrative_scope_keeps_only_accepted_gaps(corpus: Path):
   record_judgment(corpus, rejected.gap_id, "rejected")
   data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
 
-  scope = narrative_scope(data, _corpus_context())
+  scope = narrative_scope(data, _corpus_context(), ("high", "medium", "low"))
 
   assert [gap.title for gap in scope.context.gaps] == [accepted.title]
   assert scope.accepted_count == 1
@@ -161,11 +162,63 @@ def test_narrative_scope_keeps_only_accepted_gaps(corpus: Path):
   assert scope.context.allowed_keys == _corpus_context().allowed_keys
 
 
+def test_narrative_scope_uses_only_the_gaps_the_confidence_filter_surfaces(
+  corpus: Path,
+):
+  """An accepted Low gap stays out of the narrative by default, and is counted (#98)."""
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+  medium = next(card for card in data.cards if card.confidence == "medium")
+  low = next(card for card in data.cards if card.confidence == "low")
+  record_judgment(corpus, medium.gap_id, "accepted")
+  record_judgment(corpus, low.gap_id, "accepted")
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+
+  scope = narrative_scope(data, _corpus_context())
+
+  assert [gap.title for gap in scope.context.gaps] == [medium.title]
+  assert scope.confidence_levels == list(DEFAULT_CONFIDENCE_FILTER)
+  assert scope.accepted_count == 1
+  assert scope.undecided_count == 0
+  assert scope.hidden_count == data.gap_count - 1
+  assert scope.hidden_accepted_count == 1
+  # The narrative's own context says which gaps it was given.
+  assert "High, Medium" in scope.context.render()
+
+
+def test_narrative_scope_follows_a_widened_confidence_filter(corpus: Path):
+  """With Low shown too, every accepted gap reaches the narrative."""
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+  low = next(card for card in data.cards if card.confidence == "low")
+  record_judgment(corpus, low.gap_id, "accepted")
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+
+  scope = narrative_scope(data, _corpus_context(), ("high", "medium", "low"))
+
+  assert [gap.title for gap in scope.context.gaps] == [low.title]
+  assert scope.hidden_count == 0
+  assert scope.hidden_accepted_count == 0
+
+
+def test_surfaced_gap_context_holds_only_the_default_filter_s_gaps(corpus: Path):
+  """The general chat sees High and Medium gaps only, and is told what is hidden."""
+  data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+
+  context = surfaced_gap_context(data, _corpus_context())
+
+  surfaced = [card for card in data.cards if card.confidence in ("high", "medium")]
+  assert [gap.title for gap in context.gaps] == [card.title for card in surfaced]
+  rendered = context.render()
+  assert "High, Medium" in rendered
+  assert f"{data.gap_count - len(surfaced)} gap(s) at Low confidence" in rendered
+  # Papers stay the full Corpus: they are the citation allow-list.
+  assert context.allowed_keys == _corpus_context().allowed_keys
+
+
 def test_narrative_scope_with_no_accepted_gaps_is_empty(corpus: Path):
   """With no verdicts at all, the narrative has nothing to ground itself in."""
   data = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
 
-  scope = narrative_scope(data, _corpus_context())
+  scope = narrative_scope(data, _corpus_context(), ("high", "medium", "low"))
 
   assert scope.context.gaps == []
   assert scope.accepted_count == 0

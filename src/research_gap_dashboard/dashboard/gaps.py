@@ -583,13 +583,7 @@ def scope_context_to_gap(card: GapCard, corpus: GroundingContext) -> GroundingCo
   keys = set(card.source_citation_keys)
   keys |= {passage.citation_key for passage in card.evidence}
   papers = [paper for paper in corpus.papers if paper.citation_key in keys]
-  gap = GapFact(
-    gap_type=card.gap_type_label,
-    title=card.title,
-    explanation=card.explanation,
-    confidence=card.confidence_label,
-    source_citation_keys=card.source_citation_keys,
-  )
+  gap = _gap_fact(card)
   evidence = [
     GapEvidence(
       citation_key=passage.citation_key,
@@ -601,13 +595,71 @@ def scope_context_to_gap(card: GapCard, corpus: GroundingContext) -> GroundingCo
   return GroundingContext(papers=papers, gaps=[gap], evidence=evidence)
 
 
+def confidence_levels_label(levels: Iterable[str]) -> str:
+  """Spell confidence levels the way the cards do, in display order."""
+  chosen = set(levels)
+  labels = [
+    text.CONFIDENCE_LABELS.get(level, level)
+    for level in CONFIDENCE_LEVELS
+    if level in chosen
+  ]
+  return ", ".join(labels) or text.GAP_SCOPE_NO_LEVELS
+
+
+def _gap_fact(card: GapCard) -> GapFact:
+  """One card as the grounding context carries it."""
+  return GapFact(
+    gap_type=card.gap_type_label,
+    title=card.title,
+    explanation=card.explanation,
+    confidence=card.confidence_label,
+    source_citation_keys=card.source_citation_keys,
+  )
+
+
+def _gap_scope_note(levels: Iterable[str], hidden: int) -> str:
+  """Tell the model which confidence levels its gap list covers, and what's hidden."""
+  chosen = set(levels)
+  if not hidden:
+    return text.GAP_SCOPE_NOTE_ALL.format(levels=confidence_levels_label(chosen))
+  return text.GAP_SCOPE_NOTE.format(
+    levels=confidence_levels_label(chosen),
+    hidden=hidden,
+    hidden_levels=confidence_levels_label(set(CONFIDENCE_LEVELS) - chosen),
+  )
+
+
+def surfaced_gap_context(
+  data: GapCardsData,
+  corpus: GroundingContext,
+  levels: Iterable[str] = DEFAULT_CONFIDENCE_FILTER,
+) -> GroundingContext:
+  """
+  Narrow a Corpus's grounding context to the gaps the confidence filter shows.
+
+  The general chat discusses what the Gap Cards page surfaces (issue #98), not
+  every candidate: on a real Corpus most are Low-confidence cells that would
+  swamp the prompt. Papers stay the whole Corpus, the citation allow-list, and
+  the context states which levels it holds and how many gaps it leaves out.
+  """
+  chosen = tuple(levels)
+  filtered = filter_by_confidence(data, chosen)
+  return corpus.model_copy(
+    update={
+      "gaps": [_gap_fact(card) for card in filtered.cards],
+      "gap_scope": _gap_scope_note(chosen, filtered.hidden_count),
+    }
+  )
+
+
 class NarrativeScope(BaseModel):
   """
   What the narrative summary is grounded in, and the denominator it states.
 
-  The write-up reflects the researcher's judgment (issue #81): only accepted
-  gaps enter its context, and the counts let the page say how many gaps over
-  how many Papers it covers and how many were left out.
+  The write-up reflects the researcher's judgment (issue #81) over the same gaps
+  the chat sees (issue #98): only accepted gaps at the confidence levels the
+  filter shows enter its context. The status counts are over those shown gaps;
+  `hidden_count` and `hidden_accepted_count` say what the filter left out.
   """
 
   context: GroundingContext
@@ -615,32 +667,51 @@ class NarrativeScope(BaseModel):
   rejected_count: int
   undecided_count: int
   paper_count: int
+  confidence_levels: list[str] = list(CONFIDENCE_LEVELS)
+  hidden_count: int = 0
+  hidden_accepted_count: int = 0
+
+  @property
+  def levels_label(self) -> str:
+    """The confidence levels covered, as the cards spell them."""
+    return confidence_levels_label(self.confidence_levels)
 
 
-def narrative_scope(data: GapCardsData, corpus: GroundingContext) -> NarrativeScope:
+def narrative_scope(
+  data: GapCardsData,
+  corpus: GroundingContext,
+  levels: Iterable[str] = DEFAULT_CONFIDENCE_FILTER,
+) -> NarrativeScope:
   """
-  Narrow a Corpus's grounding context to the gaps the researcher accepted.
+  Narrow a Corpus's grounding context to the shown gaps the researcher accepted.
 
   The Papers stay the whole Corpus, since they are the citation allow-list;
-  only the gaps shrink. Rejected and undecided gaps are excluded.
+  only the gaps shrink. Rejected, undecided and filtered-out gaps are excluded.
   """
-  gaps = [
-    GapFact(
-      gap_type=card.gap_type_label,
-      title=card.title,
-      explanation=card.explanation,
-      confidence=card.confidence_label,
-      source_citation_keys=card.source_citation_keys,
-    )
+  chosen = [level for level in CONFIDENCE_LEVELS if level in set(levels)]
+  shown = filter_by_confidence(data, chosen).cards
+  shown_ids = {card.gap_id for card in shown}
+  accepted = [card for card in shown if card.status == "accepted"]
+  hidden_accepted = sum(
+    1
     for card in data.cards
-    if card.status == "accepted"
-  ]
+    if card.status == "accepted" and card.gap_id not in shown_ids
+  )
+  hidden = data.gap_count - len(shown)
   return NarrativeScope(
-    context=corpus.model_copy(update={"gaps": gaps}),
-    accepted_count=data.accepted_count,
-    rejected_count=data.rejected_count,
-    undecided_count=data.undecided_count,
+    context=corpus.model_copy(
+      update={
+        "gaps": [_gap_fact(card) for card in accepted],
+        "gap_scope": _gap_scope_note(chosen, hidden),
+      }
+    ),
+    accepted_count=len(accepted),
+    rejected_count=sum(1 for card in shown if card.status == "rejected"),
+    undecided_count=sum(1 for card in shown if card.status is None),
     paper_count=data.corpus_paper_count,
+    confidence_levels=chosen,
+    hidden_count=hidden,
+    hidden_accepted_count=hidden_accepted,
   )
 
 

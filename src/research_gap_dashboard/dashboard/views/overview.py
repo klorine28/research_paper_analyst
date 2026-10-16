@@ -31,6 +31,7 @@ from research_gap_dashboard.dashboard.overview import (
   FactDensity,
   OverviewData,
   build_overview,
+  overview_preview_bar,
 )
 from research_gap_dashboard.dashboard.suggestions import load_suggested_papers
 from research_gap_dashboard.dashboard.views.run_controls import (
@@ -201,58 +202,39 @@ def _render_overview_gallery(overview: OverviewData, corpus_root: Path) -> None:
 
 
 def _render_tile_preview(chart_id: str, overview: OverviewData) -> None:
-  """Render a clean thumbnail of a chart inside its tile (labels on hover)."""
+  """Render a thumbnail of a chart inside its tile, with its text alternative."""
+  bar = overview_preview_bar(chart_id, overview)
   if chart_id == "papers_year":
-    buckets = overview.papers_per_year
     st.caption(
       text.PREVIEW_PAPERS_YEAR.format(
         count=overview.paper_count, span=overview.year_span
       )
     )
-    render_mini_bar(
-      [b.label for b in buckets], [b.count for b in buckets], key=chart_id
+  elif chart_id == "venues" and overview.venues:
+    st.caption(
+      text.PREVIEW_VENUES.format(
+        count=overview.venue_count,
+        top=overview.venues[0].venue,
+        n=overview.venues[0].count,
+      )
     )
-  elif chart_id == "venues":
-    top_venues = overview.venues[:8]
-    if top_venues:
-      st.caption(
-        text.PREVIEW_VENUES.format(
-          count=overview.venue_count,
-          top=top_venues[0].venue,
-          n=top_venues[0].count,
-        )
+  elif chart_id == "axes" and bar is not None:
+    axis = overview.axis_frequencies[0]
+    st.caption(
+      text.PREVIEW_AXES.format(
+        count=len(axis.categories),
+        axis=axis.label,
+        top=bar.labels[0],
+        n=bar.values[0],
       )
-    render_mini_bar(
-      [v.venue for v in top_venues], [v.count for v in top_venues], key=chart_id
     )
-  elif chart_id == "axes":
-    if overview.axis_frequencies:
-      axis = overview.axis_frequencies[0]
-      top = axis.categories[:8]
-      st.caption(
-        text.PREVIEW_AXES.format(
-          count=len(axis.categories),
-          axis=axis.label,
-          top=top[0].label,
-          n=top[0].count,
-        )
+  elif chart_id == "facts" and overview.fact_density is not None and bar is not None:
+    st.caption(
+      text.PREVIEW_FACTS.format(
+        facts=overview.fact_density.total_facts, mean=overview.fact_density.mean
       )
-      render_mini_bar([c.label for c in top], [c.count for c in top], key=chart_id)
-    else:
-      st.caption(text.OVERVIEW_TILE_PREVIEW_EMPTY)
-  elif chart_id == "facts":
-    density = overview.fact_density
-    if density is not None and density.papers:
-      st.caption(
-        text.PREVIEW_FACTS.format(facts=density.total_facts, mean=density.mean)
-      )
-      render_mini_bar(
-        [p.label for p in density.papers[:8]],
-        [p.count for p in density.papers[:8]],
-        key=chart_id,
-      )
-    else:
-      st.caption(text.OVERVIEW_TILE_PREVIEW_EMPTY)
+    )
+  render_mini_bar(bar, key=chart_id)
 
 
 def _render_overview_panel_body(

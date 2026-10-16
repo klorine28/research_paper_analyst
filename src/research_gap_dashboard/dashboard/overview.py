@@ -307,3 +307,128 @@ def _venues(manifest: ManifestArtifact) -> list[VenueCount]:
   )
   ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
   return [VenueCount(venue=venue, count=count) for venue, count in ranked]
+
+
+# How many bars a tile thumbnail draws; the expanded panel shows them all.
+PREVIEW_BARS = 8
+
+
+# The longest category name a thumbnail prints under its bar. Years and short
+# codes fit; anything longer would overlap its neighbours in a half-width tile.
+_MAX_TICK_CHARS = 7
+
+
+class MiniBar(BaseModel):
+  """
+  A bar thumbnail and its text alternative.
+
+  Every bar carries a visible tick, so the thumbnail names its bars without
+  hover (chart audit C6): the category name itself when every name is short,
+  otherwise a number that ``summary`` maps back to the name. ``summary`` also
+  carries the counts and the denominator in words (chart audit C7).
+  """
+
+  labels: list[str]
+  values: list[int]
+  ticks: list[str]
+  summary: str
+
+
+def build_mini_bar(
+  labels: list[str], values: list[int], template: str, **fields: object
+) -> MiniBar:
+  """
+  Build a thumbnail whose ticks and caption name every bar.
+
+  ``template`` is a text-alternative string with a ``{bars}`` slot; the other
+  slots are filled from ``fields``.
+  """
+  numbered = any(len(label) > _MAX_TICK_CHARS for label in labels)
+  ticks = [str(index) for index in range(1, len(labels) + 1)] if numbered else labels
+  bars = text.bar_listing(labels, values, numbered=numbered)
+  return MiniBar(
+    labels=labels,
+    values=values,
+    ticks=list(ticks),
+    summary=template.format(bars=bars, **fields),
+  )
+
+
+def overview_preview_bar(chart_id: str, overview: OverviewData) -> MiniBar | None:
+  """Build one overview tile's bar thumbnail, or None when it has no data."""
+  if chart_id == "papers_year":
+    return _papers_year_bar(overview)
+  if chart_id == "venues":
+    return _venues_bar(overview)
+  if chart_id == "axes":
+    return _axis_bar(overview)
+  if chart_id == "facts":
+    return _facts_bar(overview.fact_density)
+  return None
+
+
+def _papers_year_bar(overview: OverviewData) -> MiniBar | None:
+  buckets = overview.papers_per_year
+  if not buckets:
+    return None
+  labels = [bucket.label for bucket in buckets]
+  values = [bucket.count for bucket in buckets]
+  return build_mini_bar(
+    labels,
+    values,
+    text.MINI_BAR_ALT_PAPERS_YEAR,
+    total=overview.paper_count,
+  )
+
+
+def _venues_bar(overview: OverviewData) -> MiniBar | None:
+  top = overview.venues[:PREVIEW_BARS]
+  if not top:
+    return None
+  labels = [venue.venue for venue in top]
+  values = [venue.count for venue in top]
+  return build_mini_bar(
+    labels,
+    values,
+    text.MINI_BAR_ALT_VENUES,
+    shown=len(top),
+    venues=overview.venue_count,
+    total=overview.paper_count,
+  )
+
+
+def _axis_bar(overview: OverviewData) -> MiniBar | None:
+  if not overview.axis_frequencies:
+    return None
+  axis = overview.axis_frequencies[0]
+  top = axis.categories[:PREVIEW_BARS]
+  if not top:
+    return None
+  labels = [category.label for category in top]
+  values = [category.count for category in top]
+  return build_mini_bar(
+    labels,
+    values,
+    text.MINI_BAR_ALT_AXIS,
+    shown=len(top),
+    categories=len(axis.categories),
+    axis=axis.label,
+    placed=axis.papers_placed,
+    total=overview.paper_count,
+  )
+
+
+def _facts_bar(density: FactDensity | None) -> MiniBar | None:
+  if density is None or not density.papers:
+    return None
+  top = density.papers[:PREVIEW_BARS]
+  labels = [paper.label for paper in top]
+  values = [paper.count for paper in top]
+  return build_mini_bar(
+    labels,
+    values,
+    text.MINI_BAR_ALT_FACTS,
+    shown=len(top),
+    papers=density.papers_with_facts,
+    facts=density.total_facts,
+  )

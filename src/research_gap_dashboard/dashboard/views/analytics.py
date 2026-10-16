@@ -30,7 +30,9 @@ from research_gap_dashboard.dashboard.entry_log import reconcile_entry_log
 from research_gap_dashboard.dashboard.export import build_write_up
 from research_gap_dashboard.dashboard.fact_pool import corpus_grounding_context
 from research_gap_dashboard.dashboard.gaps import (
+  DEFAULT_CONFIDENCE_FILTER,
   GapCard,
+  GapCardsData,
   NarrativeScope,
   build_gap_cards,
   narrative_scope,
@@ -51,6 +53,7 @@ from research_gap_dashboard.dashboard.views.run_controls import (
 )
 from research_gap_dashboard.dashboard.views.session_keys import (
   DISCUSS_GAP_KEY,
+  GAP_CONFIDENCE_FILTER_KEY,
   NARRATIVE_KEY,
 )
 
@@ -95,7 +98,7 @@ def render_page(chosen: CorpusChoice) -> None:
   _render_narrative_summary(
     chosen,
     manifest,
-    corpus_grounding_context(corpus_root, manifest, has_gaps),
+    corpus_grounding_context(corpus_root, manifest, has_gaps, _confidence_levels()),
     client,
     has_gaps,
   )
@@ -211,7 +214,7 @@ def _conversation_context(
   carries the researcher's kept journal notes, labelled as their own so grounding
   still binds the model to cite only Corpus Papers (issue #50).
   """
-  base = corpus_grounding_context(corpus_root, manifest, has_gaps)
+  base = corpus_grounding_context(corpus_root, manifest, has_gaps, _confidence_levels())
   notes = render_notes_for_context(load_journal(corpus_root))
   note_list = [notes] if notes else []
   if conversation.gap_id:
@@ -231,6 +234,23 @@ def _scoped_gap_card(corpus_root: Path, gap_id: str) -> GapCard | None:
   return next((card for card in data.cards if card.gap_id == gap_id), None)
 
 
+def _confidence_levels() -> list[str]:
+  """
+  Return the confidence levels the Gap Cards filter shows (default High, Medium).
+
+  Chat and narrative read the same remembered filter as the Gap Cards page
+  (issue #98), so all three discuss the same surfaced gaps.
+  """
+  return list(
+    st.session_state.get(GAP_CONFIDENCE_FILTER_KEY, DEFAULT_CONFIDENCE_FILTER)
+  )
+
+
+def _gap_cards(corpus_root: Path) -> GapCardsData:
+  """Build the gap cards with their verdicts, without widening Evidence."""
+  return build_gap_cards(load_candidate_gaps(corpus_root), load_judgments(corpus_root))
+
+
 def _render_narrative_summary(
   chosen: CorpusChoice,
   manifest: ManifestArtifact,
@@ -238,7 +258,7 @@ def _render_narrative_summary(
   client: LlmClient,
   has_gaps: bool,
 ) -> None:
-  """Render the narrative summary over accepted gaps only, stating its denominator."""
+  """Render the narrative over shown, accepted gaps only, stating its denominator."""
   corpus_root = chosen.root
   st.subheader(text.ANALYTICS_SUMMARY_HEADING)
   st.caption(text.ANALYTICS_SUMMARY_INTRO)
@@ -246,21 +266,25 @@ def _render_narrative_summary(
     st.info(text.ANALYTICS_SUMMARY_NEEDS_GAPS)
     render_run_buttons(corpus_root, ["detect"], scope="analytics-summary")
     return
-  scope = narrative_scope(
-    build_gap_cards(load_candidate_gaps(corpus_root), load_judgments(corpus_root)),
-    context,
-  )
+  scope = narrative_scope(_gap_cards(corpus_root), context, _confidence_levels())
   if scope.accepted_count == 0:
     st.info(
-      text.ANALYTICS_SUMMARY_NEEDS_ACCEPTED.format(undecided=scope.undecided_count)
+      text.ANALYTICS_SUMMARY_NEEDS_ACCEPTED.format(
+        levels=scope.levels_label,
+        undecided=scope.undecided_count,
+        hidden=scope.hidden_count,
+      )
     )
     return
   st.caption(
     text.ANALYTICS_SUMMARY_DENOMINATOR.format(
       accepted=scope.accepted_count,
+      levels=scope.levels_label,
       papers=scope.paper_count,
       rejected=scope.rejected_count,
       undecided=scope.undecided_count,
+      hidden=scope.hidden_count,
+      hidden_accepted=scope.hidden_accepted_count,
     )
   )
   signature = (str(corpus_root), _narrative_signature(scope))

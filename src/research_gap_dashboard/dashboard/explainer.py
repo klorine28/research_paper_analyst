@@ -5,8 +5,8 @@ These are plain functions with no Streamlit dependency: the layout layer stays
 thin by asking here for finished data. The explain stage writes one explanation
 file per Paper under `paper-data/` (see `explain`); this view pairs each Paper's
 manifest metadata with its explanation so the page can show both registers next
-to a link back to the Paper. Papers keep the manifest's order so the same
-Corpus always lists them the same way.
+to a link back to the Paper and the provenance behind them. Papers keep the
+manifest's order so the same Corpus always lists them the same way.
 """
 
 from pydantic import BaseModel
@@ -16,6 +16,7 @@ from research_gap_dashboard.dashboard.artifacts import (
   PaperExplanationArtifact,
   PaperRecord,
 )
+from research_gap_dashboard.dashboard.provenance import explanation_provenance
 
 
 class PaperMenuEntry(BaseModel):
@@ -59,6 +60,7 @@ class PaperExplainerView(BaseModel):
   doi: str
   domain_explanation: str
   lay_explanation: str
+  provenance: str
 
 
 def build_paper_menu(
@@ -89,4 +91,5 @@ def build_paper_explainer(
     doi=paper.doi,
     domain_explanation=explanation.registers.domain_explanation,
     lay_explanation=explanation.registers.lay_explanation,
+    provenance=explanation_provenance(explanation),
   )

@@ -10,6 +10,8 @@ categories, never guessed from free text, and every count states the Corpus it
 was computed against.
 """
 
+import json
+
 from conftest import open_page
 from pathlib import Path
 
@@ -31,12 +33,15 @@ from research_gap_dashboard.dashboard.artifacts import (
   load_normalized_facts,
 )
 from research_gap_dashboard.dashboard.comparison import (
+  MAX_COLUMNS,
   MAX_SELECTION,
   SelectionError,
   build_comparison,
   chunk_selection,
+  field_rows,
   selection_error,
 )
+from research_gap_dashboard.dashboard.provenance import comparison_provenance
 from research_gap_dashboard.extract import (
   Evidence,
   ExtractedFact,
@@ -159,6 +164,7 @@ def _write_corpus(root: Path, keys: list[str]) -> Path:
     corpus_root=root,
     prompt_version="extract-v1",
     tier="default",
+    model="claude-test-1",
     extractions=[_extraction(key) for key in keys],
     failures=[],
   )
@@ -375,3 +381,104 @@ def test_comparison_page_renders_a_selection(
   subheaders = [element.value for element in app.subheader]
   assert "Field by field" in subheaders
   assert any("none of the selection covers" in value for value in subheaders)
+
+
+# -- Legibility past four Papers (issue #104) ------------------------------
+
+
+def test_field_rows_wrap_units_so_no_row_is_wider_than_the_cap() -> None:
+  """Units wrap into rows of at most MAX_COLUMNS, order kept, none dropped."""
+  units = list("abcde")
+  rows = field_rows(units)
+  assert all(len(row) <= MAX_COLUMNS for row in rows)
+  assert [item for row in rows for item in row] == units
+  assert field_rows(list("ab")) == [["a", "b"]]
+
+
+def _large_corpus(
+  root: Path, count: int, monkeypatch: pytest.MonkeyPatch
+) -> tuple[Path, list[str]]:
+  """Write a Corpus of `count` Papers, cycling the six fixture placements."""
+  keys = [f"p{index:02d}" for index in range(1, count + 1)]
+  base = list(_PLACEMENTS)
+  for index, key in enumerate(keys):
+    if key in _PLACEMENTS:
+      continue
+    # setitem is undone after the test, so other tests keep the six-Paper Corpus.
+    monkeypatch.setitem(_PLACEMENTS, key, _PLACEMENTS[base[index % len(base)]])
+    monkeypatch.setitem(
+      _STATEMENTS,
+      key,
+      {field: said.replace("p01", key) for field, said in _STATEMENTS["p01"].items()},
+    )
+  return _write_corpus(root, keys), keys
+
+
+@pytest.mark.parametrize("count", [5, MAX_SELECTION])
+def test_comparison_page_keeps_columns_readable_for_a_large_selection(
+  tmp_path: Path, monkeypatch: pytest.MonkeyPatch, count: int
+) -> None:
+  """At 5 and at 15 Papers no field-by-field column is narrower than the cap."""
+  from streamlit.testing.v1 import AppTest
+
+  corpus, keys = _large_corpus(tmp_path / "corpus", count, monkeypatch)
+  acknowledge_denominator(corpus)
+  monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
+  app_path = Path(dashboard_pkg.__file__).parent / "app.py"
+  app = AppTest.from_file(str(app_path), default_timeout=60).run()
+  open_page(app, "Paper Comparison")
+
+  app.multiselect[0].set_value(keys).run()
+  assert not app.exception
+  assert "Field by field" in [element.value for element in app.subheader]
+  # Only the field-by-field columns: each opens with its unit's label caption.
+  widths = [
+    column.weight
+    for column in app.main.columns
+    if any(c.value.startswith(("Study p", "Set ")) for c in column.caption)
+  ]
+  assert widths, "the field-by-field comparison renders in columns"
+  assert min(widths) >= 1 / MAX_COLUMNS - 1e-9
+  # Every Paper's statement is still shown, none dropped by the wrapping.
+  shown = " ".join(element.value for element in app.main.markdown)
+  assert all(f"{key} used a study design." in shown for key in keys)
+
+
+# -- Provenance (issue #105) -----------------------------------------------
+
+
+def test_comparison_provenance_names_the_stages_behind_the_text(corpus: Path) -> None:
+  """Statements and categories carry their stage's model, prompt, and cache use."""
+  (corpus / "artifacts" / "llm-usage.json").write_text(
+    json.dumps({"extract": {"calls": 2, "cached_calls": 4, "by_model": {}}}),
+    encoding="utf-8",
+  )
+
+  lines = comparison_provenance(
+    corpus, load_extractions(corpus), load_normalized_facts(corpus)
+  )
+
+  extract_line, aggregate_line, note = lines
+  assert "claude-test-1 (default tier)" in extract_line
+  assert "extract-v1" in extract_line
+  assert "4 of 6 completions" in extract_line
+  assert "aggregate-v2" in aggregate_line
+  assert "cache status not recorded" in aggregate_line
+  assert "no LLM call" in note
+
+
+def test_comparison_page_shows_its_provenance(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+  """Once Papers are picked, the page captions where the compared text came from."""
+  from streamlit.testing.v1 import AppTest
+
+  acknowledge_denominator(corpus)
+  monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
+  app_path = Path(dashboard_pkg.__file__).parent / "app.py"
+  app = AppTest.from_file(str(app_path), default_timeout=30).run()
+  open_page(app, "Paper Comparison")
+
+  app.multiselect[0].set_value(["p01", "p02"]).run()
+  assert not app.exception
+  assert any("extract-v1" in caption.value for caption in app.caption)

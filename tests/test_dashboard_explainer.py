@@ -8,6 +8,7 @@ page pairs each explanation with the Paper's manifest metadata (title, venue,
 DOI) so a reader can link back to the Paper.
 """
 
+import json
 import shutil
 from pathlib import Path
 
@@ -133,3 +134,57 @@ def test_app_renders_the_explainer_page(corpus: Path, monkeypatch) -> None:
   body = " ".join(block.value for block in app.markdown).lower()
   assert "domain language" in body
   assert "plain language" in body
+
+
+# -- Provenance (issue #105) -----------------------------------------------
+
+
+def _explanation_file(corpus: Path, key: str) -> Path:
+  return corpus / "paper-data" / f"{key}.explanation.json"
+
+
+def test_explainer_view_states_model_prompt_and_cache_status(corpus: Path) -> None:
+  """The view's provenance is read from the explanation file, not the config."""
+  paper = load_manifest(corpus).papers[0]
+  path = _explanation_file(corpus, paper.citation_key)
+  raw = json.loads(path.read_text(encoding="utf-8"))
+  raw.update(model="claude-test-1", tier="cheap", cached=True)
+  path.write_text(json.dumps(raw), encoding="utf-8")
+
+  view = build_paper_explainer(
+    paper, load_paper_explanation(corpus, paper.citation_key)
+  )
+
+  assert "claude-test-1 (cheap tier)" in view.provenance
+  assert "explain-v1" in view.provenance
+  assert "served from the LLM cache" in view.provenance
+
+
+def test_explainer_view_says_what_an_older_file_did_not_record(corpus: Path) -> None:
+  """An explanation written before provenance was recorded is labelled, not guessed."""
+  paper = load_manifest(corpus).papers[0]
+  path = _explanation_file(corpus, paper.citation_key)
+  raw = json.loads(path.read_text(encoding="utf-8"))
+  for field in ("model", "cached"):
+    raw.pop(field, None)
+  path.write_text(json.dumps(raw), encoding="utf-8")
+
+  view = build_paper_explainer(
+    paper, load_paper_explanation(corpus, paper.citation_key)
+  )
+
+  assert "unrecorded model (default tier)" in view.provenance
+  assert "cache status not recorded" in view.provenance
+
+
+def test_app_shows_the_explanation_provenance(corpus: Path, monkeypatch) -> None:
+  """The Explainer page shows the provenance unobtrusively, as a caption."""
+  from streamlit.testing.v1 import AppTest
+
+  monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
+  app_path = Path(dashboard_pkg.__file__).parent / "app.py"
+  app = AppTest.from_file(str(app_path), default_timeout=30).run()
+  open_page(app, PAGE_EXPLAINER)
+
+  assert not app.exception
+  assert any("explain-v1" in caption.value for caption in app.caption)

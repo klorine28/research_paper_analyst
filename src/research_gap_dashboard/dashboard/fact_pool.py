@@ -10,9 +10,10 @@ value model; the retrieval itself lives with the analytics machinery (ADR 0002).
 """
 
 from collections import defaultdict
+from collections.abc import Iterable
 from pathlib import Path
 
-from research_gap_dashboard.analytics import CorpusPaper, GapFact, GroundingContext
+from research_gap_dashboard.analytics import CorpusPaper, GroundingContext
 from research_gap_dashboard.dashboard.artifacts import (
   ExtractionsArtifact,
   ManifestArtifact,
@@ -23,6 +24,12 @@ from research_gap_dashboard.dashboard.artifacts import (
   load_extractions,
   load_normalized_facts,
 )
+from research_gap_dashboard.dashboard.gaps import (
+  DEFAULT_CONFIDENCE_FILTER,
+  build_gap_cards,
+  surfaced_gap_context,
+)
+from research_gap_dashboard.dashboard.judgments import load_judgments
 from research_gap_dashboard.fact_retrieval import (
   FIELD_ORDER,
   ExtractedFact,
@@ -84,13 +91,18 @@ def load_fact_pool(corpus_root: Path) -> list[ExtractedFact]:
 
 
 def corpus_grounding_context(
-  corpus_root: Path, manifest: ManifestArtifact, has_gaps: bool
+  corpus_root: Path,
+  manifest: ManifestArtifact,
+  has_gaps: bool,
+  levels: Iterable[str] = DEFAULT_CONFIDENCE_FILTER,
 ) -> GroundingContext:
   """
   Map a Corpus's artifact read models onto the general chat's grounding context.
 
   The Analytics page and the chat evaluation set (issue #99) both build the
   context here, so the eval measures the chat the researcher actually gets.
+  Only the gaps the confidence filter shows at `levels` enter it (issue #98):
+  the page passes the researcher's remembered filter, the eval its default.
   """
   papers = [
     CorpusPaper(
@@ -101,20 +113,8 @@ def corpus_grounding_context(
     )
     for paper in manifest.papers
   ]
-  gap_facts = (
-    [
-      GapFact(
-        gap_type=gap.gap_type,
-        title=gap.title,
-        explanation=gap.explanation,
-        confidence=gap.confidence,
-        source_citation_keys=gap.source_citation_keys,
-      )
-      for gap in load_candidate_gaps(corpus_root).gaps
-    ]
-    if has_gaps
-    else []
-  )
-  return GroundingContext(
-    papers=papers, gaps=gap_facts, fact_pool=load_fact_pool(corpus_root)
-  )
+  context = GroundingContext(papers=papers, fact_pool=load_fact_pool(corpus_root))
+  if not has_gaps:
+    return context
+  cards = build_gap_cards(load_candidate_gaps(corpus_root), load_judgments(corpus_root))
+  return surfaced_gap_context(cards, context, levels)
