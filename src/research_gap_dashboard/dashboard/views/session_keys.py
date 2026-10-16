@@ -63,3 +63,8 @@ UPLOAD_STATE_KEY = "paper_upload_state"
 # step under PENDING_STEP_KEY and the shell opens that step's first page
 # (issue #76).
 PENDING_STEP_KEY = "pending_nav_step"
+# The (corpus root, step) whose visit was last written to the resume point, so the
+# shell writes it only when the Corpus or step shown changes (issue #83). A new
+# session lacks the picker key, which is how the shell knows to reopen the
+# Corpus last worked on.
+RESUME_RECORDED_KEY = "resume_recorded_visit"
