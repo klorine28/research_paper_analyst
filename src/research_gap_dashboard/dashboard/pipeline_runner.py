@@ -138,6 +138,7 @@ def run_stages(
   env: Mapping[str, str] | None = None,
   *,
   args: Sequence[str] = (),
+  stage_args: Mapping[str, Sequence[str]] | None = None,
 ) -> list[RunResult]:
   """
   Run CLI commands in order on a Corpus under one lock; report each one launched.
@@ -147,15 +148,21 @@ def run_stages(
   Every stage's credential is checked before the first launch, and the chain
   stops at the first failure: a later stage never runs on a broken input.
   Incomplete (code 2) is not a failure, so the chain carries on past it.
-  `args` go to every stage; a chain of seam command and stage passes none.
+  `args` go to every stage; `stage_args` add options for one stage of the
+  chain only (detect then `saturate --auto`).
   """
   env = os.environ if env is None else env
+  extra = stage_args or {}
+
+  def options(stage: str) -> list[str]:
+    return [*args, *extra.get(stage, ())]
+
   for stage in stages:
     if needs_api_key(stage) and not env.get(API_KEY_ENV):
       return [
         RunResult(
           stage=stage,
-          command=build_command(corpus_root, stage, args),
+          command=build_command(corpus_root, stage, options(stage)),
           outcome=RunOutcome.MISSING_KEY,
         )
       ]
@@ -164,7 +171,7 @@ def run_stages(
   try:
     with _corpus_lock(corpus_root):
       for stage in stages:
-        result = _launch(corpus_root, stage, env, args)
+        result = _launch(corpus_root, stage, env, options(stage))
         results.append(result)
         if result.outcome == RunOutcome.FAILED:
           break
@@ -172,7 +179,7 @@ def run_stages(
     return [
       RunResult(
         stage=stages[0],
-        command=build_command(corpus_root, stages[0], args),
+        command=build_command(corpus_root, stages[0], options(stages[0])),
         outcome=RunOutcome.LOCKED,
       )
     ]

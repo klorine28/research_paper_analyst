@@ -38,6 +38,7 @@ reads:
 | `LLM_MAX_TOKENS` | `16384` | Max output tokens per completion; a Paper whose Extraction is cut off at this budget fails with a reason saying so. |
 | `OPENALEX_MAILTO` | _(none)_ | Contact email that puts OpenAlex calls in the faster polite pool; `--mailto` overrides it. |
 | `NCBI_API_KEY` | _(none)_ | NCBI E-utilities key; raises PubMed's rate limit from 3 to 10 requests a second. |
+| `SATURATE_AUTO` | `on` | `off` switches off the automatic wider-literature checks of high-confidence gaps that run after `detect` from the Pipeline page (`saturate --auto`, ADR 0009). |
 
 ### Optional embeddings
 

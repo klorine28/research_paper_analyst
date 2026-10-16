@@ -59,7 +59,7 @@ A Corpus is one directory (see `docs/corpus-layout.md` and
 | Aggregate | `aggregate <corpus> [--taxonomy FILE ...] [--tier ...]` | extractions + taxonomies | `normalized_facts.json` | yes | yes (uncached) |
 | Detect | `detect <corpus> [--tier ...]` | manifest + extractions + normalized facts | `candidate_gaps.json` | yes (limitations only) | yes (uncached) |
 | Retrieve | `retrieve <corpus> [--limit N] [--min-overlap N] [--mailto EMAIL]` | manifest (needs `ingest --resolve`) | `retrieval_gaps.json` | no | yes (OpenAlex) |
-| Saturate | `saturate <corpus> --gap ID [--taxonomy FILE ...] [--tier cheap\|default]` | candidate gaps + manifest + normalized facts + taxonomies (+ Alias Overlay) | appends to `saturation_checks.json` | optional: query variants only on zero hits (cheap tier), and screening of the top hits (both skipped without a key) | yes (OpenAlex + PubMed, LLM) |
+| Saturate | `saturate <corpus> (--gap ID \| --auto) [--taxonomy FILE ...] [--tier cheap\|default]` | candidate gaps + manifest + normalized facts + taxonomies (+ Alias Overlay) | appends to `saturation_checks.json` | optional: query variants only on zero hits (cheap tier), and screening of the top hits (both skipped without a key) | yes (OpenAlex + PubMed, LLM) |
 | Taxonomy | `taxonomy [FILE]` | a taxonomy file | — (validation only) | no | no |
 
 Every command exits `0` on success and `1` on a handled error; the CLI only
@@ -97,8 +97,20 @@ the statements' key phrases (filler and boilerplate stripped). Its hits must
 also not predate the earliest source Paper; older ones are kept as
 `predates_statement`. The snapshot records the `statement_ids` it was built
 from. Retrieval Gaps are refused: they are out-of-Corpus works already. Public
-reader: `read_saturation_checks(root)`. Not yet: `--auto`, `--accepted`, the
-search cache.
+reader: `read_saturation_checks(root)`.
+
+`saturate --auto` (issue #89) checks every high-confidence gap, strongest first
+(cell gaps by L1 probability, then Unanswered Limitations by later Papers), at
+most 20 live per run; the rest are logged as `left_for_on_demand`. A gap whose
+latest snapshot ran the same base query on every source, without error, in the
+last 30 days is reused (`cached`, not counted against the cap); a `not_run`
+snapshot is never reused. A source that is unreachable or rate-limited (429,
+5xx) is not asked again in that run, so an offline run completes with every
+check `not_run` (exit code 2). Its snapshots carry `trigger: "auto"`, and each
+run is appended to `auto_runs` in `saturation_checks.json` with every gap's
+outcome. `SATURATE_AUTO=off` switches it off. The Pipeline page's detect button
+chains `saturate --auto` after `detect`; `detect` itself never searches. Not
+yet: `--accepted`.
 
 ### Ingest — `ingest.py`
 Pairs each paper-list entry with its PDF (by DOI, then citation key) and writes
@@ -221,7 +233,7 @@ and the gap verdicts.
 | --- | --- | --- | --- |
 | Home | `guided_flow.py` | `corpus-manifest.json` (+ stage artifacts, `judgments/gap_judgments.json`) | **Recommended next step** with its reason (no scope → Scope; a core stage not run or stale → Build; Papers fell out → Trust; no verdicts yet → Explore; undecided gaps → Judge; otherwise Write) and a button to it; Corpus health (Papers, Papers reached, pipeline stages done, Candidate Gaps, accepted, undecided); the seven steps with completed ones ticked |
 | Corpus Overview (1 Scope) | `overview.py` | `corpus-manifest.json` | scope statement, paper/venue/year metrics, papers-per-year bar, venue table, exclusions (unmatched entries, orphan PDFs) |
-| Pipeline (2 Build) | `pipeline_status.py`, `run_cost.py`, `pipeline_runner.py` | `corpus-manifest.json` (+ every stage artifact, `llm-usage.json`) | each stage as done / not run / stale (an input newer than its artifact), with a run or re-run button per stage; a collapsed **Run details** with each LLM stage's estimated cost and its last run's actual cost; a run estimated above `LLM_COST_CONFIRM_ABOVE` asks for confirmation |
+| Pipeline (2 Build) | `pipeline_status.py`, `run_cost.py`, `pipeline_runner.py` | `corpus-manifest.json` (+ every stage artifact, `llm-usage.json`) | each stage as done / not run / stale (an input newer than its artifact), with a run or re-run button per stage (detect's also runs `saturate --auto` after it); a collapsed **Run details** with each LLM stage's estimated cost and its last run's actual cost; a run estimated above `LLM_COST_CONFIRM_ABOVE` asks for confirmation |
 | Field Meta-Analysis (4 Explore) | `meta_analysis.py`, `coverage.py` | `corpus-manifest.json` (+ `normalized_facts.json`, `candidate_gaps.json`) | a gallery of six graphs: citation network, Topic and Method co-occurrence (with ranked missing pairs that jump to Gap Cards), Trends (emerging/abandoned Topics), an author collaboration table, and limitation follow-up status; each carries its question, gap lens, denominator, caveat and a data-table fallback |
 | Gap Cards (5 Judge) | `gaps.py`, `judgments.py` | `candidate_gaps.json` | one card per Candidate Gap with type, confidence + reasoning, denominator, Evidence passages, and **accept/reject/clear** buttons that persist to `judgments/`; Knowledge, Coverage and Unanswered Limitation cards carry a wider-literature badge (from `saturation_checks.json`), the queries/hits drill-down, and a **Check wider literature** button that runs `saturate --gap` |
 | Unanswered Limitations (4 Explore) | `limitations.py` | `candidate_gaps.json` | every limitation group (addressed or not) with its follow-up count, source Papers, and verbatim source passages; unanswered groups called out from addressed ones |
