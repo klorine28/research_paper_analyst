@@ -1,6 +1,7 @@
 """Behavior of the detect stage: artifacts in, Candidate Gap cards out."""
 
 import json
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -72,6 +73,10 @@ _LABELS = {
   "cardiomyopathies": "Cardiomyopathies",
   "dilated": "Dilated Cardiomyopathy",
   "cohort": "Cohort Studies",
+  "female": "Female",
+  "humans": "Humans",
+  "stroke": "Stroke",
+  "registry": "Registries",
 }
 
 
@@ -934,6 +939,145 @@ def test_the_artifact_lists_the_corpus_papers_it_ran_over(tmp_path: Path) -> Non
   report = _detect(root)
 
   assert report.paper_citation_keys == sorted(_PLACEMENTS)
+
+
+# The bridges layer (ADR 0008). Takotsubo and RCTs never meet, but Aged and
+# Female each link both through two Papers: exactly two bridges. Humans is on
+# every Paper (near-universal), so it never bridges; Aged, on 6 of 10, does.
+# Stroke meets Aged through two Papers but Female through only s1: Stroke x
+# RCT has exactly one bridge. Four heart-failure Papers fill the Corpus out.
+# Female has fewer neighbours than Aged (s2 adds Registries to Aged's), so it
+# is the stronger bridge by Adamic-Adar weight.
+_BRIDGES: Placements = {
+  "a1": [
+    ("topic", "takotsubo"),
+    ("population", "aged"),
+    ("population", "female"),
+    ("population", "humans"),
+  ],
+  "a2": [
+    ("topic", "takotsubo"),
+    ("population", "aged"),
+    ("population", "female"),
+    ("population", "humans"),
+  ],
+  "b1": [
+    ("method", "rct"),
+    ("population", "aged"),
+    ("population", "female"),
+    ("population", "humans"),
+  ],
+  "b2": [
+    ("method", "rct"),
+    ("population", "aged"),
+    ("population", "female"),
+    ("population", "humans"),
+  ],
+  "s1": [
+    ("topic", "stroke"),
+    ("population", "aged"),
+    ("population", "female"),
+    ("population", "humans"),
+  ],
+  "s2": [
+    ("topic", "stroke"),
+    ("population", "aged"),
+    ("population", "humans"),
+    ("dataset", "registry"),
+  ],
+  **{
+    f"f{index}": [("topic", "heart-failure"), ("population", "humans")]
+    for index in range(1, 5)
+  },
+}
+
+
+def _bridges_report(tmp_path: Path, placements: Placements = _BRIDGES, **kw: Any):
+  """Detect over the bridges Corpus."""
+  return _detect(_write_corpus(tmp_path, placements, **kw))
+
+
+def test_exactly_two_bridges_raise_one_level(tmp_path: Path) -> None:
+  """Two categories each linked to both sides by two Papers raise the cell."""
+  gap = _gap(_bridges_report(tmp_path), "topicxmethod:takotsubo:rct")
+
+  assert [(s.layer, s.effect, s.level_after) for s in gap.trail] == [
+    ("l1", "start", "low"),
+    ("bridges", "raise", "medium"),
+  ]
+  assert gap.confidence == "medium"
+  assert {b.category_id for b in gap.bridges} == {"aged", "female"}
+  assert "Aged" in gap.trail[-1].reason
+  assert "Female" in gap.trail[-1].reason
+
+
+def test_one_bridge_does_not_raise(tmp_path: Path) -> None:
+  """A single bridge is stored and noted, but the level stays."""
+  gap = _gap(_bridges_report(tmp_path), "topicxmethod:stroke:rct")
+
+  assert [b.category_id for b in gap.bridges] == ["aged"]
+  assert gap.confidence == gap.trail[0].level_after
+  assert gap.trail[-1].layer == "bridges"
+  assert gap.trail[-1].effect == "none"
+
+
+def test_a_link_backed_by_one_paper_is_not_a_bridge(tmp_path: Path) -> None:
+  """Female meets Stroke in s1 only, so it does not bridge Stroke x RCT."""
+  gap = _gap(_bridges_report(tmp_path), "topicxmethod:stroke:rct")
+
+  assert "female" not in {b.category_id for b in gap.bridges}
+
+
+def test_a_near_universal_category_never_bridges(tmp_path: Path) -> None:
+  """Humans is on every Paper and links both sides twice, yet never bridges."""
+  report = _bridges_report(tmp_path)
+
+  cells = [gap for gap in report.gaps if isinstance(gap, CellGap)]
+  assert cells
+  assert all("humans" not in {b.category_id for b in g.bridges} for g in cells)
+
+
+def test_bridges_are_ordered_strongest_first(tmp_path: Path) -> None:
+  """Adamic-Adar: the bridge with fewer neighbours weighs more and comes first."""
+  gap = _gap(_bridges_report(tmp_path), "topicxmethod:takotsubo:rct")
+
+  assert [b.category_id for b in gap.bridges] == ["female", "aged"]
+  female, aged = gap.bridges
+  assert female.weight == pytest.approx(1 / math.log(5))
+  assert aged.weight == pytest.approx(1 / math.log(6))
+  assert (female.row_link_count, female.column_link_count) == (2, 2)
+
+
+@pytest.mark.parametrize(
+  "parents",
+  [
+    {"topic": {"takotsubo": "cardiomyopathies"}},
+    {"topic": {"cardiomyopathies": "takotsubo"}},
+  ],
+  ids=["ancestor", "descendant"],
+)
+def test_a_side_s_ancestor_or_descendant_never_bridges(
+  tmp_path: Path, parents: dict[Axis, dict[str, str]]
+) -> None:
+  """A broader or narrower Takotsubo category links both sides but is excluded."""
+  placements = {
+    key: [*value, ("topic", "cardiomyopathies")] if key[0] in "ab" else value
+    for key, value in _BRIDGES.items()
+  }
+  report = _bridges_report(tmp_path, placements, parents=parents)
+
+  gap = _gap(report, "topicxmethod:takotsubo:rct")
+  assert {b.category_id for b in gap.bridges} == {"aged", "female"}
+
+
+def test_a_cell_without_bridges_gets_no_bridges_step(tmp_path: Path) -> None:
+  """No qualifying bridge: the trail says nothing for this layer."""
+  gap = _gap(
+    _detect(_write_corpus(tmp_path, _PLACEMENTS)), "topicxmethod:takotsubo:rct"
+  )
+
+  assert gap.bridges == []
+  assert "bridges" not in [step.layer for step in gap.trail]
 
 
 # Two witnesses. Three Papers of unknown year state one limitation each, so no

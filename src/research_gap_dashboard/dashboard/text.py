@@ -556,6 +556,16 @@ GAP_DATA_NEIGHBOURS_HEADING = "Neighbouring cells"
 GAP_DATA_NEIGHBOUR = "- {row} × {column}: {count} Paper(s)"
 GAP_DATA_NO_NEIGHBOURS = "No neighbouring cells in this Coverage Matrix."
 GAP_DATA_NEIGHBOURS_MORE = "…and {count} more neighbouring cells."
+# Bridges (ADR 0008): categories linking both sides, strongest first.
+GAP_DATA_BRIDGES_HEADING = "Bridging categories"
+GAP_DATA_BRIDGE = (
+  "- {label} ({axis}): shares {row_count} Papers with one side and "
+  "{column_count} with the other"
+)
+GAP_DATA_BRIDGES_ORDER = (
+  "Strongest first: a category that co-occurs with fewer others links the two "
+  "sides more specifically."
+)
 GAP_DATA_SCORE_HEADING = "Score and reasons"
 GAP_DATA_SCORE = (
   "Expected about {expected:.1f} Papers in this cell if its categories were "

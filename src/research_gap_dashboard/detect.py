@@ -40,6 +40,10 @@ The taxonomy roll-up (L2) then rejects a cell pairing a category with its own
 ancestor and lowers one where a Paper placed only on a broader category may
 cover it. A rejected candidate stays in the artifact with its reason. With no
 hierarchy recorded, the roll-up adds nothing.
+The bridges layer then looks for categories, on any axis, that each link both
+sides of a surviving cell through at least two Papers; two or more raise it one
+level. Each card stores its bridges, strongest (Adamic-Adar) first.
+
 Two witnesses come last: after grouping, every limitation group is tagged
 (one cached cheap-tier call) with a limitation type and the observed
 categories it concerns, and a cell is corroborated when one group names both
@@ -71,7 +75,7 @@ last run and tell which artifact a researcher's older verdicts were made on.
 import logging
 import math
 import shutil
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from fractions import Fraction
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -130,6 +134,15 @@ L1_LAYER = "l1"
 HEURISTIC_LAYER = "heuristic"
 # ADR 0008 L2: rejects or lowers cells that are artifacts of the hierarchy.
 ROLL_UP_LAYER = "taxonomy_roll_up"
+# ADR 0008 bridges: raises cells whose two sides share bridging categories.
+BRIDGES_LAYER = "bridges"
+# A bridge's link to each side must be backed by at least this many Papers.
+BRIDGE_MIN_LINK_PAPERS = 2
+# A cell needs at least this many bridges to be raised one level.
+BRIDGE_MIN_COUNT = 2
+# A category on at least this share of the Corpus's Papers links everything,
+# so it never bridges (e.g. "humans").
+NEAR_UNIVERSAL_SHARE = Fraction(9, 10)
 # ADR 0008 two witnesses: author-stated limitations corroborating a cell.
 TWO_WITNESS_LAYER = "two_witness"
 # The tier limitation tagging runs on: one batched, low-stakes call.
@@ -228,6 +241,19 @@ _TEXT: dict[str, str] = {
     "combination."
   ),
   "roll_up_broader": "{label} × {other}",
+  "bridges_raise": (
+    "Raised one level: {count} categories each link both sides of this cell "
+    "through at least {min_links} Papers, strongest first: {bridges}."
+  ),
+  "bridges_ceiling": (
+    "Already at the highest level: {count} categories each link both sides of "
+    "this cell through at least {min_links} Papers, strongest first: {bridges}."
+  ),
+  "bridges_one": (
+    "No change: only {count} category links both sides of this cell through at "
+    "least {min_links} Papers ({bridges}); {min_count} are needed to raise it."
+  ),
+  "bridge": "{label} ({axis}; {row_count} and {column_count} Papers)",
   "witness_raise": (
     "Raised one level, also flagged by authors: limitation group(s) {groups} "
     "stated in the Corpus point at this combination."
@@ -313,6 +339,26 @@ class LayerStep(BaseModel):
   reason: str = Field(description="Why, in plain words.")
 
 
+class Bridge(BaseModel):
+  """
+  A category that links both sides of a cell, each link backed by >= 2 Papers.
+
+  `weight` is its Adamic-Adar weight, 1 / ln(degree) in the category
+  co-occurrence graph: a category that co-occurs with fewer others says more
+  about the two sides it links. It orders bridges; it decides nothing.
+  """
+
+  axis: Axis
+  category_id: str
+  label: str
+  row_link_count: int = Field(description="Papers on both the row category and it.")
+  column_link_count: int = Field(
+    description="Papers on both the column category and it."
+  )
+  degree: int = Field(description="Categories it co-occurs with in any Paper.")
+  weight: float = Field(description="Adamic-Adar weight: 1 / ln(degree).")
+
+
 class CellGap(BaseModel):
   """
   One Knowledge or Coverage Gap card: a sparse cell and why it matters.
@@ -345,6 +391,10 @@ class CellGap(BaseModel):
   column_paper_count: int
   corpus_paper_count: int = Field(description="The denominator: Papers counted.")
   evidence: list[EvidenceLink] = Field(min_length=1)
+  bridges: list[Bridge] = Field(
+    default_factory=list,
+    description="Bridging categories, strongest first; empty before bridges.",
+  )
   corroborating_group_ids: list[str] = Field(
     default_factory=list,
     description="Limitation groups that corroborate this cell (two witnesses).",
@@ -640,15 +690,17 @@ def detect_corpus(  # pylint: disable=too-many-locals
 def _matrix_gaps(
   papers: list[NormalizedFacts], hierarchy: dict[Axis, dict[str, str]]
 ) -> tuple[list[CoverageMatrix], list[CellGap]]:
-  """Build every Coverage Matrix, card each candidate cell (L1), roll it up (L2)."""
+  """Build every Coverage Matrix, card each candidate cell (L1), then layer it."""
   roll_up = _RollUp(papers, hierarchy)
+  bridges = _Bridges(papers, roll_up.ancestors)
   matrices: list[CoverageMatrix] = []
   gaps: list[CellGap] = []
   for row_axis, column_axis, gap_type in MATRIX_SPECS:
     matrix = build_matrix(papers, row_axis, column_axis)
     matrices.append(matrix)
     gaps.extend(
-      roll_up.apply(gap) for gap in _gaps_from_matrix(matrix, papers, gap_type)
+      bridges.apply(roll_up.apply(gap))
+      for gap in _gaps_from_matrix(matrix, papers, gap_type)
     )
   return matrices, gaps
 
@@ -945,6 +997,141 @@ class _RollUp:
         broad=broad, narrow=narrow, axis=_AXIS_NAMES[gap.row_axis]
       ),
     )
+
+
+class _Bridges:
+  """
+  The bridges layer (ADR 0008) over one Corpus's category co-occurrence graph.
+
+  Nodes are (axis, category) pairs; two are linked when a Paper is placed on
+  both. A bridge for cell A x C is a node linked to A and to C by at least two
+  Papers each: one broad Paper links all its categories to each other, so a
+  single-Paper link would make nearly every cell bridged. A, C, their ancestors
+  and descendants (the roll-up's ground) and near-universal categories never
+  bridge. The layer only raises; a rejected candidate is left as it is.
+  """
+
+  def __init__(
+    self,
+    papers: list[NormalizedFacts],
+    ancestors: Callable[[Axis, str], list[str]],
+  ) -> None:
+    self._ancestors = ancestors
+    self._papers_on: dict[tuple[Axis, str], set[str]] = {}
+    self._labels: dict[tuple[Axis, str], str] = {}
+    neighbours: dict[tuple[Axis, str], set[tuple[Axis, str]]] = {}
+    for facts in papers:
+      nodes: set[tuple[Axis, str]] = {
+        (axis, c) for axis in AXES for c in facts.category_ids(axis)
+      }
+      for node in nodes:
+        self._papers_on.setdefault(node, set()).add(facts.citation_key)
+        neighbours.setdefault(node, set()).update(nodes - {node})
+      for assignment in facts.assignments:
+        self._labels.setdefault(
+          (assignment.axis, assignment.category_id), assignment.category_label
+        )
+    self._degree = {node: len(linked) for node, linked in neighbours.items()}
+    total = len(papers)
+    self._near_universal = {
+      node
+      for node, keys in self._papers_on.items()
+      if total and Fraction(len(keys), total) >= NEAR_UNIVERSAL_SHARE
+    }
+
+  def apply(self, gap: CellGap) -> CellGap:
+    """Return the gap with its bridges stored and this layer's step appended."""
+    if gap.rejected:
+      return gap
+    found = self.bridges(gap)
+    if not found:
+      return gap
+    step = _bridges_step(gap.trail[-1].level_after, found)
+    return gap.model_copy(
+      update={
+        "bridges": found,
+        "trail": [*gap.trail, step],
+        "confidence": step.level_after,
+      }
+    )
+
+  def bridges(self, gap: CellGap) -> list[Bridge]:
+    """List the cell's bridges, strongest first (ties by label, then id)."""
+    row = self._papers_on.get((gap.row_axis, gap.row_id), set())
+    column = self._papers_on.get((gap.column_axis, gap.column_id), set())
+    found: list[Bridge] = []
+    for node, keys in self._papers_on.items():
+      if node in self._near_universal or self._is_kin(gap, node):
+        continue
+      row_links, column_links = len(row & keys), len(column & keys)
+      if min(row_links, column_links) < BRIDGE_MIN_LINK_PAPERS:
+        continue
+      degree = self._degree[node]
+      found.append(
+        Bridge(
+          axis=node[0],
+          category_id=node[1],
+          label=self._labels.get(node, node[1]),
+          row_link_count=row_links,
+          column_link_count=column_links,
+          degree=degree,
+          # A bridge links two other nodes, so its degree is at least 2.
+          weight=1 / math.log(degree),
+        )
+      )
+    return sorted(found, key=lambda b: (-b.weight, b.label, b.axis, b.category_id))
+
+  def _is_kin(self, gap: CellGap, node: tuple[Axis, str]) -> bool:
+    """Whether a node is one of the cell's categories, or above or below one."""
+    axis, category_id = node
+    for side_axis, side_id in (
+      (gap.row_axis, gap.row_id),
+      (gap.column_axis, gap.column_id),
+    ):
+      if axis != side_axis:
+        continue
+      if category_id == side_id:
+        return True
+      if category_id in self._ancestors(axis, side_id):
+        return True
+      if side_id in self._ancestors(axis, category_id):
+        return True
+    return False
+
+
+def _bridges_step(level: Confidence, found: list[Bridge]) -> LayerStep:
+  """Raise one level for enough bridges; otherwise note the ones found."""
+  named = "; ".join(
+    _TEXT["bridge"].format(
+      label=bridge.label,
+      axis=_AXIS_NAMES[bridge.axis],
+      row_count=bridge.row_link_count,
+      column_count=bridge.column_link_count,
+    )
+    for bridge in found
+  )
+  if len(found) < BRIDGE_MIN_COUNT:
+    return LayerStep(
+      layer=BRIDGES_LAYER,
+      effect="none",
+      level_after=level,
+      reason=_TEXT["bridges_one"].format(
+        count=len(found),
+        bridges=named,
+        min_links=BRIDGE_MIN_LINK_PAPERS,
+        min_count=BRIDGE_MIN_COUNT,
+      ),
+    )
+  raised = _LEVELS[min(_LEVELS.index(level) + 1, len(_LEVELS) - 1)]
+  template = "bridges_raise" if raised != level else "bridges_ceiling"
+  return LayerStep(
+    layer=BRIDGES_LAYER,
+    effect="raise" if raised != level else "none",
+    level_after=raised,
+    reason=_TEXT[template].format(
+      count=len(found), bridges=named, min_links=BRIDGE_MIN_LINK_PAPERS
+    ),
+  )
 
 
 def _observed_labels(papers: list[NormalizedFacts]) -> dict[tuple[Axis, str], str]:

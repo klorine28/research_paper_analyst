@@ -346,7 +346,7 @@ _MAX_NEIGHBOURS = 10
 
 
 def _render_data(card: GapCard, corpus_root: Path) -> None:
-  """Tier 3: the Papers per category, neighbouring cells, score and reasons."""
+  """Tier 3: the Papers per category, neighbours, bridges, score and reasons."""
   data = card.data
   st.markdown(f"**{text.GAP_DATA_PAPERS_HEADING}**")
   for group in data.category_papers:
@@ -374,6 +374,10 @@ def _render_data(card: GapCard, corpus_root: Path) -> None:
     hidden = len(data.neighbours) - len(shown)
     if hidden > 0:
       st.caption(text.GAP_DATA_NEIGHBOURS_MORE.format(count=hidden))
+  if data.bridges:
+    st.markdown(f"**{text.GAP_DATA_BRIDGES_HEADING}**")
+    st.markdown("\n".join(bridge.text for bridge in data.bridges))
+    st.caption(text.GAP_DATA_BRIDGES_ORDER)
   st.markdown(f"**{text.GAP_DATA_SCORE_HEADING}**")
   if data.expected_count is not None:
     st.markdown(

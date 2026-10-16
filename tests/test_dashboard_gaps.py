@@ -16,6 +16,7 @@ import pytest
 
 from conftest import StubLlmClient, open_page
 from test_detect import (
+  _BRIDGES,
   _PLACEMENTS,
   _WITNESS_EXTRACTIONS,
   _WITNESS_GROUPING,
@@ -770,6 +771,44 @@ def test_an_artifact_without_trails_still_builds_cards(corpus: Path):
   card = _card(corpus, "topicxmethod:takotsubo:rct")
 
   assert card.data.reasons == [card.confidence_reason]
+
+
+def test_tier_three_lists_the_bridges_strongest_first(tmp_path: Path):
+  """A cell's bridging categories reach its Tier 3, Adamic-Adar order kept."""
+  root = _write_corpus(tmp_path / "corpus", _BRIDGES)
+  detect_corpus(root, StubLlmClient({}))
+
+  card = _card(root, "topicxmethod:takotsubo:rct")
+
+  assert [bridge.label for bridge in card.data.bridges] == ["Female", "Aged"]
+  assert card.data.bridges[0].text == text.GAP_DATA_BRIDGE.format(
+    label="Female", axis="population", row_count=2, column_count=2
+  )
+
+
+def test_the_card_shows_its_bridges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+  """The rendered Tier 3 names each bridge under its own heading."""
+  root = _write_corpus(tmp_path / "corpus", _BRIDGES)
+  detect_corpus(root, StubLlmClient({}))
+  app = _run_gap_cards_app(root, monkeypatch)
+  app.multiselect[0].set_value(["high", "medium", "low"]).run()
+
+  assert not app.exception
+  data = [e for e in app.expander if e.label == text.GAP_TIER_DATA_LABEL]
+  texts = [" ".join(block.value for block in tier.markdown) for tier in data]
+  bridged = [t for t in texts if "- Female (population" in t]
+  assert len(bridged) == 1
+  assert text.GAP_DATA_BRIDGES_HEADING in bridged[0]
+  assert bridged[0].index("- Female (population") < bridged[0].index(
+    "- Aged (population"
+  )
+
+
+def test_a_card_without_bridges_lists_none(corpus: Path):
+  """No bridge, no list: older artifacts and unbridged cells read the same."""
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  assert card.data.bridges == []
 
 
 @pytest.fixture(name="witnessed")
