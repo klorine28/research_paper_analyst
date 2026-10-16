@@ -271,7 +271,10 @@ def build_parser() -> argparse.ArgumentParser:
   saturate.add_argument(
     "--gap",
     required=True,
-    help="Gap id to check, e.g. topicxtopic:heart-failure:myocardial-ischemia.",
+    help=(
+      "Gap id to check, e.g. topicxtopic:heart-failure:myocardial-ischemia or "
+      "limitation:limitation-group-01."
+    ),
   )
   _add_taxonomy_option(saturate)
   promote = subcommands.add_parser(

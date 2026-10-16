@@ -261,6 +261,14 @@
       "explanation": "Candidate Knowledge Gap: no Paper in the Corpus combines Carcinoid Heart Disease (topic) with Heart Failure (topic), although 2 of 6 Papers cover Carcinoid Heart Disease and 2 of 6 cover Heart Failure. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
       "confidence": "low",
       "confidence_reason": "If Carcinoid Heart Disease and Heart Failure were independent across the 6 Papers, about 0.7 Papers would combine them; 0 do.",
+      "trail": [
+        {
+          "layer": "heuristic",
+          "effect": "start",
+          "level_after": "low",
+          "reason": "If Carcinoid Heart Disease and Heart Failure were independent across the 6 Papers, about 0.7 Papers would combine them; 0 do."
+        }
+      ],
       "row_axis": "topic",
       "row_id": "carcinoid-heart-disease",
       "row_label": "Carcinoid Heart Disease",
@@ -330,6 +338,14 @@
       "explanation": "Candidate Knowledge Gap: no Paper in the Corpus combines Carcinoid Heart Disease (topic) with Myocardial Ischemia (topic), although 2 of 6 Papers cover Carcinoid Heart Disease and 2 of 6 cover Myocardial Ischemia. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
       "confidence": "low",
       "confidence_reason": "If Carcinoid Heart Disease and Myocardial Ischemia were independent across the 6 Papers, about 0.7 Papers would combine them; 0 do.",
+      "trail": [
+        {
+          "layer": "heuristic",
+          "effect": "start",
+          "level_after": "low",
+          "reason": "If Carcinoid Heart Disease and Myocardial Ischemia were independent across the 6 Papers, about 0.7 Papers would combine them; 0 do."
+        }
+      ],
       "row_axis": "topic",
       "row_id": "carcinoid-heart-disease",
       "row_label": "Carcinoid Heart Disease",
@@ -399,6 +415,14 @@
       "explanation": "Candidate Knowledge Gap: no Paper in the Corpus combines Heart Failure (topic) with Myocardial Ischemia (topic), although 2 of 6 Papers cover Heart Failure and 2 of 6 cover Myocardial Ischemia. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
       "confidence": "low",
       "confidence_reason": "If Heart Failure and Myocardial Ischemia were independent across the 6 Papers, about 0.7 Papers would combine them; 0 do.",
+      "trail": [
+        {
+          "layer": "heuristic",
+          "effect": "start",
+          "level_after": "low",
+          "reason": "If Heart Failure and Myocardial Ischemia were independent across the 6 Papers, about 0.7 Papers would combine them; 0 do."
+        }
+      ],
       "row_axis": "topic",
       "row_id": "heart-failure",
       "row_label": "Heart Failure",
@@ -468,6 +492,14 @@
       "explanation": "Candidate Coverage Gap: no Paper in the Corpus combines Carcinoid Heart Disease (topic) with Mendelian Randomization Analysis (method), although 2 of 6 Papers cover Carcinoid Heart Disease and 1 of 6 cover Mendelian Randomization Analysis. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
       "confidence": "low",
       "confidence_reason": "If Carcinoid Heart Disease and Mendelian Randomization Analysis were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do.",
+      "trail": [
+        {
+          "layer": "heuristic",
+          "effect": "start",
+          "level_after": "low",
+          "reason": "If Carcinoid Heart Disease and Mendelian Randomization Analysis were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do."
+        }
+      ],
       "row_axis": "topic",
       "row_id": "carcinoid-heart-disease",
       "row_label": "Carcinoid Heart Disease",
@@ -525,6 +557,14 @@
       "explanation": "Candidate Coverage Gap: no Paper in the Corpus combines Carcinoid Heart Disease (topic) with Randomized Controlled Trial (method), although 2 of 6 Papers cover Carcinoid Heart Disease and 1 of 6 cover Randomized Controlled Trial. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
       "confidence": "low",
       "confidence_reason": "If Carcinoid Heart Disease and Randomized Controlled Trial were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do.",
+      "trail": [
+        {
+          "layer": "heuristic",
+          "effect": "start",
+          "level_after": "low",
+          "reason": "If Carcinoid Heart Disease and Randomized Controlled Trial were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do."
+        }
+      ],
       "row_axis": "topic",
       "row_id": "carcinoid-heart-disease",
       "row_label": "Carcinoid Heart Disease",
@@ -582,6 +622,14 @@
       "explanation": "Candidate Coverage Gap: no Paper in the Corpus combines Heart Failure (topic) with Case Reports (method), although 2 of 6 Papers cover Heart Failure and 1 of 6 cover Case Reports. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
       "confidence": "low",
       "confidence_reason": "If Heart Failure and Case Reports were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do.",
+      "trail": [
+        {
+          "layer": "heuristic",
+          "effect": "start",
+          "level_after": "low",
+          "reason": "If Heart Failure and Case Reports were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do."
+        }
+      ],
       "row_axis": "topic",
       "row_id": "heart-failure",
       "row_label": "Heart Failure",
@@ -639,6 +687,14 @@
       "explanation": "Candidate Coverage Gap: no Paper in the Corpus combines Heart Failure (topic) with Randomized Controlled Trial (method), although 2 of 6 Papers cover Heart Failure and 1 of 6 cover Randomized Controlled Trial. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
       "confidence": "low",
       "confidence_reason": "If Heart Failure and Randomized Controlled Trial were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do.",
+      "trail": [
+        {
+          "layer": "heuristic",
+          "effect": "start",
+          "level_after": "low",
+          "reason": "If Heart Failure and Randomized Controlled Trial were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do."
+        }
+      ],
       "row_axis": "topic",
       "row_id": "heart-failure",
       "row_label": "Heart Failure",
@@ -696,6 +752,14 @@
       "explanation": "Candidate Coverage Gap: no Paper in the Corpus combines Myocardial Ischemia (topic) with Case Reports (method), although 2 of 6 Papers cover Myocardial Ischemia and 1 of 6 cover Case Reports. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
       "confidence": "low",
       "confidence_reason": "If Myocardial Ischemia and Case Reports were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do.",
+      "trail": [
+        {
+          "layer": "heuristic",
+          "effect": "start",
+          "level_after": "low",
+          "reason": "If Myocardial Ischemia and Case Reports were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do."
+        }
+      ],
       "row_axis": "topic",
       "row_id": "myocardial-ischemia",
       "row_label": "Myocardial Ischemia",
@@ -753,6 +817,14 @@
       "explanation": "Candidate Coverage Gap: no Paper in the Corpus combines Myocardial Ischemia (topic) with Mendelian Randomization Analysis (method), although 2 of 6 Papers cover Myocardial Ischemia and 1 of 6 cover Mendelian Randomization Analysis. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
       "confidence": "low",
       "confidence_reason": "If Myocardial Ischemia and Mendelian Randomization Analysis were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do.",
+      "trail": [
+        {
+          "layer": "heuristic",
+          "effect": "start",
+          "level_after": "low",
+          "reason": "If Myocardial Ischemia and Mendelian Randomization Analysis were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do."
+        }
+      ],
       "row_axis": "topic",
       "row_id": "myocardial-ischemia",
       "row_label": "Myocardial Ischemia",
@@ -799,6 +871,56 @@
           "evidence": {
             "passage": "We report a myocardial ischemia.",
             "section": "methods"
+          }
+        }
+      ]
+    },
+    {
+      "gap_id": "limitation:limitation-group-01",
+      "gap_type": "unanswered_limitation",
+      "title": "Whether SGLT2 inhibitors benefit patients with heart failure with preserved ejection fraction remains to be investigated.",
+      "explanation": "Candidate Unanswered Limitation: sat01 states this; no later Paper in the Corpus addressed it.",
+      "confidence": "low",
+      "confidence_reason": "No later Paper in the Corpus could have addressed it.",
+      "group_id": "limitation-group-01",
+      "source_citation_keys": [
+        "sat01"
+      ],
+      "later_paper_count": 0,
+      "corpus_paper_count": 6,
+      "evidence": [
+        {
+          "citation_key": "sat01",
+          "statement_id": "sat01:future_work[0]",
+          "statement": "Whether SGLT2 inhibitors benefit patients with heart failure with preserved ejection fraction remains to be investigated.",
+          "evidence": {
+            "passage": "Whether SGLT2 inhibitors benefit patients with heart failure with preserved ejection fraction remains to be investigated.",
+            "section": "discussion"
+          }
+        }
+      ]
+    },
+    {
+      "gap_id": "limitation:limitation-group-02",
+      "gap_type": "unanswered_limitation",
+      "title": "The effect of long-duration spaceflight on carcinoid heart disease remains unknown.",
+      "explanation": "Candidate Unanswered Limitation: sat05 states this; no later Paper in the Corpus addressed it.",
+      "confidence": "low",
+      "confidence_reason": "No later Paper in the Corpus could have addressed it.",
+      "group_id": "limitation-group-02",
+      "source_citation_keys": [
+        "sat05"
+      ],
+      "later_paper_count": 0,
+      "corpus_paper_count": 6,
+      "evidence": [
+        {
+          "citation_key": "sat05",
+          "statement_id": "sat05:future_work[0]",
+          "statement": "The effect of long-duration spaceflight on carcinoid heart disease remains unknown.",
+          "evidence": {
+            "passage": "The effect of long-duration spaceflight on carcinoid heart disease remains unknown.",
+            "section": "discussion"
           }
         }
       ]

@@ -456,7 +456,7 @@ GAP_NEXT_UNDECIDED_BUTTON = "Next undecided"
 GAP_NO_UNDECIDED_SHOWN = "No undecided gaps among the cards shown."
 GAP_FOCUS_HEADING = "Current gap"
 GAP_OTHERS_HEADING = "Other gaps"
-# Saturation check (ADR 0009, issue #85): a search of the wider literature for
+# Saturation check (ADR 0009, issues #85 and #88): a search of the wider literature for
 # work that would close a gap. It can only weaken a gap, never confirm it, and
 # its hits are out-of-Corpus works: never cited, never Evidence.
 GAP_SATURATION_BADGES: dict[str, str] = {
@@ -485,7 +485,9 @@ GAP_SATURATION_QUERY_ERROR = "**{source}** was not searched: {error}"
 GAP_SATURATION_IN_CORPUS = (
   "{count} returned work(s) already in the Corpus were left out."
 )
-GAP_SATURATION_HITS_HEADING = "Hits ({screened} of {total} mention both concepts)"
+GAP_SATURATION_HITS_HEADING = (
+  "Hits ({screened} of {total} mention every searched concept)"
+)
 GAP_SATURATION_NO_HITS = "The searches returned no works outside the Corpus."
 GAP_SATURATION_HIT = "{marker} {title}{meta} \u2014 {reason}"
 GAP_SATURATION_HIT_META = " ({details})"

@@ -11,7 +11,16 @@ cards two cells the tests check (issue #85):
 - Carcinoid Heart Disease x Mendelian Randomization Analysis, a Coverage Gap
   whose searches return nothing that mentions both concepts (the control).
 
-Every search the two checks make is recorded, trimmed to the fields the
+Two Unanswered Limitation cards are then added to the CandidateGaps artifact
+directly (grouping limitations needs the LLM, which this script never calls),
+each resting on one synthetic future-work statement (issue #88):
+
+- SGLT2 inhibitors in heart failure with preserved ejection fraction, which
+  trials published after the statement followed up (possibly addressed);
+- long-duration spaceflight and carcinoid heart disease, which nobody has
+  followed up (the control).
+
+Every search the four checks make is recorded, trimmed to the fields the
 adapters read, in `source-responses.json`, keyed by the exact URL. The adapters
 are built without `OPENALEX_MAILTO` or `NCBI_API_KEY`, so no credential is
 ever written into a recorded URL.
@@ -30,7 +39,12 @@ from research_gap_dashboard.aggregate import (
   NormalizedFacts,
   load_pipeline_taxonomies,
 )
-from research_gap_dashboard.detect import detect_corpus
+from research_gap_dashboard.detect import (
+  CandidateGapsReport,
+  StatementEvidence,
+  UnansweredLimitationGap,
+  detect_corpus,
+)
 from research_gap_dashboard.extract import Evidence, ExtractReport
 from research_gap_dashboard.ingest import CorpusManifest, Paper
 from research_gap_dashboard.saturate import saturate_gap
@@ -48,6 +62,24 @@ ROOT = Path("tests/fixtures/saturation-corpus")
 SEARCH_LIMIT = 10
 FILLED_GAP = "topicxtopic:heart-failure:myocardial-ischemia"
 CONTROL_GAP = "topicxmethod:carcinoid-heart-disease:mendelian-randomization-analysis"
+FILLED_LIMITATION = "limitation:limitation-group-01"
+CONTROL_LIMITATION = "limitation:limitation-group-02"
+
+# (group id, source Paper, verbatim future-work statement) per limitation card.
+LIMITATIONS: list[tuple[str, str, str]] = [
+  (
+    "limitation-group-01",
+    "sat01",
+    "Whether SGLT2 inhibitors benefit patients with heart failure with preserved "
+    "ejection fraction remains to be investigated.",
+  ),
+  (
+    "limitation-group-02",
+    "sat05",
+    "The effect of long-duration spaceflight on carcinoid heart disease remains "
+    "unknown.",
+  ),
+]
 
 # (axis, category id, label, the Paper's own term) per synthetic Paper.
 PLACEMENTS: dict[str, list[tuple[str, str, str, str]]] = {
@@ -93,9 +125,12 @@ README = """# Saturation fixture Corpus
 Six synthetic Papers (no PDFs) placed so `detect` cards a Knowledge Gap the
 wider literature plainly fills (Heart Failure x Myocardial Ischemia) and a
 control Coverage Gap nothing closes (Carcinoid Heart Disease x Mendelian
-Randomization Analysis). `source-responses.json` holds the OpenAlex and PubMed
-answers to both saturation checks, recorded live and keyed by URL, so the tests
-run offline. Rebuild with `uv run scripts/record_saturation_fixture.py`.
+Randomization Analysis). Two Unanswered Limitation cards are added by hand: one
+later trials followed up (SGLT2 inhibitors in heart failure with preserved
+ejection fraction) and a control nobody has (spaceflight and carcinoid heart
+disease). `source-responses.json` holds the OpenAlex and PubMed answers to all
+four saturation checks, recorded live and keyed by URL, so the tests run
+offline. Rebuild with `uv run scripts/record_saturation_fixture.py`.
 """
 
 
@@ -171,6 +206,40 @@ def _write_corpus() -> None:
   ):
     (artifacts / name).write_text(model.model_dump_json(indent=2), encoding="utf-8")
   detect_corpus(ROOT, _NoLlm())  # type: ignore[arg-type]
+  _add_limitation_gaps()
+
+
+def _add_limitation_gaps() -> None:
+  """Append the hand-made Unanswered Limitation cards to the CandidateGaps."""
+  path = ROOT / "artifacts" / "candidate_gaps.json"
+  report = CandidateGapsReport.model_validate_json(path.read_text(encoding="utf-8"))
+  for group_id, key, statement in LIMITATIONS:
+    report.gaps.append(
+      UnansweredLimitationGap(
+        gap_id=f"limitation:{group_id}",
+        gap_type="unanswered_limitation",
+        title=statement,
+        explanation=(
+          f"Candidate Unanswered Limitation: {key} states this; no later Paper in "
+          "the Corpus addressed it."
+        ),
+        confidence="low",
+        confidence_reason="No later Paper in the Corpus could have addressed it.",
+        group_id=group_id,
+        source_citation_keys=[key],
+        later_paper_count=0,
+        corpus_paper_count=len(PLACEMENTS),
+        evidence=[
+          StatementEvidence(
+            citation_key=key,
+            statement_id=f"{key}:future_work[0]",
+            statement=statement,
+            evidence=Evidence(passage=statement, section="discussion"),
+          )
+        ],
+      )
+    )
+  path.write_text(report.model_dump_json(indent=2), encoding="utf-8")
 
 
 def _trim_openalex(payload: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -229,7 +298,7 @@ def _trim_pubmed_xml(body: str | None) -> str | None:
 
 
 def main() -> None:
-  """Rebuild the fixture Corpus and record both checks' responses."""
+  """Rebuild the fixture Corpus and record every check's responses."""
   logging.basicConfig(level=logging.INFO, format="%(message)s")
   _write_corpus()
   recorded: dict[str, dict[str, Any]] = {"json": {}, "text": {}}
@@ -251,7 +320,7 @@ def main() -> None:
     PubMedAdapter(fetch=fetch, fetch_text=fetch_text),
   ]
   taxonomies = load_pipeline_taxonomies(list(SEED_PATHS.values()))
-  for gap_id in (FILLED_GAP, CONTROL_GAP):
+  for gap_id in (FILLED_GAP, CONTROL_GAP, FILLED_LIMITATION, CONTROL_LIMITATION):
     check = saturate_gap(ROOT, gap_id, sources, taxonomies, limit=SEARCH_LIMIT)
     logger.info("%s: %s", gap_id, check.status_reason)
   # The recorded checks are not part of the fixture: tests run their own.

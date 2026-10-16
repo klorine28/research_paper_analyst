@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 
-from test_saturate import CONTROL_GAP, FILLED_GAP, FIXTURE, _check
+from test_saturate import CONTROL_GAP, FILLED_GAP, FILLED_LIMITATION, FIXTURE, _check
 
 import research_gap_dashboard.dashboard as dashboard_pkg
 from research_gap_dashboard.dashboard import pipeline_runner, text
@@ -107,6 +107,37 @@ def test_other_cards_are_unaffected_by_a_check(corpus: Path):
   }
 
 
+def test_a_limitation_card_gets_the_same_badge_and_drill_down(corpus: Path):
+  """An Unanswered Limitation is checkable, with the cell gaps' badge and queries."""
+  assert _cards(corpus)[FILLED_LIMITATION].saturation.checkable
+  check = _check(
+    corpus, FILLED_LIMITATION, now=lambda: datetime(2026, 10, 4, tzinfo=UTC)
+  )
+
+  view = _cards(corpus)[FILLED_LIMITATION].saturation
+
+  assert view.badge == text.GAP_SATURATION_BADGES["possibly_addressed"].format(
+    count=check.screened_hit_count, date="2026-10-04"
+  )
+  assert [s.query for s in view.searches] == [s.query for s in check.searches]
+  assert view.screened_count == check.screened_hit_count
+  assert view.screening_method == check.screening_method
+  older = [hit for hit in view.hits if hit.reason.startswith("Published in")]
+  assert older
+  assert not any(hit.screened for hit in older)
+
+
+def test_a_retrieval_gap_card_is_never_checkable(corpus: Path):
+  """Retrieval Gaps are out of the Corpus already: no badge, no button."""
+  artifact = load_candidate_gaps(corpus)
+  record = artifact.gaps[0].model_copy(update={"gap_type": "retrieval_gap"})
+  artifact = artifact.model_copy(update={"gaps": [record]})
+
+  card = build_gap_cards(artifact, load_judgments(corpus)).cards[0]
+
+  assert not card.saturation.checkable
+
+
 # --- The page -------------------------------------------------------------------
 
 
@@ -149,6 +180,26 @@ def test_the_card_button_runs_saturate_for_its_gap(
   assert not app.exception
   assert fake.calls[0][3:] == ["saturate", str(corpus.resolve()), "--gap", FILLED_GAP]
   assert text.RUN_SUCCEEDED.format(stage="saturate") in [s.value for s in app.success]
+
+
+def test_a_limitation_card_button_runs_saturate_for_its_gap(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """A limitation card has the same "Check wider literature" button."""
+  fake = _FakeRun()
+  monkeypatch.setattr(pipeline_runner.subprocess, "run", fake)
+  app = _open_all_gap_cards(corpus, monkeypatch)
+
+  button = next(b for b in app.button if b.key == f"saturate-{FILLED_LIMITATION}")
+  button.click().run()
+
+  assert not app.exception
+  assert fake.calls[0][3:] == [
+    "saturate",
+    str(corpus.resolve()),
+    "--gap",
+    FILLED_LIMITATION,
+  ]
 
 
 def test_the_page_shows_the_badge_and_out_of_corpus_hits(

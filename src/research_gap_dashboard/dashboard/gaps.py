@@ -93,7 +93,7 @@ class SaturationHitView(BaseModel):
 
   title: str
   details: str = Field(description="Year, venue, DOI or PMID and sources.")
-  screened: bool = Field(description="Its title/abstract mention both concepts.")
+  screened: bool = Field(description="Its title/abstract mention every concept.")
   reason: str
 
 
@@ -102,8 +102,9 @@ class SaturationView(BaseModel):
   A card's wider-literature check (ADR 0009 §14): badge, result, drill-down.
 
   `status` is "not_checked" until a check runs; afterwards the latest snapshot
-  fills the rest and `history` lists every snapshot, newest first. Only cell
-  gaps (Knowledge and Coverage) are `checkable` so far.
+  fills the rest and `history` lists every snapshot, newest first. Knowledge,
+  Coverage and Unanswered Limitation cards are `checkable`; a Retrieval Gap is
+  an out-of-Corpus work already and never is (ADR 0009 §10).
   """
 
   checkable: bool
@@ -328,6 +329,13 @@ def _data(record: CandidateGapRecord, matrices: list[CoverageMatrixRecord]) -> G
   )
 
 
+# The Gap Types a saturation check runs on (ADR 0009 §10); Retrieval Gaps are
+# deliberately absent.
+CHECKABLE_GAP_TYPES = frozenset(
+  {"knowledge_gap", "coverage_gap", "unanswered_limitation"}
+)
+
+
 def _badge(check: SaturationCheckRecord) -> str:
   """Return the one-line badge for a check snapshot."""
   template = text.GAP_SATURATION_BADGES.get(
@@ -350,7 +358,7 @@ def _saturation(
   record: CandidateGapRecord, checks: list[SaturationCheckRecord]
 ) -> SaturationView:
   """Build a card's wider-literature view from its checks, latest last."""
-  checkable = _is_cell_gap(record)
+  checkable = record.gap_type in CHECKABLE_GAP_TYPES
   if not checks:
     return SaturationView(
       checkable=checkable, badge=text.GAP_SATURATION_BADGES["not_checked"]
