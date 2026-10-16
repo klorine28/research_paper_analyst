@@ -20,16 +20,19 @@ Corpus's limitation statements into Unanswered Limitation cards:
 Only categories observed in at least one Paper become matrix rows and columns.
 A cell is a gap signal only when both of its categories occur in the Corpus, so
 its emptiness is informative ("both exist, never together") rather than a
-consequence of the taxonomy listing categories this Corpus never touches. The
-taxonomy hierarchy (`parent`) is not rolled up: a Paper counts only in the
-categories it was placed on.
+consequence of the taxonomy listing categories this Corpus never touches. A
+Paper counts only in the categories it was placed on; the taxonomy hierarchy
+the NormalizedFacts artifact records is applied afterwards, as a layer.
 
 The sparse-cell threshold is provisional (`docs/BRIEF.md`): only empty cells
 count for Corpora under 25 Papers; empty or single-Paper cells at 25 and above.
 Every card states its cell count and the denominator it was computed over.
 Each cell card records a verdict trail: one step per detection layer, in the
-order applied (ADR 0008). For now the confidence heuristic is the only layer,
-so every trail holds its single `start` step.
+order applied (ADR 0008). The confidence heuristic opens it; the taxonomy
+roll-up (L2) then rejects a cell pairing a category with its own ancestor and
+lowers one where a Paper placed only on a broader category may cover it. A
+rejected candidate stays in the artifact with its reason. With no hierarchy
+recorded, the roll-up adds nothing.
 
 When an `Embedder` is injected, cross-Paper limitation pairs whose embeddings
 are close are passed to grouping as merge hints, and the embedding model id,
@@ -74,7 +77,7 @@ from research_gap_dashboard.limitations import (
   merge_hints,
 )
 from research_gap_dashboard.llm import LlmClient, ModelTier
-from research_gap_dashboard.taxonomy import Axis
+from research_gap_dashboard.taxonomy import AXES, Axis
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +96,10 @@ LayerEffect = Literal["start", "raise", "lower", "reject", "none"]
 # The layer whose verdict opens every cell candidate's trail until the layered
 # detection of ADR 0008 replaces it.
 HEURISTIC_LAYER = "heuristic"
+# ADR 0008 L2: rejects or lowers cells that are artifacts of the hierarchy.
+ROLL_UP_LAYER = "taxonomy_roll_up"
+
+_LEVELS: tuple[Confidence, ...] = ("low", "medium", "high")
 
 # The matrices this slice detects over: (row axis, column axis, Gap Type).
 MATRIX_SPECS: tuple[tuple[Axis, Axis, CellGapType], ...] = (
@@ -136,6 +143,26 @@ _TEXT: dict[str, str] = {
     "{expected:.1f} Papers would combine them; {count} do."
   ),
   "confidence_single": " Downgraded one level because 1 Paper does combine them.",
+  "roll_up_reject": (
+    "Rejected as a taxonomy artifact: {broad} is a broader {axis} category "
+    "that contains {narrow}, so pairing them is not a combination of two subjects."
+  ),
+  "roll_up_lower": (
+    "Lowered one level: Paper(s) {papers} sit in the broader cell {broader} "
+    "without being placed on any narrower category, so they may or may not "
+    "cover this combination; check them."
+  ),
+  "roll_up_lower_floor": (
+    "Already at the lowest level: Paper(s) {papers} sit in the broader cell "
+    "{broader} without being placed on any narrower category, so they may or "
+    "may not cover this combination; check them."
+  ),
+  "roll_up_sibling": (
+    "No change: Paper(s) {papers} sit in the broader cell {broader}, but each "
+    "is also placed on a narrower category, so none counts as covering this "
+    "combination."
+  ),
+  "roll_up_broader": "{label} × {other}",
   "limitation": (
     "Candidate Unanswered Limitation: {source_count} Paper(s) in the Corpus "
     "({papers}) state this limitation or open question, and none of the "
@@ -234,6 +261,11 @@ class CellGap(BaseModel):
   column_paper_count: int
   corpus_paper_count: int = Field(description="The denominator: Papers counted.")
   evidence: list[EvidenceLink] = Field(min_length=1)
+
+  @property
+  def rejected(self) -> bool:
+    """Whether a layer rejected this candidate; it stays in the artifact (§5)."""
+    return any(step.effect == "reject" for step in self.trail)
 
   @model_validator(mode="before")
   @classmethod
@@ -346,7 +378,10 @@ def detect_corpus(  # pylint: disable=too-many-locals
     key=lambda facts: facts.citation_key,
   )
   extractions = [e for e in extracted if e.citation_key in corpus_keys]
-  matrices, gaps = _matrix_gaps(papers)
+  hierarchy: dict[Axis, dict[str, str]] = {
+    axis: normalized.parents(axis) for axis in AXES
+  }
+  matrices, gaps = _matrix_gaps(papers, hierarchy)
 
   hints = (
     merge_hints(collect_statements(extractions), embedder, merge_threshold)
@@ -395,16 +430,20 @@ def detect_corpus(  # pylint: disable=too-many-locals
 
 
 def _matrix_gaps(
-  papers: list[NormalizedFacts],
+  papers: list[NormalizedFacts], hierarchy: dict[Axis, dict[str, str]]
 ) -> tuple[list[CoverageMatrix], list[CandidateGap]]:
-  """Build every Coverage Matrix and card each cell at or under the threshold."""
+  """Build every Coverage Matrix, card each sparse cell, and roll it up (L2)."""
   threshold = sparse_max_count(len(papers))
+  roll_up = _RollUp(papers, hierarchy)
   matrices: list[CoverageMatrix] = []
   gaps: list[CandidateGap] = []
   for row_axis, column_axis, gap_type in MATRIX_SPECS:
     matrix = build_matrix(papers, row_axis, column_axis)
     matrices.append(matrix)
-    gaps.extend(_gaps_from_matrix(matrix, papers, gap_type, threshold))
+    gaps.extend(
+      roll_up.apply(gap)
+      for gap in _gaps_from_matrix(matrix, papers, gap_type, threshold)
+    )
   return matrices, gaps
 
 
@@ -565,7 +604,6 @@ def _confidence(
   cell is downgraded one level. This is a v1 heuristic, not a statistical test.
   """
   expected = row.paper_count * column.paper_count / total if total else 0.0
-  levels: tuple[Confidence, ...] = ("low", "medium", "high")
   level = 2 if expected >= 2 else 1 if expected >= 1 else 0
   reason = _TEXT["confidence"].format(
     row=row.label,
@@ -577,7 +615,133 @@ def _confidence(
   if cell.paper_count > 0:
     level = max(level - 1, 0)
     reason += _TEXT["confidence_single"]
-  return levels[level], reason
+  return _LEVELS[level], reason
+
+
+class _RollUp:
+  """
+  The taxonomy roll-up layer (ADR 0008 L2) over one Corpus's hierarchy.
+
+  The matrices count a Paper only on the categories it was placed on, so the
+  hierarchy matters in two ways. A same-axis cell pairing a category with its
+  own ancestor is no combination of two subjects: rejected. A Paper placed on
+  an ancestor of one side (and on none of that ancestor's descendants) together
+  with the other side may cover the narrower cell: lowered one level, naming
+  it. A Paper that is also on a narrower category than that ancestor (a sibling
+  of the cell's category, say) explains its broad placement, so it counts for
+  nothing: "no prospective study, only retrospective ones" stays a gap.
+  """
+
+  def __init__(
+    self, papers: list[NormalizedFacts], hierarchy: dict[Axis, dict[str, str]]
+  ) -> None:
+    self._papers = papers
+    self._parents = hierarchy
+    self._labels: dict[tuple[Axis, str], str] = {}
+    for facts in papers:
+      for assignment in facts.assignments:
+        self._labels.setdefault(
+          (assignment.axis, assignment.category_id), assignment.category_label
+        )
+
+  def apply(self, gap: CellGap) -> CellGap:
+    """Return the gap with this layer's step appended, if it has anything to say."""
+    step = self._step(gap)
+    if step is None:
+      return gap
+    return gap.model_copy(
+      update={"trail": [*gap.trail, step], "confidence": step.level_after}
+    )
+
+  def ancestors(self, axis: Axis, category_id: str) -> list[str]:
+    """List a category's broader categories, nearest first (cycle-safe)."""
+    parents = self._parents.get(axis, {})
+    found: list[str] = []
+    current = parents.get(category_id)
+    while current is not None and current != category_id and current not in found:
+      found.append(current)
+      current = parents.get(current)
+    return found
+
+  def _step(self, gap: CellGap) -> LayerStep | None:
+    """Judge one candidate: reject, lower, note a sibling fill, or stay silent."""
+    level = gap.trail[-1].level_after
+    if gap.row_axis == gap.column_axis:
+      if gap.row_id in self.ancestors(gap.column_axis, gap.column_id):
+        return self._reject(gap, gap.row_label, gap.column_label, level)
+      if gap.column_id in self.ancestors(gap.row_axis, gap.row_id):
+        return self._reject(gap, gap.column_label, gap.row_label, level)
+
+    covering, siblings = self._broader_fills(gap)
+    if covering:
+      lowered = _LEVELS[max(_LEVELS.index(level) - 1, 0)]
+      template = "roll_up_lower" if lowered != level else "roll_up_lower_floor"
+      return LayerStep(
+        layer=ROLL_UP_LAYER,
+        effect="lower" if lowered != level else "none",
+        level_after=lowered,
+        reason=_TEXT[template].format(**_named(covering)),
+      )
+    if siblings:
+      return LayerStep(
+        layer=ROLL_UP_LAYER,
+        effect="none",
+        level_after=level,
+        reason=_TEXT["roll_up_sibling"].format(**_named(siblings)),
+      )
+    return None
+
+  def _broader_fills(
+    self, gap: CellGap
+  ) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    """
+    Find the Papers in each broader cell, keyed by that cell's name.
+
+    Returns the Papers placed only on the broader category (they may cover the
+    candidate) apart from those also placed on a narrower one (they do not).
+    """
+    covering: dict[str, list[str]] = {}
+    siblings: dict[str, list[str]] = {}
+    for axis, category_id, other_axis, other_id, other_label in _sides(gap):
+      for ancestor in self.ancestors(axis, category_id):
+        broader = _TEXT["roll_up_broader"].format(
+          label=self._labels.get((axis, ancestor), ancestor), other=other_label
+        )
+        for facts in self._papers:
+          placed = facts.category_ids(axis)
+          if ancestor not in placed or other_id not in facts.category_ids(other_axis):
+            continue
+          narrower = any(ancestor in self.ancestors(axis, p) for p in placed)
+          target = siblings if narrower else covering
+          target.setdefault(broader, []).append(facts.citation_key)
+    return covering, siblings
+
+  def _reject(
+    self, gap: CellGap, broad: str, narrow: str, level: Confidence
+  ) -> LayerStep:
+    """Reject an ancestor x descendant cell; its level is kept for the record."""
+    return LayerStep(
+      layer=ROLL_UP_LAYER,
+      effect="reject",
+      level_after=level,
+      reason=_TEXT["roll_up_reject"].format(
+        broad=broad, narrow=narrow, axis=_AXIS_NAMES[gap.row_axis]
+      ),
+    )
+
+
+def _sides(gap: CellGap) -> tuple[tuple[Axis, str, Axis, str, str], ...]:
+  """Each side of a cell as (axis, id, other axis, other id, other label)."""
+  return (
+    (gap.row_axis, gap.row_id, gap.column_axis, gap.column_id, gap.column_label),
+    (gap.column_axis, gap.column_id, gap.row_axis, gap.row_id, gap.row_label),
+  )
+
+
+def _named(found: dict[str, list[str]]) -> dict[str, str]:
+  """Format the Papers and broader cells a roll-up reason names."""
+  keys = sorted({key for keys in found.values() for key in keys})
+  return {"papers": ", ".join(keys), "broader": "; ".join(sorted(found))}
 
 
 def _evidence(
