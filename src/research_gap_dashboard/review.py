@@ -27,11 +27,11 @@ decided in `detect`.
 """
 
 import logging
-import re
 from typing import Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
+from research_gap_dashboard.limitations import unbracketed
 from research_gap_dashboard.llm import (
   LlmClient,
   LlmResponseError,
@@ -241,19 +241,12 @@ def _known_ids(
   """Keep each proposed id the request supplied, once; note every one dropped."""
   kept: list[str] = []
   for raw in proposed:
-    evidence_id = _unbracketed(raw)
+    evidence_id = unbracketed(raw)
     if evidence_id not in known:
       notes.append(f"dropped unknown {what} '{raw}'")
     elif evidence_id not in kept:
       kept.append(evidence_id)
   return kept
-
-
-def _unbracketed(reference: str) -> str:
-  """Strip the outer brackets a model copies from the prompt's `[id]` rendering."""
-  reference = reference.strip()
-  outer = re.fullmatch(r"\[(.+:.+\[\d+\])\]", reference)
-  return outer.group(1) if outer else reference
 
 
 # The three synthetic examples (ADR 0008 §3: few-shot, since zero-shot output is

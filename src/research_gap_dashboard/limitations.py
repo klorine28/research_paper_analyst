@@ -256,7 +256,7 @@ def _validated_groups(
   for proposed in proposal.groups:
     members: list[LimitationStatement] = []
     notes: list[str] = []
-    for statement_id in map(_unbracketed, proposed.statement_ids):
+    for statement_id in map(unbracketed, proposed.statement_ids):
       if statement_id not in by_id:
         notes.append(f"dropped unknown statement id '{statement_id}'")
       elif statement_id in placed:
@@ -350,7 +350,7 @@ def _validated_follow_ups(
   """Keep only follow-ups citing a real later fact; note every one dropped."""
   follow_ups: list[FollowUp] = []
   for proposed in proposal.follow_ups:
-    fact_id = _unbracketed(proposed.fact_id)
+    fact_id = unbracketed(proposed.fact_id)
     pair = candidates.get(fact_id)
     if pair is None:
       notes.append(f"dropped follow-up citing unknown fact '{proposed.fact_id}'")
@@ -368,7 +368,7 @@ def _validated_follow_ups(
   return sorted(follow_ups, key=lambda follow_up: follow_up.fact_id)
 
 
-def _unbracketed(reference: str) -> str:
+def unbracketed(reference: str) -> str:
   """
   Strip the outer brackets a model copies from the prompt's `[id]` rendering.
 

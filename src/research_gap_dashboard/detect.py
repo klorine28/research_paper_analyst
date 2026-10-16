@@ -920,7 +920,7 @@ class _RollUp:
 
     covering, siblings = self._broader_fills(gap)
     if covering:
-      lowered = _LEVELS[max(_LEVELS.index(level) - 1, 0)]
+      lowered = _lowered(level)
       template = "roll_up_lower" if lowered != level else "roll_up_lower_floor"
       return LayerStep(
         layer=ROLL_UP_LAYER,
@@ -974,6 +974,11 @@ class _RollUp:
         broad=broad, narrow=narrow, axis=_AXIS_NAMES[gap.row_axis]
       ),
     )
+
+
+def _lowered(level: Confidence) -> Confidence:
+  """Return the level one step down, stopping at Low."""
+  return _LEVELS[max(_LEVELS.index(level) - 1, 0)]
 
 
 def _sides(gap: CellGap) -> tuple[tuple[Axis, str, Axis, str, str], ...]:
@@ -1141,7 +1146,7 @@ def _review_step(review: GapReview | None, level: Confidence) -> LayerStep:
       layer=REVIEW_LAYER, effect="reject", level_after=level, reason=reason
     )
   if review.bucket == "least_probable":
-    lowered = _LEVELS[max(_LEVELS.index(level) - 1, 0)]
+    lowered = _lowered(level)
     template = "review_lower" if lowered != level else "review_lower_floor"
     return LayerStep(
       layer=REVIEW_LAYER,
