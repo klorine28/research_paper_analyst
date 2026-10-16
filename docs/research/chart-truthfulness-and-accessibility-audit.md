@@ -131,6 +131,14 @@ baseline). `docs/FUNCTIONALITY.md` was stale and has been corrected.
   labels; cap the number of lines and move the rest to a table, as the
   co-occurrence graphs already do.
 
+> **Resolved (#101).** Each line now takes its own Okabe–Ito colour (yellow
+> `#F0E442` dropped for contrast on white) and its own marker symbol. The
+> seven-colour palette is the line cap: emerging and abandoned Topics claim
+> lines first, the most-covered steady Topics fill the rest, and the remainder
+> are listed in a table under the chart with a caption stating how many. The
+> status encoding (solid / dashed / thin) is unchanged. Pinned by tests in
+> `tests/test_dashboard_coverage.py`.
+
 ### Overview mini-bars
 
 - **C6 (severity 2).** `_render_mini_bar` hides the x axis entirely and puts

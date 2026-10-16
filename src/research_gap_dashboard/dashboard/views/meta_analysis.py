@@ -21,6 +21,8 @@ from research_gap_dashboard.dashboard.coverage import (
   TrendsData,
   build_trends,
   build_trends_figure,
+  trends_cap_caption,
+  trends_table_rows,
 )
 from research_gap_dashboard.dashboard.limitations import (
   build_limitations,
@@ -506,7 +508,12 @@ def _render_trends(trends: TrendsData) -> None:
   )
   if trends.papers_without_year:
     st.caption(text.TRENDS_MISSING_YEAR.format(without_year=trends.papers_without_year))
+  cap_caption = trends_cap_caption(trends)
+  if cap_caption is not None:
+    st.caption(cap_caption)
   st.plotly_chart(build_trends_figure(trends), use_container_width=True)
+  if cap_caption is not None:
+    st.dataframe(trends_table_rows(trends), use_container_width=True, hide_index=True)
 
   emerging = trends.emerging
   abandoned = trends.abandoned

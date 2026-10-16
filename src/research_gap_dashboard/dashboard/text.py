@@ -681,6 +681,20 @@ TRENDS_STATUS_SUFFIX = {
   "abandoned": " (abandoned)",
   "steady": "",
 }
+TRENDS_STATUS_LABEL = {
+  "emerging": "Emerging",
+  "abandoned": "Abandoned",
+  "steady": "Steady",
+}
+TRENDS_CAPPED = (
+  "Showing {shown} of {total} Topics as lines; the other {tabled} are listed in "
+  "the table below."
+)
+TRENDS_COL_TOPIC = "Topic"
+TRENDS_COL_PAPERS = "Papers with a year"
+TRENDS_COL_FIRST_YEAR = "First year"
+TRENDS_COL_LAST_YEAR = "Last year"
+TRENDS_COL_STATUS = "Trend"
 TRENDS_DENOMINATOR = (
   "Lines are built from the {with_year} of {total} Papers in the Corpus that "
   "carry a publication year."
@@ -701,7 +715,9 @@ TRENDS_EXPLAINER = (
   "**How to read it:** Each line is a Topic; the x-axis is the year and the "
   "y-axis is how many Papers covered it that year. Bold solid lines are "
   "*emerging* Topics (they first appear in the recent half of the span); bold "
-  "dashed lines are *abandoned* Topics (no Paper since then).\n\n"
+  "dashed lines are *abandoned* Topics (no Paper since then). Each line has "
+  "its own colour and marker; past seven lines, emerging and abandoned Topics "
+  "keep their lines and the least-covered steady Topics move to a table.\n\n"
   "**What a gap looks like here:** An abandoned Topic may hold an unanswered "
   "question; an emerging one shows where the field is moving.\n\n"
   "**Caveat:** Built only from Papers with a known year (denominator below)."
