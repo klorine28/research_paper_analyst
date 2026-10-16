@@ -1,0 +1,9 @@
+{
+  "corpus_root": "tests/fixtures/follow-up-corpus",
+  "prompt_version": "fixture",
+  "tier": "default",
+  "model": "",
+  "taxonomies": [],
+  "normalized": [],
+  "failures": []
+}

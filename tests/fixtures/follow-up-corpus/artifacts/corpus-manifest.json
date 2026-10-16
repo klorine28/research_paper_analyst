@@ -1,0 +1,59 @@
+{
+  "corpus_root": "tests/fixtures/follow-up-corpus",
+  "papers": [
+    {
+      "citation_key": "early2016",
+      "doi": "10.5555/early2016",
+      "title": "Synthetic fixture Paper early2016",
+      "authors": [],
+      "year": 2016,
+      "journal": "",
+      "pdf_path": "papers/early2016.pdf",
+      "openalex_id": "",
+      "referenced_works": [],
+      "cited_by_count": 0,
+      "resolution_error": null
+    },
+    {
+      "citation_key": "control2016",
+      "doi": "10.5555/control2016",
+      "title": "Synthetic fixture Paper control2016",
+      "authors": [],
+      "year": 2016,
+      "journal": "",
+      "pdf_path": "papers/control2016.pdf",
+      "openalex_id": "",
+      "referenced_works": [],
+      "cited_by_count": 0,
+      "resolution_error": null
+    },
+    {
+      "citation_key": "unrelated2019",
+      "doi": "10.5555/unrelated2019",
+      "title": "Synthetic fixture Paper unrelated2019",
+      "authors": [],
+      "year": 2019,
+      "journal": "",
+      "pdf_path": "papers/unrelated2019.pdf",
+      "openalex_id": "",
+      "referenced_works": [],
+      "cited_by_count": 0,
+      "resolution_error": null
+    },
+    {
+      "citation_key": "later2021",
+      "doi": "10.5555/later2021",
+      "title": "Synthetic fixture Paper later2021",
+      "authors": [],
+      "year": 2021,
+      "journal": "",
+      "pdf_path": "papers/later2021.pdf",
+      "openalex_id": "",
+      "referenced_works": [],
+      "cited_by_count": 0,
+      "resolution_error": null
+    }
+  ],
+  "unmatched_entries": [],
+  "orphan_pdfs": []
+}
