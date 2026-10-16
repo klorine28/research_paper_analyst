@@ -554,16 +554,49 @@ GAP_DATA_NEIGHBOUR = "- {row} × {column}: {count} Paper(s)"
 GAP_DATA_NO_NEIGHBOURS = "No neighbouring cells in this Coverage Matrix."
 GAP_DATA_NEIGHBOURS_MORE = "…and {count} more neighbouring cells."
 GAP_DATA_SCORE_HEADING = "Score and reasons"
+# L1 is a ranking score (ADR 0008 §1): this label is the one place gap text may
+# name a significance test, and only to say the score is not one.
+GAP_L1_RANKING_LABEL = "Ranking score, not a significance test"
 GAP_DATA_SCORE = (
-  "Expected about {expected:.1f} Papers in this cell if its categories were "
-  "independent across the {total} Papers; {observed} observed. The level ranks "
-  "candidates against each other; it does not prove a gap."
+  "**" + GAP_L1_RANKING_LABEL + ".** Expected about {expected:.1f} of {total} "
+  "Papers to combine these categories if they were independent; {observed} do. "
+  "The level ranks candidates against each other; it does not prove a gap."
 )
+GAP_DATA_FREQUENCY = (
+  "With categories this size, a cell this sparse would turn up by chance {frequency}."
+)
+# Natural frequencies for the L1 score, from "about 3 in 10 times" down.
+GAP_FREQUENCY = "about {count} in {per:,} times"
+GAP_FREQUENCY_RARE = "fewer than 1 in 10,000 times"
+GAP_FREQUENCY_NEARLY_ALWAYS = "nearly every time"
+GAP_DATA_TRAIL_HEADING = "Layer trail"
+GAP_DATA_TRAIL_STEP = "{position}. **{layer}**: {effect}, now {level}. {reason}"
+# Detection layers by artifact name (ADR 0008); unknown names show as written.
+GAP_LAYER_LABELS: dict[str, str] = {
+  "heuristic": "Heuristic (before L1)",
+  "l1": "L1 surprise score",
+  "taxonomy_roll_up": "L2 taxonomy roll-up",
+}
+GAP_LAYER_EFFECT_LABELS: dict[str, str] = {
+  "start": "starting level",
+  "raise": "raised",
+  "lower": "lowered",
+  "reject": "rejected",
+  "none": "no change",
+}
 # What L1 can rank at this Corpus size (ADR 0008 §4), for two equal-sized
 # categories with no Paper combining them.
 GAP_L1_MARGINS = (
   "At {total} Papers, an empty cell ranks High only when both of its categories "
   "cover at least {high} Papers each, and Medium from {medium} each."
+)
+GAP_L1_MARGINS_NO_HIGH = (
+  "At {total} Papers, no empty cell can rank High; one ranks Medium only when "
+  "both of its categories cover at least {medium} Papers each."
+)
+GAP_L1_MARGINS_NONE = (
+  "At {total} Papers, no empty cell can rank High or Medium on its own: the "
+  "Corpus is too small for the score to tell cells apart."
 )
 # Evidence-window expansion (issue #47): the anchor quote shown in its paragraph.
 EVIDENCE_POINTERS_LABEL = "Points to: {pointers}"

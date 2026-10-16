@@ -79,13 +79,24 @@ class NeighbourCell(BaseModel):
   paper_count: int
 
 
+class TrailStepView(BaseModel):
+  """One detection layer's verdict on a card, in the words Tier 3 shows."""
+
+  layer: str
+  effect: str
+  level: str
+  reason: str
+
+
 class GapData(BaseModel):
   """
   Tier 3, "show the data": what a card's confidence was computed from.
 
   The expected count is the independence expectation for the cell, shown as a
   ranking score beside the observed count, never as a significance claim (ADR
-  0008). Limitation cards have no cell, so they carry no neighbours or score.
+  0008); the L1 probability is shown as a natural frequency. Limitation cards
+  have no cell, so they carry no neighbours, score or trail; neither does a
+  card from an artifact written before L1 or the trail existed.
   """
 
   category_papers: list[CategoryPapers]
@@ -93,6 +104,8 @@ class GapData(BaseModel):
   expected_count: float | None
   observed_count: int | None
   reasons: list[str]
+  l1_frequency: str | None = None
+  trail: list[TrailStepView] = []
 
 
 class SaturationSearchView(BaseModel):
@@ -372,7 +385,39 @@ def _data(record: CandidateGapRecord, matrices: list[CoverageMatrixRecord]) -> G
     expected_count=expected,
     observed_count=record.cell_count,
     reasons=_reasons(record),
+    l1_frequency=(
+      natural_frequency(record.l1_probability)
+      if record.l1_probability is not None
+      else None
+    ),
+    trail=[
+      TrailStepView(
+        layer=text.GAP_LAYER_LABELS.get(step.layer, step.layer),
+        effect=text.GAP_LAYER_EFFECT_LABELS.get(step.effect, step.effect),
+        level=text.CONFIDENCE_LABELS.get(step.level_after, step.level_after),
+        reason=step.reason,
+      )
+      for step in record.trail
+    ],
   )
+
+
+# Denominators tried in turn; the first that puts at least this many expected
+# occurrences on the numerator keeps two figures of resolution without decimals.
+_FREQUENCY_DENOMINATORS = (10, 100, 1000, 10000)
+_FREQUENCY_MIN_COUNT = 1.5
+
+
+def natural_frequency(probability: float) -> str:
+  """Word an L1 probability as "about k in n times" for a lay reader."""
+  for per in _FREQUENCY_DENOMINATORS:
+    count = round(probability * per)
+    last = per == _FREQUENCY_DENOMINATORS[-1]
+    if probability * per >= _FREQUENCY_MIN_COUNT or (last and count >= 1):
+      if count >= per:
+        return text.GAP_FREQUENCY_NEARLY_ALWAYS
+      return text.GAP_FREQUENCY.format(count=count, per=per)
+  return text.GAP_FREQUENCY_RARE
 
 
 # The Gap Types a saturation check runs on (ADR 0009 §10); Retrieval Gaps are

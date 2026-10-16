@@ -111,7 +111,6 @@ def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
     )
   )
   _render_check_all_accepted(data, corpus_root)
-  _render_l1_margins(data)
   shown = _render_filters(data)
   if not shown.cards:
     st.info(text.GAP_FILTER_NO_MATCH)
@@ -156,15 +155,23 @@ def _render_check_all_accepted(data: GapCardsData, corpus_root: Path) -> None:
 
 
 def _render_l1_margins(data: GapCardsData) -> None:
-  """State the smallest category sizes that can rank High at this Corpus size."""
+  """
+  State the smallest category sizes that can rank High at this Corpus size.
+
+  Read from the artifact, so it holds for the N detection ran on; an artifact
+  written before L1 has no margins and shows no line.
+  """
   if data.l1_smallest_margins is None:
     return
   high, medium = data.l1_smallest_margins
-  if high is None or medium is None:
-    return
-  st.caption(
-    text.GAP_L1_MARGINS.format(total=data.corpus_paper_count, high=high, medium=medium)
-  )
+  total = data.corpus_paper_count
+  if medium is None:
+    line = text.GAP_L1_MARGINS_NONE.format(total=total)
+  elif high is None:
+    line = text.GAP_L1_MARGINS_NO_HIGH.format(total=total, medium=medium)
+  else:
+    line = text.GAP_L1_MARGINS.format(total=total, high=high, medium=medium)
+  st.caption(line)
 
 
 def _render_filters(data: GapCardsData) -> FilteredGapCards:
@@ -176,6 +183,7 @@ def _render_filters(data: GapCardsData) -> FilteredGapCards:
   how many of those the "possibly addressed" filter alone hides.
   """
   levels = _confidence_filter()
+  _render_l1_margins(data)
   possibly_addressed_only = st.toggle(
     text.GAP_FILTER_POSSIBLY_ADDRESSED_LABEL,
     help=text.GAP_FILTER_POSSIBLY_ADDRESSED_HELP,
@@ -377,8 +385,25 @@ def _render_data(card: GapCard, corpus_root: Path) -> None:
         observed=data.observed_count,
       )
     )
-  for reason in data.reasons:
-    st.caption(reason)
+  if data.l1_frequency is not None:
+    st.markdown(text.GAP_DATA_FREQUENCY.format(frequency=data.l1_frequency))
+  if data.trail:
+    st.markdown(f"**{text.GAP_DATA_TRAIL_HEADING}**")
+    st.markdown(
+      "\n".join(
+        text.GAP_DATA_TRAIL_STEP.format(
+          position=position,
+          layer=step.layer,
+          effect=step.effect,
+          level=step.level,
+          reason=step.reason,
+        )
+        for position, step in enumerate(data.trail, start=1)
+      )
+    )
+  else:
+    for reason in data.reasons:
+      st.caption(reason)
   if card.saturation.checkable:
     _render_saturation(card.saturation, card.gap_id, corpus_root)
 
