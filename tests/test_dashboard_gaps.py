@@ -9,6 +9,7 @@ the researcher's saved accept/reject state.
 """
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -266,6 +267,7 @@ def test_filtering_by_status_states_how_many_gaps_are_hidden(corpus: Path):
 
   assert [card.gap_id for card in shown.cards] == [
     "topicxtopic:heart-failure:takotsubo",
+    "topicxmethod:heart-failure:retrospective",
     "topicxpopulation:takotsubo:aged",
   ]
   assert shown.hidden_count == 1
@@ -278,7 +280,10 @@ def test_status_and_gap_type_filters_combine(corpus: Path):
 
   shown = filter_gap_cards(data, statuses={"undecided"}, gap_types={"coverage_gap"})
 
-  assert [card.gap_id for card in shown.cards] == ["topicxpopulation:takotsubo:aged"]
+  assert [card.gap_id for card in shown.cards] == [
+    "topicxmethod:heart-failure:retrospective",
+    "topicxpopulation:takotsubo:aged",
+  ]
   assert shown.hidden_count == 2
 
 
@@ -290,16 +295,19 @@ def test_next_undecided_skips_decided_cards_and_wraps(corpus: Path):
   first = next_undecided_gap_id(cards, None)
   second = next_undecided_gap_id(cards, first)
   third = next_undecided_gap_id(cards, second)
+  fourth = next_undecided_gap_id(cards, third)
 
   assert first == "topicxtopic:heart-failure:takotsubo"
-  assert second == "topicxpopulation:takotsubo:aged"
-  assert third == "topicxtopic:heart-failure:takotsubo"
+  assert second == "topicxmethod:heart-failure:retrospective"
+  assert third == "topicxpopulation:takotsubo:aged"
+  assert fourth == "topicxtopic:heart-failure:takotsubo"
 
 
 def test_next_undecided_is_none_when_every_gap_is_decided(corpus: Path):
   """With no undecided card left there is nowhere to move to."""
   for gap_id in (
     "topicxtopic:heart-failure:takotsubo",
+    "topicxmethod:heart-failure:retrospective",
     "topicxmethod:takotsubo:rct",
     "topicxpopulation:takotsubo:aged",
   ):
@@ -324,7 +332,7 @@ def test_gap_cards_page_filters_and_states_the_hidden_count(
   accept_keys = [b.key for b in app.button if b.key.startswith("accept-")]
   assert accept_keys == ["accept-topicxmethod:takotsubo:rct"]
   captions = " ".join(caption.value for caption in app.caption)
-  assert "Showing 1 of 3 candidate gaps; 2 hidden by the filters." in captions
+  assert "Showing 1 of 4 candidate gaps; 3 hidden by the filters." in captions
 
 
 def test_next_undecided_moves_to_the_next_undecided_card(
@@ -337,16 +345,16 @@ def test_next_undecided_moves_to_the_next_undecided_card(
   app.multiselect[0].set_value(["high", "medium", "low"]).run()
 
   app.button(key="gap-next-undecided").click().run()
-  assert app.session_state["gap_focus_id"] == "topicxmethod:takotsubo:rct"
+  assert app.session_state["gap_focus_id"] == "topicxmethod:heart-failure:retrospective"
   first_accept = next(b for b in app.button if b.key.startswith("accept-"))
-  assert first_accept.key == "accept-topicxmethod:takotsubo:rct"
+  assert first_accept.key == "accept-topicxmethod:heart-failure:retrospective"
 
   app.button(key="gap-next-undecided").click().run()
 
   assert not app.exception
-  assert app.session_state["gap_focus_id"] == "topicxpopulation:takotsubo:aged"
+  assert app.session_state["gap_focus_id"] == "topicxmethod:takotsubo:rct"
   first_accept = next(b for b in app.button if b.key.startswith("accept-"))
-  assert first_accept.key == "accept-topicxpopulation:takotsubo:aged"
+  assert first_accept.key == "accept-topicxmethod:takotsubo:rct"
 
 
 def test_confidence_filter_defaults_to_high_and_medium(corpus: Path):
@@ -357,17 +365,17 @@ def test_confidence_filter_defaults_to_high_and_medium(corpus: Path):
 
   assert [card.confidence for card in filtered.cards] == ["medium"]
   assert filtered.shown_count == 1
-  assert filtered.hidden_count == 2
+  assert filtered.hidden_count == 3
   assert filtered.total_count == data.gap_count
 
 
 @pytest.mark.parametrize(
   ("levels", "shown", "hidden"),
   [
-    (("high", "medium", "low"), 3, 0),
-    (("low",), 2, 1),
-    (("high",), 0, 3),
-    ((), 0, 3),
+    (("high", "medium", "low"), 4, 0),
+    (("low",), 3, 1),
+    (("high",), 0, 4),
+    ((), 0, 4),
   ],
 )
 def test_confidence_filter_keeps_only_the_chosen_levels(
@@ -407,19 +415,19 @@ def test_gap_cards_page_shows_the_hidden_count_and_keeps_the_filter(
     return [block.value for block in app.caption]
 
   assert not app.exception
-  assert GAP_FILTER_SUMMARY.format(shown=1, total=3, hidden=2) in captions()
+  assert GAP_FILTER_SUMMARY.format(shown=1, total=4, hidden=3) in captions()
   assert len([b for b in app.button if b.key.startswith("accept-")]) == 1
 
   app.multiselect[0].set_value(["high", "medium", "low"]).run()
 
-  assert GAP_FILTER_SUMMARY.format(shown=3, total=3, hidden=0) in captions()
+  assert GAP_FILTER_SUMMARY.format(shown=4, total=4, hidden=0) in captions()
 
   open_page(app, PAGE_OVERVIEW)
   open_page(app, "Gap Cards")
 
   assert not app.exception
   assert app.multiselect[0].value == ["high", "medium", "low"]
-  assert GAP_FILTER_SUMMARY.format(shown=3, total=3, hidden=0) in captions()
+  assert GAP_FILTER_SUMMARY.format(shown=4, total=4, hidden=0) in captions()
 
 
 def test_tier_one_headline_states_why_and_the_cell_count(corpus: Path):
@@ -648,10 +656,43 @@ def test_the_read_model_mirrors_the_verdict_trail(corpus: Path):
   record = next(g for g in artifact.gaps if g.gap_id == "topicxmethod:takotsubo:rct")
 
   assert [(s.layer, s.effect, s.level_after) for s in record.trail] == [
-    ("heuristic", "start", record.confidence)
+    ("l1", "start", record.confidence)
   ]
   card = _card(corpus, "topicxmethod:takotsubo:rct")
   assert card.data.reasons == [step.reason for step in record.trail]
+
+
+def test_the_read_model_carries_the_l1_score_and_margins(corpus: Path):
+  """Each cell gap's L1 probability and the Corpus's smallest margins are read."""
+  artifact = load_candidate_gaps(corpus)
+  record = next(g for g in artifact.gaps if g.gap_id == "topicxmethod:takotsubo:rct")
+
+  # 4 Takotsubo x 1 RCT of 6 Papers, empty: 2/6.
+  assert record.l1_probability == pytest.approx(2 / 6)
+  data = build_gap_cards(artifact, load_judgments(corpus))
+  # N = 6: equal margins of 3 reach both High and Medium (1/20).
+  assert data.l1_smallest_margins == (3, 3)
+
+
+def test_the_gap_list_states_the_smallest_margins_that_rank_high(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """The researcher sees what L1 can detect at this Corpus size, in Papers."""
+  app = _run_gap_cards_app(corpus, monkeypatch)
+
+  assert not app.exception
+  captions = [caption.value for caption in app.caption]
+  expected = text.GAP_L1_MARGINS.format(total=6, high=3, medium=3)
+  assert expected in captions
+
+
+def test_no_gap_card_text_claims_significance():
+  """No user-facing gap text words the L1 score as a significance test or p."""
+  for name in dir(text):
+    value = getattr(text, name)
+    if name.startswith("GAP_") and isinstance(value, str):
+      assert "significan" not in value.lower(), name
+      assert re.search(r"\bp\b", value, flags=re.IGNORECASE) is None, name
 
 
 def test_an_artifact_without_trails_still_builds_cards(corpus: Path):

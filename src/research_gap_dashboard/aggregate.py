@@ -13,7 +13,9 @@ the original phrase, the assigned category, and the extracted fact it came from
 together with that fact's Evidence, so a later stage can cite the passage behind
 any matrix cell. Any phrase the model cannot place on a taxonomy is surfaced as
 an unmapped term (for taxonomy editing) instead of being silently dropped
-(CODING_STANDARDS > Research integrity).
+(CODING_STANDARDS > Research integrity). Each axis's hierarchy (category id
+-> parent id, derived from MeSH tree numbers where `parent` is missing) is
+recorded too, so detect can roll it up without reading the taxonomy files.
 
 The model only ever proposes category ids and fact references; this stage
 validates both against the loaded Taxonomy and the Paper's Extraction, so a
@@ -184,6 +186,14 @@ class TaxonomyProvenance(BaseModel):
   domain: str
   source: str
   category_count: int
+  # Defaulted so artifacts written before the roll-up layer load as flat.
+  parents: dict[str, str] = Field(
+    default_factory=dict,
+    description=(
+      "Category id -> broader category id, explicit or derived from MeSH tree "
+      "numbers; detect reads it to roll up the hierarchy (ADR 0008 L2)."
+    ),
+  )
 
 
 class AggregateReport(BaseModel):
@@ -195,6 +205,13 @@ class AggregateReport(BaseModel):
   taxonomies: list[TaxonomyProvenance]
   normalized: list[NormalizedFacts]
   failures: list[AggregateFailure]
+
+  def parents(self, axis: Axis) -> dict[str, str]:
+    """Return one axis's category id -> parent id map (empty when flat)."""
+    for taxonomy in self.taxonomies:
+      if taxonomy.axis == axis:
+        return dict(taxonomy.parents)
+    return {}
 
 
 class _ProposedAssignment(BaseModel):
@@ -284,6 +301,7 @@ def aggregate_corpus(
         domain=taxonomy.meta.domain,
         source=taxonomy.meta.source,
         category_count=len(taxonomy.topics),
+        parents=taxonomy.parent_map(),
       )
       for taxonomy in _in_axis_order(taxonomies)
     ],
