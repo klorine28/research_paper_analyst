@@ -54,8 +54,8 @@ are close are passed to grouping as merge hints, and the embedding model id,
 revision, threshold, and every hint are recorded in the artifact; without one
 (the `embeddings` extra absent) grouping runs LLM-only.
 
-Matrix detection is deterministic and makes no LLM call of its own; categories, cells,
-and gaps are sorted, so the same NormalizedFacts artifact always yields the
+Matrix detection is deterministic and makes no LLM call of its own; categories,
+cells, and gaps are sorted, so the same NormalizedFacts artifact always yields the
 same cards. Limitation grouping needs the LLM, through the cached client
 (ADR 0001), so a rerun over the same Extractions yields the same groups. Every
 card links to Evidence from Papers in the Corpus manifest only

@@ -200,7 +200,6 @@ class LimitationGroupRecord(_ReadModel):
   later_citation_keys: list[str] = []
   follow_ups: list[FollowUpRecord] = []
   notes: list[str] = []
-  bucket: str | None = None
 
 
 class L1MarginsRecord(_ReadModel):
