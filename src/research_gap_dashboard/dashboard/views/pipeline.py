@@ -6,7 +6,8 @@ the stage through `run_controls` (ADR 0007). Cost is kept out of the way, in a
 collapsed "Run details" expander with each LLM stage's estimate and the last
 run's actual cost (issue #70). Running detect here also runs the automatic
 saturation checks after it (`saturate --auto`, issue #89). An Add Papers panel
-uploads more Papers into an ingested Corpus and checks their pairing before re-ingesting (issue #75).
+uploads more Papers into an ingested Corpus and checks their pairing before
+re-ingesting (issue #75).
 """
 
 from pathlib import Path

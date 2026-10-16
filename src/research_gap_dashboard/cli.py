@@ -281,41 +281,7 @@ def build_parser() -> argparse.ArgumentParser:
       "(default: OPENALEX_MAILTO)."
     ),
   )
-  saturate = subcommands.add_parser(
-    "saturate",
-    help=(
-      "Search OpenAlex and PubMed for work that would close a gap "
-      "(saturation check, needs network)."
-    ),
-  )
-  saturate.add_argument("corpus", type=Path, help="Path to the corpus directory.")
-  mode = saturate.add_mutually_exclusive_group(required=True)
-  mode.add_argument(
-    "--gap",
-    help=(
-      "Gap id to check, e.g. topicxtopic:heart-failure:myocardial-ischemia or "
-      "limitation:limitation-group-01."
-    ),
-  )
-  mode.add_argument(
-    "--auto",
-    action="store_true",
-    help=(
-      f"Check the high-confidence gaps, strongest first, at most {AUTO_CHECK_CAP} "
-      f"per run, reusing checks younger than {AUTO_FRESHNESS.days} days; the "
-      f"rest are left for on-demand. {AUTO_CHECKS_ENV}=off switches it off."
-    ),
-  )
-  saturate.add_argument(
-    "--tier",
-    choices=["default", "cheap"],
-    default="cheap",
-    help=(
-      "Model tier to screen the top hits with (default: the cheap model). "
-      "Without ANTHROPIC_API_KEY, hits are screened by title/abstract only."
-    ),
-  )
-  _add_taxonomy_option(saturate)
+  _add_saturate_parser(subcommands)
   promote = subcommands.add_parser(
     "promote-gold",
     help="Turn a reviewed Extraction plus its overlay into a Gold Extraction fixture.",
@@ -569,21 +535,6 @@ def _run_saturate_auto(
     logger.error("Run `ingest` and `detect` first: %s", error)
     return EXIT_ERROR
 
-  outcomes = Counter(entry.outcome for entry in run.entries)
-  logger.info(
-    "Automatic saturation checks: %d high-confidence gap(s); %d checked, "
-    "%d reused (checked within %d days), %d left for on-demand, %d not checkable.",
-    len(run.entries),
-    outcomes["checked"],
-    outcomes["cached"],
-    run.freshness_days,
-    outcomes["left_for_on_demand"],
-    outcomes["not_checkable"],
-  )
-  for entry in run.entries:
-    status = f" ({entry.status})" if entry.status else ""
-    note = f": {entry.note}" if entry.note else ""
-    logger.info("  %s: %s%s%s", entry.gap_id, entry.outcome, status, note)
   not_run = [e for e in run.entries if e.outcome == "checked" and e.status == "not_run"]
   if not_run:
     logger.warning(
@@ -858,6 +809,45 @@ def _run_taxonomy(arguments: argparse.Namespace) -> int:
     taxonomy.meta.source,
   )
   return EXIT_OK
+
+
+def _add_saturate_parser(subcommands) -> None:
+  """Add the `saturate` command: one gap (`--gap`) or the automatic run."""
+  saturate = subcommands.add_parser(
+    "saturate",
+    help=(
+      "Search OpenAlex and PubMed for work that would close a gap "
+      "(saturation check, needs network)."
+    ),
+  )
+  saturate.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  mode = saturate.add_mutually_exclusive_group(required=True)
+  mode.add_argument(
+    "--gap",
+    help=(
+      "Gap id to check, e.g. topicxtopic:heart-failure:myocardial-ischemia or "
+      "limitation:limitation-group-01."
+    ),
+  )
+  mode.add_argument(
+    "--auto",
+    action="store_true",
+    help=(
+      f"Check the high-confidence gaps, strongest first, at most {AUTO_CHECK_CAP} "
+      f"per run, reusing checks younger than {AUTO_FRESHNESS.days} days; the "
+      f"rest are left for on-demand. {AUTO_CHECKS_ENV}=off switches it off."
+    ),
+  )
+  saturate.add_argument(
+    "--tier",
+    choices=["default", "cheap"],
+    default="cheap",
+    help=(
+      "Model tier to screen the top hits with (default: the cheap model). "
+      "Without ANTHROPIC_API_KEY, hits are screened by title/abstract only."
+    ),
+  )
+  _add_taxonomy_option(saturate)
 
 
 def _add_aliases_parser(subcommands) -> None:

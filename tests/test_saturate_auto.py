@@ -51,6 +51,7 @@ class _Fetch:
     self.fail = fail
 
   def json(self, url: str) -> dict[str, Any] | None:
+    """Answer a JSON fetch."""
     self.calls.append(url)
     if self.fail is not None:
       raise self.fail
@@ -58,6 +59,7 @@ class _Fetch:
     return RECORDED["json"][url]
 
   def text(self, url: str) -> str | None:
+    """Answer a text fetch."""
     self.calls.append(url)
     if self.fail is not None:
       raise self.fail
@@ -65,6 +67,7 @@ class _Fetch:
     return RECORDED["text"][url]
 
   def sources(self) -> list[Any]:
+    """Build the real adapters over this fetch."""
     return [
       OpenAlexAdapter(fetch=self.json),
       PubMedAdapter(fetch=self.json, fetch_text=self.text),

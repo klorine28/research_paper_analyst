@@ -806,13 +806,33 @@ def saturate_auto(  # pylint: disable=too-many-arguments,too-many-locals
   report.corpus_root = root
   report.auto_runs.append(run)
   _write_report(root, report)
+  _log_auto_run(run)
+  return run
+
+
+def _log_auto_run(run: AutoRun) -> None:
+  """Log what an automatic run did, naming the gaps left for on-demand."""
+  outcomes = Counter(entry.outcome for entry in run.entries)
+  logger.info(
+    "Automatic saturation checks: %d high-confidence gap(s); %d checked, "
+    "%d reused (checked within %d days), %d left for on-demand, %d not checkable.",
+    len(run.entries),
+    outcomes["checked"],
+    outcomes["cached"],
+    run.freshness_days,
+    outcomes["left_for_on_demand"],
+    outcomes["not_checkable"],
+  )
+  for entry in run.entries:
+    status = f" ({entry.status})" if entry.status else ""
+    note = f": {entry.note}" if entry.note else ""
+    logger.info("  %s: %s%s%s", entry.gap_id, entry.outcome, status, note)
   if run.left_for_on_demand:
     logger.info(
       "Left for on-demand checks (past the cap of %d): %s",
-      cap,
+      run.cap,
       ", ".join(run.left_for_on_demand),
     )
-  return run
 
 
 def _auto_candidates(root: Path) -> list[CellGap | UnansweredLimitationGap]:

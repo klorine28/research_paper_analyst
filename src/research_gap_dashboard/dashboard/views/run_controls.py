@@ -34,7 +34,7 @@ from research_gap_dashboard.dashboard.views.session_keys import (
 )
 
 
-def render_run_button(
+def render_run_button(  # pylint: disable=too-many-arguments
   corpus_root: Path,
   stage: str,
   label: str | None = None,
