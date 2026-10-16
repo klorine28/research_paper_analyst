@@ -348,10 +348,16 @@ MINI_BAR_ALT_AUTHORS = (
 )
 
 
-def bar_listing(labels: list[str], values: list[int]) -> str:
-  """Name every bar with its count, in chart order, for a text alternative."""
+def bar_listing(labels: list[str], values: list[int], *, numbered: bool) -> str:
+  """
+  Name every bar with its count, in chart order, for a text alternative.
+
+  When numbered, each name is prefixed with its bar's number, the key for a thumbnail
+  whose ticks are numbers because the names are too long to print under it.
+  """
   return "; ".join(
-    f"{label} ({value})" for label, value in zip(labels, values, strict=True)
+    f"{index}. {label} ({value})" if numbered else f"{label} ({value})"
+    for index, (label, value) in enumerate(zip(labels, values, strict=True), 1)
   )
 
 

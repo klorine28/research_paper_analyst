@@ -101,13 +101,13 @@ def _render_tile_panel_header(title: str, shade: str) -> None:
 
 def render_mini_bar(bar: MiniBar | None, *, key: str) -> None:
   """
-  Render a compact bar thumbnail: value labels on bars, its text alternative below.
+  Render a compact bar thumbnail with every bar ticked and its caption below.
 
   A miniature shows the shape of a distribution at a glance with a little
   detail. Long category names (paper titles, venue names) would swallow a fixed
-  small chart, so the x ticks stay hidden and each bar instead carries its
-  count; the full names are on hover, in the text alternative under the chart,
-  and in the expanded panel below.
+  small chart, so such bars are ticked by number and the caption under the chart
+  maps each number to its name; short names (years) are the ticks themselves.
+  Hover repeats the full name but is never the only place it appears.
   """
   if bar is None:
     st.caption(text.OVERVIEW_TILE_PREVIEW_EMPTY)
@@ -129,12 +129,23 @@ def render_mini_bar(bar: MiniBar | None, *, key: str) -> None:
   headroom = max(values) * 1.25 if values else 1
   figure.update_layout(
     height=_PREVIEW_HEIGHT,
-    margin={"l": 6, "r": 6, "t": 14, "b": 6},
+    margin={"l": 6, "r": 6, "t": 14, "b": 22},
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     showlegend=False,
     bargap=0.25,
-    xaxis={"visible": False, "fixedrange": True},
+    xaxis={
+      "visible": True,
+      "fixedrange": True,
+      "tickmode": "array",
+      "tickvals": list(range(len(labels))),
+      "ticktext": bar.ticks,
+      "tickfont": {"size": 10, "color": _TILE_TEXT},
+      "showgrid": False,
+      "zeroline": False,
+      "showline": False,
+      "ticks": "",
+    },
     yaxis={"visible": False, "fixedrange": True, "range": [0, headroom]},
   )
   st.plotly_chart(

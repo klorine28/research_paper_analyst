@@ -478,3 +478,46 @@ def test_previews_without_data_have_no_bar():
   assert overview_preview_bar("venues", overview) is None
   assert overview_preview_bar("axes", overview) is None
   assert overview_preview_bar("facts", overview) is None
+
+
+def test_short_category_names_are_the_thumbnail_ticks():
+  """Years fit under their bars, so the thumbnail names each bar directly."""
+  bar = overview_preview_bar("papers_year", _preview_overview())
+
+  assert bar is not None
+  assert bar.ticks == ["2018", "2019", UNKNOWN_YEAR_LABEL]
+
+
+def test_long_category_names_are_keyed_by_number_in_the_caption():
+  """
+  Long venue names are keyed by number in the caption, not left to hover.
+
+  Venue names do not fit under a thumbnail bar, so each bar carries a number and
+  the caption maps every number to its venue (audit C6).
+  """
+  overview = _preview_overview().model_copy(
+    update={
+      "venues": [
+        VenueCount(venue="Journal of the American College of Cardiology", count=3),
+        VenueCount(venue="European Heart Journal", count=2),
+      ],
+    }
+  )
+
+  bar = overview_preview_bar("venues", overview)
+
+  assert bar is not None
+  assert bar.ticks == ["1", "2"]
+  assert (
+    "1. Journal of the American College of Cardiology (3); "
+    "2. European Heart Journal (2)" in bar.summary
+  )
+
+
+def test_every_overview_thumbnail_has_one_tick_per_bar():
+  """No thumbnail bar is left unnamed."""
+  overview = _preview_overview()
+  for chart_id in ("papers_year", "venues", "axes", "facts"):
+    bar = overview_preview_bar(chart_id, overview)
+    assert bar is not None
+    assert len(bar.ticks) == len(bar.labels)

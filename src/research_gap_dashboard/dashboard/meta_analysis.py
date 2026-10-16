@@ -46,7 +46,11 @@ from research_gap_dashboard.dashboard.artifacts import (
   PaperRecord,
 )
 from research_gap_dashboard.dashboard.limitations import LimitationsData
-from research_gap_dashboard.dashboard.overview import PREVIEW_BARS, MiniBar
+from research_gap_dashboard.dashboard.overview import (
+  PREVIEW_BARS,
+  MiniBar,
+  build_mini_bar,
+)
 
 # The layout seed is fixed so the same Corpus always draws the same graph: a
 # reproducible figure is an honesty requirement, not a convenience.
@@ -928,10 +932,11 @@ def author_preview_bar(table: AuthorCollaborationTable) -> MiniBar | None:
     return None
   labels = [row.author for row in rows]
   values = [row.paper_count for row in rows]
-  summary = text.MINI_BAR_ALT_AUTHORS.format(
+  return build_mini_bar(
+    labels,
+    values,
+    text.MINI_BAR_ALT_AUTHORS,
     shown=len(rows),
     authors=table.total_authors,
     papers=table.papers_with_authors,
-    bars=text.bar_listing(labels, values),
   )
-  return MiniBar(labels=labels, values=values, summary=summary)

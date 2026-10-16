@@ -147,6 +147,13 @@ baseline). `docs/FUNCTIONALITY.md` was stale and has been corrected.
   (full `st.bar_chart`) is the fallback, so severity 2 — but the thumbnail alone
   misleads about which bar is which until opened.
 
+  > **Resolved (#103).** Every thumbnail bar now carries a visible tick
+  > (`build_mini_bar`): the category name itself when every name fits (≤ 7
+  > characters, e.g. years), otherwise the bar's number, which the caption under
+  > the thumbnail maps back to the full name ("1. European Heart Journal (2);
+  > …"). Hover only repeats it. Pinned by tests in
+  > `tests/test_dashboard_overview.py`.
+
 ## Accessibility gaps across all charts
 
 - **C7 (severity 2).** No **alt text / long description** on any figure. Plotly

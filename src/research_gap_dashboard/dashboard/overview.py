@@ -313,17 +313,45 @@ def _venues(manifest: ManifestArtifact) -> list[VenueCount]:
 PREVIEW_BARS = 8
 
 
+# The longest category name a thumbnail prints under its bar. Years and short
+# codes fit; anything longer would overlap its neighbours in a half-width tile.
+_MAX_TICK_CHARS = 7
+
+
 class MiniBar(BaseModel):
   """
   A bar thumbnail and its text alternative.
 
-  Thumbnails hide their category axis to fit a tile, so ``summary`` carries the
-  category names, the counts and the denominator in words (chart audit C6, C7).
+  Every bar carries a visible tick, so the thumbnail names its bars without
+  hover (chart audit C6): the category name itself when every name is short,
+  otherwise a number that ``summary`` maps back to the name. ``summary`` also
+  carries the counts and the denominator in words (chart audit C7).
   """
 
   labels: list[str]
   values: list[int]
+  ticks: list[str]
   summary: str
+
+
+def build_mini_bar(
+  labels: list[str], values: list[int], template: str, **fields: object
+) -> MiniBar:
+  """
+  Build a thumbnail whose ticks and caption name every bar.
+
+  ``template`` is a text-alternative string with a ``{bars}`` slot; the other
+  slots are filled from ``fields``.
+  """
+  numbered = any(len(label) > _MAX_TICK_CHARS for label in labels)
+  ticks = [str(index) for index in range(1, len(labels) + 1)] if numbered else labels
+  bars = text.bar_listing(labels, values, numbered=numbered)
+  return MiniBar(
+    labels=labels,
+    values=values,
+    ticks=list(ticks),
+    summary=template.format(bars=bars, **fields),
+  )
 
 
 def overview_preview_bar(chart_id: str, overview: OverviewData) -> MiniBar | None:
@@ -345,10 +373,12 @@ def _papers_year_bar(overview: OverviewData) -> MiniBar | None:
     return None
   labels = [bucket.label for bucket in buckets]
   values = [bucket.count for bucket in buckets]
-  summary = text.MINI_BAR_ALT_PAPERS_YEAR.format(
-    total=overview.paper_count, bars=text.bar_listing(labels, values)
+  return build_mini_bar(
+    labels,
+    values,
+    text.MINI_BAR_ALT_PAPERS_YEAR,
+    total=overview.paper_count,
   )
-  return MiniBar(labels=labels, values=values, summary=summary)
 
 
 def _venues_bar(overview: OverviewData) -> MiniBar | None:
@@ -357,13 +387,14 @@ def _venues_bar(overview: OverviewData) -> MiniBar | None:
     return None
   labels = [venue.venue for venue in top]
   values = [venue.count for venue in top]
-  summary = text.MINI_BAR_ALT_VENUES.format(
+  return build_mini_bar(
+    labels,
+    values,
+    text.MINI_BAR_ALT_VENUES,
     shown=len(top),
     venues=overview.venue_count,
     total=overview.paper_count,
-    bars=text.bar_listing(labels, values),
   )
-  return MiniBar(labels=labels, values=values, summary=summary)
 
 
 def _axis_bar(overview: OverviewData) -> MiniBar | None:
@@ -375,15 +406,16 @@ def _axis_bar(overview: OverviewData) -> MiniBar | None:
     return None
   labels = [category.label for category in top]
   values = [category.count for category in top]
-  summary = text.MINI_BAR_ALT_AXIS.format(
+  return build_mini_bar(
+    labels,
+    values,
+    text.MINI_BAR_ALT_AXIS,
     shown=len(top),
     categories=len(axis.categories),
     axis=axis.label,
     placed=axis.papers_placed,
     total=overview.paper_count,
-    bars=text.bar_listing(labels, values),
   )
-  return MiniBar(labels=labels, values=values, summary=summary)
 
 
 def _facts_bar(density: FactDensity | None) -> MiniBar | None:
@@ -392,10 +424,11 @@ def _facts_bar(density: FactDensity | None) -> MiniBar | None:
   top = density.papers[:PREVIEW_BARS]
   labels = [paper.label for paper in top]
   values = [paper.count for paper in top]
-  summary = text.MINI_BAR_ALT_FACTS.format(
+  return build_mini_bar(
+    labels,
+    values,
+    text.MINI_BAR_ALT_FACTS,
     shown=len(top),
     papers=density.papers_with_facts,
     facts=density.total_facts,
-    bars=text.bar_listing(labels, values),
   )
-  return MiniBar(labels=labels, values=values, summary=summary)
