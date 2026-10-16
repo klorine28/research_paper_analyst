@@ -26,6 +26,9 @@ EXTRACTIONS_NAME = "extractions.json"
 PARSE_REPORT_NAME = "parse-report.json"
 # The Corpus's scope statement: an input at its root, written by `corpus_scope`.
 SCOPE_NAME = "scope.json"
+# How and when each Paper entered the Corpus: an input next to the scope,
+# written by `entry_log` (ADR 0010).
+ENTRY_LOG_NAME = "entry_log.json"
 
 
 class ArtifactNotFoundError(FileNotFoundError):

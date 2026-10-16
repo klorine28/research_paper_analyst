@@ -15,13 +15,18 @@ import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
 from research_gap_dashboard.dashboard import text
-from research_gap_dashboard.dashboard.artifacts import CorpusChoice
+from research_gap_dashboard.dashboard.artifacts import (
+  CorpusChoice,
+  has_manifest,
+  load_manifest,
+)
 from research_gap_dashboard.dashboard.corpus_scope import (
   CorpusCreationError,
   create_corpus,
   load_scope,
   save_scope,
 )
+from research_gap_dashboard.dashboard.entry_log import reconcile_entry_log
 from research_gap_dashboard.dashboard.views.paper_upload import render_paper_upload
 from research_gap_dashboard.dashboard.views.run_controls import render_last_run
 from research_gap_dashboard.dashboard.views.session_keys import PENDING_CORPUS_KEY
@@ -56,7 +61,12 @@ def render_new_analysis(
 
 
 def render_scope(corpus_root: Path) -> None:
-  """State the Corpus's scope, or prompt for one when it was never recorded."""
+  """
+  State the Corpus's scope, or prompt for one when it was never recorded.
+
+  Once the Corpus has Papers, the scope also says how they entered it and how
+  many suggested papers could not be obtained (ADR 0010 §4).
+  """
   scope = load_scope(corpus_root)
   if scope is not None:
     st.info(
@@ -64,6 +74,8 @@ def render_scope(corpus_root: Path) -> None:
         question=scope.question, field=scope.field, searched=scope.searched
       )
     )
+  _render_entry_summary(corpus_root)
+  if scope is not None:
     return
   st.warning(text.SCOPE_MISSING_PROMPT)
   with st.expander(text.SCOPE_ADD_EXPANDER):
@@ -78,6 +90,23 @@ def render_scope(corpus_root: Path) -> None:
       st.error(str(error))
       return
   st.rerun()
+
+
+def _render_entry_summary(corpus_root: Path) -> None:
+  """One caption with the entry routes and the unavailable papers, if any."""
+  if not has_manifest(corpus_root):
+    return
+  manifest = load_manifest(corpus_root)
+  log = reconcile_entry_log(corpus_root, manifest)
+  parts: list[str] = []
+  if log.papers:
+    parts.append(
+      text.ENTRY_LOG_SUMMARY.format(total=len(log.papers), summary=log.summary)
+    )
+  if log.unavailable:
+    parts.append(text.ENTRY_LOG_UNAVAILABLE_SCOPE.format(count=len(log.unavailable)))
+  if parts:
+    st.caption(" ".join(parts))
 
 
 def render_unbuilt_corpus(chosen: CorpusChoice) -> None:
