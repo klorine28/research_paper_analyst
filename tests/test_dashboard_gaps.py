@@ -47,6 +47,7 @@ from research_gap_dashboard.dashboard.gaps import (
   filter_gap_cards,
   filter_by_confidence,
   narrative_scope,
+  natural_frequency,
   next_undecided_gap_id,
   scope_context_to_gap,
   surfaced_gap_context,
@@ -757,9 +758,12 @@ def test_the_gap_list_states_the_smallest_margins_that_rank_high(
 
 def test_no_gap_card_text_claims_significance():
   """No user-facing gap text words the L1 score as a significance test or p."""
+  # The one permitted mention is the disclaimer that it is not one.
+  assert text.GAP_L1_RANKING_LABEL.lower().endswith("not a significance test")
   for name in dir(text):
     value = getattr(text, name)
     if name.startswith("GAP_") and isinstance(value, str):
+      value = value.replace(text.GAP_L1_RANKING_LABEL, "")
       assert "significan" not in value.lower(), name
       assert re.search(r"\bp\b", value, flags=re.IGNORECASE) is None, name
 
@@ -1057,3 +1061,79 @@ def test_the_page_lists_rejected_gaps_collapsed_and_accepts_one(
     "taxonomy_roll_up",
   )
   assert f"accept-{_REJECTED_ID}" in {button.key for button in app.button}
+
+
+def test_tier_3_labels_the_l1_score_with_a_frequency_and_the_trail(corpus: Path):
+  """Tier 3 reads the L1 score as counts and a frequency, plus each layer step."""
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  # 4 Takotsubo x 1 RCT of 6 Papers, empty: 2/6, about 3 in 10.
+  assert card.data.l1_frequency == text.GAP_FREQUENCY.format(count=3, per=10)
+  assert [(s.layer, s.effect, s.level) for s in card.data.trail] == [
+    (text.GAP_LAYER_LABELS["l1"], text.GAP_LAYER_EFFECT_LABELS["start"], "Low")
+  ]
+  assert card.data.trail[0].reason == card.data.reasons[0]
+
+
+@pytest.mark.parametrize(
+  ("probability", "expected"),
+  [
+    (0.004, text.GAP_FREQUENCY.format(count=4, per=1000)),
+    (0.05, text.GAP_FREQUENCY.format(count=5, per=100)),
+    (1 / 3, text.GAP_FREQUENCY.format(count=3, per=10)),
+    (0.00001, text.GAP_FREQUENCY_RARE),
+    (0.99, text.GAP_FREQUENCY_NEARLY_ALWAYS),
+  ],
+)
+def test_the_l1_frequency_reads_as_a_natural_frequency(
+  probability: float, expected: str
+):
+  """The L1 probability is shown as "about k in n", never as a bare decimal."""
+  assert natural_frequency(probability) == expected
+
+
+def test_a_pre_l1_card_has_no_frequency(corpus: Path):
+  """A card written before L1 shows no frequency rather than inventing one."""
+  path = corpus / "artifacts" / "candidate_gaps.json"
+  data = json.loads(path.read_text(encoding="utf-8"))
+  for gap in data["gaps"]:
+    gap.pop("trail", None)
+    gap.pop("l1_probability", None)
+  path.write_text(json.dumps(data), encoding="utf-8")
+
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  assert card.data.l1_frequency is None
+  assert card.data.trail == []
+
+
+def test_tier_3_shows_the_labelled_l1_score_and_the_layer_trail(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """In the app, Tier 3 says "ranking score, not a significance test" and the trail."""
+  app = _run_gap_cards_app(corpus, monkeypatch)
+  app.multiselect[0].set_value(["high", "medium", "low"]).run()
+
+  assert not app.exception
+  data = [e for e in app.expander if e.label == text.GAP_TIER_DATA_LABEL]
+  data_text = " ".join(block.value for tier in data for block in tier.markdown)
+  assert text.GAP_L1_RANKING_LABEL in data_text
+  assert text.GAP_FREQUENCY.format(count=3, per=10) in data_text
+  assert text.GAP_DATA_TRAIL_HEADING in data_text
+  assert text.GAP_LAYER_LABELS["l1"] in data_text
+
+
+def test_the_margins_line_says_when_nothing_can_rank_high(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """At a Corpus too small for High, the line says so instead of vanishing."""
+  path = corpus / "artifacts" / "candidate_gaps.json"
+  data = json.loads(path.read_text(encoding="utf-8"))
+  data["l1_smallest_margins"] = {"high": None, "medium": 2}
+  path.write_text(json.dumps(data), encoding="utf-8")
+
+  app = _run_gap_cards_app(corpus, monkeypatch)
+
+  assert not app.exception
+  captions = [caption.value for caption in app.caption]
+  assert text.GAP_L1_MARGINS_NO_HIGH.format(total=6, medium=2) in captions
