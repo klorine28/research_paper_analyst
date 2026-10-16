@@ -58,10 +58,62 @@ SCOPE_MISSING_PROMPT = (
 SCOPE_ADD_EXPANDER = "Add a scope statement"
 SCOPE_SAVE_BUTTON = "Save scope"
 CORPUS_HAS_NO_PAPERS = (
-  "This Corpus has no ingested Papers yet. Put its PDFs in `{papers_dir}` and "
-  "its paper list (a `.bib` file or `dois.txt`) in `{root}`, then run ingest."
+  "This Corpus has no ingested Papers yet. Upload its PDFs and its paper list "
+  "below, fix any pairing problems, then ingest."
 )
-RUN_INGEST_BUTTON = "Run ingest"
+
+# Uploading Papers and checking how they pair up before ingest (issue #75).
+UPLOAD_HEADING = "Add Papers"
+UPLOAD_INTRO = (
+  "Upload the Papers' PDFs and a paper list: a BibTeX file (`.bib`) or a DOI "
+  "list (`.txt`, one DOI per line). A Paper without a DOI (a preprint, a thesis) "
+  "needs a BibTeX entry whose citation key appears in its PDF's file name. A "
+  "paper list is added to the Corpus's own, skipping entries already listed; a "
+  "PDF with the same name as one already uploaded replaces it."
+)
+UPLOAD_PDFS_LABEL = "PDFs"
+UPLOAD_PAPER_LIST_LABEL = "Paper list (.bib or DOI list)"
+UPLOAD_SUBMIT = "Upload"
+UPLOAD_NOTHING = "Choose at least one PDF or a paper list to upload."
+UPLOAD_PDFS_ADDED = "Added {count} PDF(s) to `papers/`."
+UPLOAD_PDFS_REPLACED = "Replaced {count} PDF(s) already in `papers/`: {names}."
+UPLOAD_PDF_REFUSED = "Not uploaded: `{name}`, because {reason}."
+UPLOAD_LIST_ADDED = "Added {count} entr(ies) to the paper list `{name}`."
+UPLOAD_LIST_ALREADY = "Already in the paper list, so skipped: {keys}."
+PAIRING_HEADING = "Pairing check"
+PAIRING_INTRO = (
+  "How the paper list and the PDFs pair up. Only a paper-list entry with a PDF "
+  "becomes a Paper; nothing has been ingested yet."
+)
+PAIRING_PAIRED = "**{count} Paper(s)** have both a paper-list entry and a PDF."
+PAIRING_UNMATCHED = (
+  "**{count} paper-list entr(ies) have no PDF.** Upload a PDF whose file name "
+  "contains the entry's DOI or citation key:"
+)
+PAIRING_UNMATCHED_ROW = "- `{key}`{doi}{title}"
+PAIRING_ORPHANS = (
+  "**{count} PDF(s) have no paper-list entry.** Upload a paper list with an "
+  "entry for each, or re-upload the PDF under a name that contains its DOI or "
+  "citation key:"
+)
+PAIRING_ORPHAN_ROW = "- `{name}`"
+PAIRING_READY = (
+  "Within the {low}\u2013{high} Paper range v1 supports: ready to ingest {count} "
+  "Paper(s)."
+)
+PAIRING_REFUSED = (
+  "**Not ready to ingest.** This Corpus would have {count} Paper(s), and v1 "
+  "supports {low}\u2013{high}. {advice} Ingest is refused until it is in range."
+)
+PAIRING_TOO_FEW = (
+  "Add Papers (PDF and paper-list entry), or fix the pairing problems above."
+)
+PAIRING_TOO_MANY = "Split the search into narrower Corpora."
+PAIRING_FAILED = "The pairing check could not run: {reason}"
+PAIRING_LOCKED = "Another run is in progress on this Corpus; check again when it ends."
+PAIRING_NOT_CHECKED = "Upload Papers, or check the files already in this Corpus."
+PAIRING_CHECK_BUTTON = "Check pairing"
+INGEST_UPLOADED_BUTTON = "\u25b6 Ingest the Corpus"
 NAV_LABEL = "Page"
 PAGE_OVERVIEW = "Corpus Overview"
 PAGE_GAP_CARDS = "Gap Cards"

@@ -5,7 +5,8 @@ The New analysis form creates an empty Corpus with its scope through
 `dashboard.corpus_scope`; the scope statement is then rendered above every
 page, and a Corpus without one shows a prompt to add it (issue #74). A Corpus
 that has no manifest yet gets a holding page instead of the analysis pages,
-which all read the manifest.
+which all read the manifest: there the researcher uploads its Papers and
+ingests them (issue #75).
 """
 
 from pathlib import Path
@@ -21,10 +22,8 @@ from research_gap_dashboard.dashboard.corpus_scope import (
   load_scope,
   save_scope,
 )
-from research_gap_dashboard.dashboard.views.run_controls import (
-  render_last_run,
-  render_run_button,
-)
+from research_gap_dashboard.dashboard.views.paper_upload import render_paper_upload
+from research_gap_dashboard.dashboard.views.run_controls import render_last_run
 from research_gap_dashboard.dashboard.views.session_keys import PENDING_CORPUS_KEY
 
 
@@ -84,9 +83,9 @@ def render_scope(corpus_root: Path) -> None:
 def render_unbuilt_corpus(chosen: CorpusChoice) -> None:
   """Render the holding page for a Corpus whose Papers have not been ingested yet."""
   root = chosen.root
-  st.info(text.CORPUS_HAS_NO_PAPERS.format(papers_dir=root / "papers", root=root))
+  st.info(text.CORPUS_HAS_NO_PAPERS)
   render_last_run(root)
-  render_run_button(root, "ingest", text.RUN_INGEST_BUTTON)
+  render_paper_upload(root, expanded=True)
 
 
 def _scope_inputs(key_prefix: str) -> tuple[str, str, str]:

@@ -4,7 +4,8 @@ The Pipeline page: every stage's status, with a run or re-run button for each.
 Status (done / not run / stale) comes from `pipeline_status`; the buttons launch
 the stage through `run_controls` (ADR 0007). Cost is kept out of the way, in a
 collapsed "Run details" expander with each LLM stage's estimate and the last
-run's actual cost (issue #70).
+run's actual cost (issue #70). An Add Papers panel uploads more Papers into an
+ingested Corpus and checks their pairing before re-ingesting (issue #75).
 """
 
 from pathlib import Path
@@ -26,6 +27,7 @@ from research_gap_dashboard.dashboard.run_cost import (
   estimate_stage_cost,
   uses_llm,
 )
+from research_gap_dashboard.dashboard.views.paper_upload import render_paper_upload
 from research_gap_dashboard.dashboard.views.run_controls import (
   render_last_run,
   render_run_button,
@@ -41,6 +43,7 @@ def render_page(chosen: CorpusChoice) -> None:
   st.header(text.PIPELINE_HEADING)
   render_last_run(corpus_root)
   st.markdown(text.PIPELINE_INTRO)
+  render_paper_upload(corpus_root, expanded=False)
   for status in build_pipeline_status(corpus_root):
     _render_stage(corpus_root, status)
   _render_run_details(corpus_root)

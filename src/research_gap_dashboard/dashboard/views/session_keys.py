@@ -49,3 +49,7 @@ COMPARISON_PAPERS_KEY = "comparison_paper_keys"
 # gives the widget a new identity and throws the researcher's later choice away.
 EXPLAINER_PICKER_KEY = "explainer_paper_picker"
 COMPARISON_PICKER_KEY = "comparison_paper_picker"
+# The Add Papers panel keeps what its last upload placed and the pairing check
+# that followed, so both stay on screen across the rerun the upload triggers
+# (issue #75).
+UPLOAD_STATE_KEY = "paper_upload_state"

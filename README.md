@@ -186,6 +186,18 @@ ingest with DOI resolution** on the citation and author graphs). With no
 ingested corpus at all, the app offers **Run ingest** for each folder under
 `RESEARCH_GAP_CORPORA_DIR` that holds a `papers/` directory.
 
+Papers are added in the app too. A Corpus created with **New analysis** opens
+on an **Add Papers** panel (also on the Pipeline page, collapsed, for adding to
+an ingested Corpus): upload the PDFs and a paper list (`.bib` or a `.txt` DOI
+list). PDFs land in `papers/`; the paper list becomes `corpus.bib`/`dois.txt` or
+is appended to the existing one, skipping entries already listed. Straight
+after an upload the app runs `ingest --check`, which pairs the paper list with
+the PDFs exactly as ingest would but writes nothing, and shows the unmatched
+entries and orphan PDFs to fix. **Ingest the Corpus** checks again and runs
+`ingest` only when the Corpus is inside the 10–75 Paper envelope; outside it,
+ingest is refused with the count. The manifest is still written only by
+`ingest`.
+
 The Verify Extractions page (available once `extract` and `parse` have run) lets
 a researcher check each Paper's Extraction against its own text, one field at a
 time, and leave per-field verdicts: approve, edit, flag wrong, remove a
