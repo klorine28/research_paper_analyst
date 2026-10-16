@@ -1079,6 +1079,92 @@ RUN_CONFIRM_PROMPT = (
 RUN_CONFIRM_BUTTON = "Run anyway"
 RUN_CANCEL_BUTTON = "Cancel"
 
+# Guided navigation (issue #76): the home screen, the phase-grouped numbered
+# sidebar, the step bar on every page, and Previous/Next. The step order and
+# phases follow the navigation prototype verdict (prototypes/VERDICT.md on the
+# prototype/guided-flow branch).
+PAGE_HOME = "Home"
+STEP_NAMES = {
+  "scope": "Scope",
+  "build": "Build",
+  "trust": "Trust",
+  "explore": "Explore",
+  "judge": "Judge",
+  "grow": "Grow",
+  "write": "Write",
+}
+STEP_BLURBS = {
+  "scope": "State the question and record what was searched.",
+  "build": "Run the pipeline; each stage shows done, not run or stale.",
+  "trust": "Face the denominator: fix the Papers that fell out, verify facts.",
+  "explore": "The map: coverage and meta-analysis, sparse cells first.",
+  "judge": "Accept or reject each Candidate Gap with its Evidence.",
+  "grow": "Optional: Papers likely missing from the Corpus.",
+  "write": "Discuss the Corpus and build the narrative from accepted gaps.",
+}
+PHASE_NAMES = {
+  "set_up": "Set up",
+  "check": "Check",
+  "analyse": "Analyse",
+  "extend": "Extend",
+}
+STEP_LABEL = "{number} \u00b7 {name}"
+STEP_DONE_MARK = "\u2713 "
+STEP_BAR_HELP_DONE = "Completed"
+STEP_BAR_HELP_TODO = "Not completed yet"
+NAV_PREVIOUS = "\u2190 Previous: {step}"
+NAV_NEXT = "Next: {step} \u2192"
+NAV_HOME_LINK = "\U0001f3e0 Home"
+
+HOME_HEADING = "Home"
+HOME_INTRO = (
+  "The guided path runs Scope \u2192 Build \u2192 Trust \u2192 Explore \u2192 "
+  "Judge \u2192 Grow \u2192 Write. Follow the recommended step, or jump to any "
+  "page from the sidebar."
+)
+HOME_RECOMMENDED_HEADING = "Recommended next step"
+HOME_GO_TO_STEP = "Go to {step} \u2192"
+HOME_HEALTH_HEADING = "Corpus health"
+HOME_METRIC_PAPERS = "Papers"
+HOME_METRIC_REACHED = "Reached the artifact"
+HOME_METRIC_STAGES = "Pipeline stages done"
+HOME_METRIC_GAPS = "Candidate Gaps"
+HOME_METRIC_ACCEPTED = "Accepted"
+HOME_METRIC_UNDECIDED = "Undecided"
+HOME_HEALTH_CAPTION = (
+  "Papers reached = Papers in the artifact with at least one verified fact, out "
+  "of the {total} in the manifest. Gap counts are over the Candidate Gaps the "
+  "last detect run wrote."
+)
+HOME_STEPS_HEADING = "The steps"
+HOME_STEP_LINE = "{mark}**{label}**: {blurb}"
+
+# Why the home screen recommends a step, derived from pipeline status and fallout.
+RECOMMEND_SCOPE = (
+  "This Corpus has no scope statement. Record its question, field and what was "
+  "searched so every page can state it."
+)
+RECOMMEND_BUILD_NOT_RUN = (
+  "The `{stage}` stage has not run yet. Run it from the Pipeline."
+)
+RECOMMEND_BUILD_STALE = (
+  "The `{stage}` stage is out of date: one of its inputs changed since it ran. "
+  "Re-run it from the Pipeline."
+)
+RECOMMEND_TRUST = (
+  "{reached} of {total} Papers reached the artifact, and {attention} need manual "
+  "attention. Fix what fell out before reading the gaps, or keep the "
+  "denominator in mind."
+)
+RECOMMEND_EXPLORE = (
+  "The Corpus is built and nothing fell out. Look at the map before judging the "
+  "{gaps} Candidate Gaps."
+)
+RECOMMEND_JUDGE = "{undecided} of {gaps} Candidate Gaps are still undecided."
+RECOMMEND_WRITE = (
+  "Every Candidate Gap has a verdict ({accepted} accepted). Build the write-up "
+  "from the accepted ones."
+)
 # Exporting the write-up (issue #82): the narrative as Markdown, a BibTeX file of
 # the Corpus Papers it cites, and the scope-and-limits statement. The exported
 # text states no export time, so the same judgments export byte-identical files.

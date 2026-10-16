@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import StubLlmClient
+from conftest import StubLlmClient, open_page
 from test_detect import _PLACEMENTS, _write_corpus
 
 import research_gap_dashboard.analytics as analytics_module
@@ -63,7 +63,7 @@ def _run_analytics(
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
-  app.radio[0].set_value(PAGE_ANALYTICS).run()
+  open_page(app, PAGE_ANALYTICS)
   return app
 
 
@@ -187,7 +187,7 @@ def _run_with_narrative(corpus: Path, monkeypatch: pytest.MonkeyPatch):
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
-  app.radio[0].set_value(PAGE_ANALYTICS).run()
+  open_page(app, PAGE_ANALYTICS)
   return app, prompts
 
 

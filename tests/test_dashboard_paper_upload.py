@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from conftest import open_page
 from streamlit.testing.v1 import AppTest
 
 import research_gap_dashboard.dashboard as dashboard_pkg
@@ -334,7 +335,8 @@ def test_ingest_runs_after_the_check_and_opens_the_corpus(
     (corpus / "artifacts" / "corpus-manifest.json").read_text(encoding="utf-8")
   )
   assert len(manifest["papers"]) == 10
-  assert text.PAGE_OVERVIEW in [header.value for header in app.header]
+  # The ingested Corpus opens on its Home screen, the guided start (#76).
+  assert text.HOME_HEADING in [header.value for header in app.header]
 
 
 def test_a_corpus_outside_the_envelope_is_refused_before_ingest(
@@ -376,7 +378,7 @@ def test_papers_can_be_added_to_an_ingested_corpus_from_the_pipeline_page(
   place_pdfs(corpus, _pdfs(keys))
   assert cli.main(["ingest", str(corpus)]) == 0
   app = _open(corpus.parent, monkeypatch)
-  app.sidebar.radio[0].set_value(text.PAGE_PIPELINE).run()
+  app = open_page(app, text.PAGE_PIPELINE)
 
   app = _upload(app, _pdfs(["extra"]), ("more.bib", _bib(["extra"])))
 

@@ -7,6 +7,7 @@ scope statement on every page, and a prompt for Corpora created before scopes
 existed.
 """
 
+from conftest import open_page
 import json
 from pathlib import Path
 
@@ -195,7 +196,7 @@ def test_the_scope_statement_is_shown_on_every_page(
   app = _run_app(tmp_path, monkeypatch)
 
   for page in (text.PAGE_OVERVIEW, text.PAGE_GAP_CARDS, text.PAGE_ATTENTION):
-    app.sidebar.radio[0].set_value(page).run()
+    open_page(app, page)
     assert not app.exception
     shown = _page_text(app)
     assert "Is Z rare?" in shown, page

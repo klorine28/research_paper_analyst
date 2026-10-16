@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import StubLlmClient
+from conftest import StubLlmClient, open_page
 from test_detect import _PLACEMENTS, _write_corpus
 
 import research_gap_dashboard.dashboard as dashboard_pkg
@@ -189,7 +189,7 @@ def _run_gap_cards_app(corpus: Path, monkeypatch: pytest.MonkeyPatch):
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
-  app.radio[0].set_value("Gap Cards").run()
+  open_page(app, "Gap Cards")
   return app
 
 
@@ -422,8 +422,8 @@ def test_gap_cards_page_shows_the_hidden_count_and_keeps_the_filter(
 
   assert GAP_FILTER_SUMMARY.format(shown=4, total=4, hidden=0) in captions()
 
-  app.radio[0].set_value(PAGE_OVERVIEW).run()
-  app.radio[0].set_value("Gap Cards").run()
+  open_page(app, PAGE_OVERVIEW)
+  open_page(app, "Gap Cards")
 
   assert not app.exception
   assert app.multiselect[0].value == ["high", "medium", "low"]

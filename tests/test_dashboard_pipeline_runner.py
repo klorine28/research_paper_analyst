@@ -8,6 +8,7 @@ and how exit codes map to the outcome the researcher sees. The Gap Cards empty
 state is driven through `AppTest`, the way the researcher meets it.
 """
 
+from conftest import open_page
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -268,7 +269,7 @@ def _open_gap_cards(corpus: Path, monkeypatch: pytest.MonkeyPatch):
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
-  app.radio[0].set_value(text.PAGE_GAP_CARDS).run()
+  open_page(app, text.PAGE_GAP_CARDS)
   return app
 
 

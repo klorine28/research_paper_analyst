@@ -10,6 +10,7 @@ never a measured zero, and every graph names the question it answers and carries
 the incomplete-Corpus caveat.
 """
 
+from conftest import open_page
 import plotly.graph_objects as go
 
 from research_gap_dashboard.dashboard.artifacts import (
@@ -541,7 +542,7 @@ def test_meta_page_shows_the_six_graphs_as_gallery_tiles(tmp_path, monkeypatch):
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(root.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=60).run()
-  app.radio[0].set_value("Field Meta-Analysis").run()
+  open_page(app, "Field Meta-Analysis")
 
   assert not app.exception
   tile_keys = [

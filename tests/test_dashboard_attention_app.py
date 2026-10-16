@@ -9,6 +9,7 @@ rebuilt from the artifacts they wrote. The subprocess is patched; a stand-in
 observable without running the pipeline.
 """
 
+from conftest import open_page
 import json
 import subprocess
 from pathlib import Path
@@ -113,7 +114,7 @@ def _open_attention(corpus: Path, monkeypatch: pytest.MonkeyPatch) -> AppTest:
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
-  app.radio[0].set_value(text.PAGE_ATTENTION).run()
+  open_page(app, text.PAGE_ATTENTION)
   return app
 
 

@@ -7,6 +7,7 @@ queries/hits drill-down, and the "Check wider literature" button, whose
 subprocess is patched so the real CLI never runs.
 """
 
+from conftest import open_page
 import shutil
 import subprocess
 from datetime import UTC, datetime
@@ -138,7 +139,7 @@ def _open_all_gap_cards(corpus: Path, monkeypatch: pytest.MonkeyPatch):
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
-  app.radio[0].set_value(text.PAGE_GAP_CARDS).run()
+  open_page(app, text.PAGE_GAP_CARDS)
   app.multiselect[0].set_value(["high", "medium", "low"]).run()
   return app
 

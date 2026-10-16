@@ -2,12 +2,14 @@
 The Streamlit app shell: corpus selection, navigation, and page dispatch.
 
 This layer is deliberately thin. It picks (or creates) a Corpus, states its
-scope, applies any pending page switch, and hands the chosen page to its
-renderer in `dashboard.page_registry`; each page lives in its own module under
-`dashboard.views`. It holds no analysis logic and imports no pipeline stage
-(ADR 0002). Run it with `streamlit run` (see the justfile). Point it at the
-folder that holds your corpus directories with the RESEARCH_GAP_CORPORA_DIR
-environment variable; new Corpora created in the app are made there.
+scope, applies any pending page switch, draws the guided navigation (the
+phase-grouped sidebar, the step bar and Previous/Next, issue #76) and hands the
+chosen page to its renderer in `dashboard.page_registry`; each page lives in its
+own module under `dashboard.views`. It holds no analysis logic and imports no
+pipeline stage (ADR 0002). Run it with `streamlit run` (see the justfile). Point
+it at the folder that holds your corpus directories with the
+RESEARCH_GAP_CORPORA_DIR environment variable; new Corpora created in the app are
+made there.
 """
 
 import os
@@ -23,11 +25,17 @@ from research_gap_dashboard.dashboard.artifacts import (
   has_manifest,
 )
 from research_gap_dashboard.dashboard.attention import build_attention
-from research_gap_dashboard.dashboard.page_registry import page_for, page_titles
+from research_gap_dashboard.dashboard.guided_flow import build_flow_progress
+from research_gap_dashboard.dashboard.page_registry import first_page_title, page_for
 from research_gap_dashboard.dashboard.views.corpus_setup import (
   render_new_analysis,
   render_scope,
   render_unbuilt_corpus,
+)
+from research_gap_dashboard.dashboard.views.navigation import (
+  render_previous_next,
+  render_sidebar_nav,
+  render_step_bar,
 )
 from research_gap_dashboard.dashboard.views.run_controls import (
   render_last_run,
@@ -38,6 +46,7 @@ from research_gap_dashboard.dashboard.views.session_keys import (
   NAV_PAGE_KEY,
   PENDING_CORPUS_KEY,
   PENDING_NAV_KEY,
+  PENDING_STEP_KEY,
 )
 from research_gap_dashboard.env import load_env
 
@@ -66,25 +75,18 @@ def _select_corpus(choices: list[CorpusChoice]) -> CorpusChoice:
 
 def _apply_pending_nav() -> None:
   """
-  Honour a page switch requested last run, before the nav radio is built.
+  Honour a page switch requested last run, before the sidebar is built.
 
-  A widget's state key can't be set once its widget exists, so a card's "Discuss
-  this gap" button records the target page here and this runs before the radio is
-  instantiated (issue #48).
+  A page that switches to another (a card's "Discuss this gap", issue #48)
+  records the target page, and the Home screen records the recommended step
+  (issue #76); either way the switch lands here on the next run.
   """
   pending = st.session_state.pop(PENDING_NAV_KEY, None)
   if pending is not None:
     st.session_state[NAV_PAGE_KEY] = pending
-
-
-def _select_page() -> str:
-  """Render the sidebar page picker and return the chosen page."""
-  return st.sidebar.radio(
-    text.NAV_LABEL,
-    page_titles(),
-    key=NAV_PAGE_KEY,
-    label_visibility="collapsed",
-  )
+  step = st.session_state.pop(PENDING_STEP_KEY, None)
+  if step is not None:
+    st.session_state[NAV_PAGE_KEY] = first_page_title(step)
 
 
 def main() -> None:
@@ -109,8 +111,13 @@ def main() -> None:
     return
   _render_incompleteness_banner(chosen.root)
   _apply_pending_nav()
-  page = _select_page()
-  page_for(page).render(chosen)
+  page = page_for(st.session_state.get(NAV_PAGE_KEY, ""))
+  progress = build_flow_progress(chosen.root)
+  render_sidebar_nav(page.title, progress)
+  render_step_bar(page.step, progress)
+  page.render(chosen)
+  st.divider()
+  render_previous_next(page.step)
 
 
 def _render_ingestable_folders(corpora_root: Path) -> None:

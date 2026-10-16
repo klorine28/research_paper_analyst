@@ -9,6 +9,7 @@ sit in a collapsed "Run details", and a run whose estimate is above
 pipeline never runs here: `subprocess.run` is patched.
 """
 
+from conftest import open_page
 import json
 import os
 import subprocess
@@ -256,7 +257,7 @@ def _open_pipeline(corpus: Path, monkeypatch: pytest.MonkeyPatch):
   monkeypatch.delenv("LLM_DEFAULT_MODEL", raising=False)
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
-  app.radio[0].set_value(text.PAGE_PIPELINE).run()
+  open_page(app, text.PAGE_PIPELINE)
   return app
 
 
