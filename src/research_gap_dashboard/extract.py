@@ -186,6 +186,8 @@ class ExtractReport(BaseModel):
   corpus_root: Path
   prompt_version: str
   tier: ModelTier
+  # The model ID behind `tier`; defaulted so older artifacts still load.
+  model: str = ""
   extractions: list[Extraction]
   failures: list[ExtractionFailure]
   unverified: list[UnverifiedFact] = Field(default_factory=list)
@@ -197,6 +199,7 @@ def extract_corpus(
   *,
   prompt_version: str = PROMPT_VERSION,
   tier: ModelTier = "default",
+  model: str = "",
 ) -> ExtractReport:
   """
   Extract structured facts for every Paper and write the Extractions artifact.
@@ -257,6 +260,7 @@ def extract_corpus(
     corpus_root=root,
     prompt_version=prompt_version,
     tier=tier,
+    model=model,
     extractions=extractions,
     failures=failures,
     unverified=unverified,

@@ -110,6 +110,15 @@ baseline). `docs/FUNCTIONALITY.md` was stale and has been corrected.
   and close to green in grayscale (ΔL\* 7.66); a hatch/pattern or darker grey
   would separate "not yet checkable" from "addressed" more safely.
 
+> **Resolved (#100).** The teal `#009E73` / vermillion `#D55E00` pair suggested
+> under C3 fails the grayscale screen (ΔL\* 3.5), so the bar now uses darkened
+> Okabe–Ito blue `#00497A` addressed / vermillion `#D55E00` open / grey
+> `#666666` no-later: each ≥ 3.87:1 on white, pairwise ΔL\* 11.0 / 13.4 /
+> 24.4, with count labels coloured to reach ≥ 4.5:1 on their segment (C3, C4).
+> The selected amber is darkened to `#C98714` (3.02:1 on white; ΔL\* ≥ 10.5
+> from connected and isolated) (C2). The screen is pinned by tests in
+> `tests/test_dashboard_meta_analysis.py`.
+
 ### Trends line chart
 
 - **C5 (severity 3).** Topic *status* is encoded redundantly (emerging solid /
@@ -122,6 +131,14 @@ baseline). `docs/FUNCTIONALITY.md` was stale and has been corrected.
   labels; cap the number of lines and move the rest to a table, as the
   co-occurrence graphs already do.
 
+> **Resolved (#101).** Each line now takes its own Okabe–Ito colour (yellow
+> `#F0E442` dropped for contrast on white) and its own marker symbol. The
+> seven-colour palette is the line cap: emerging and abandoned Topics claim
+> lines first, the most-covered steady Topics fill the rest, and the remainder
+> are listed in a table under the chart with a caption stating how many. The
+> status encoding (solid / dashed / thin) is unchanged. Pinned by tests in
+> `tests/test_dashboard_coverage.py`.
+
 ### Overview mini-bars
 
 - **C6 (severity 2).** `_render_mini_bar` hides the x axis entirely and puts
@@ -130,6 +147,13 @@ baseline). `docs/FUNCTIONALITY.md` was stale and has been corrected.
   (full `st.bar_chart`) is the fallback, so severity 2 — but the thumbnail alone
   misleads about which bar is which until opened.
 
+  > **Resolved (#103).** Every thumbnail bar now carries a visible tick
+  > (`build_mini_bar`): the category name itself when every name fits (≤ 7
+  > characters, e.g. years), otherwise the bar's number, which the caption under
+  > the thumbnail maps back to the full name ("1. European Heart Journal (2);
+  > …"). Hover only repeats it. Pinned by tests in
+  > `tests/test_dashboard_overview.py`.
+
 ## Accessibility gaps across all charts
 
 - **C7 (severity 2).** No **alt text / long description** on any figure. Plotly
@@ -137,6 +161,18 @@ baseline). `docs/FUNCTIONALITY.md` was stale and has been corrected.
   text summaries partially cover the node-link charts; Trends, the limitation
   bar, and the mini-bars have no text alternative. Add a short text summary
   beside each (the networks already model one — extend the pattern).
+
+  > **Resolved (#102).** Trends, the limitation bar and every mini-bar now carry
+  > a text summary under the chart, in the thumbnail tile and the expanded
+  > panel alike. Each states what the chart shows and its denominator: Trends
+  > names its lines, span, dated-Paper count, most-covered Topic and
+  > emerging/abandoned counts (`trends_text_summary`); the limitation bar gives
+  > each segment's count and share of the limitation groups
+  > (`limitation_bar_text_summary`); each mini-bar lists every bar with its
+  > count and the Papers it was counted over (`MiniBar.summary`), which also
+  > answers C6's hover-only labels. Pinned by tests in
+  > `tests/test_dashboard_coverage.py`, `tests/test_dashboard_meta_analysis.py`
+  > and `tests/test_dashboard_overview.py`.
 - **C8 (severity 2).** **Interactive-only, no static export.** The dashboard
   renders only live Plotly; there is no static figure export, no DPI/dimension
   control, no provenance manifest. For a tool whose output a researcher may put

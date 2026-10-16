@@ -808,7 +808,12 @@ def _run_extract(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   try:
-    report = extract_corpus(arguments.corpus, client, tier=arguments.tier)
+    report = extract_corpus(
+      arguments.corpus,
+      client,
+      tier=arguments.tier,
+      model=LlmConfig.from_env().model_for(arguments.tier),
+    )
   except FileNotFoundError as error:
     logger.error("Run `ingest` and `parse` first: %s", error)
     return EXIT_ERROR
@@ -840,7 +845,13 @@ def _run_explain(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   try:
-    report = explain_corpus(arguments.corpus, client, tier=arguments.tier)
+    report = explain_corpus(
+      arguments.corpus,
+      client,
+      tier=arguments.tier,
+      model=LlmConfig.from_env().model_for(arguments.tier),
+      usage=arguments.llm_usage,
+    )
   except FileNotFoundError as error:
     logger.error("Run `ingest` and `parse` first: %s", error)
     return EXIT_ERROR
@@ -873,7 +884,13 @@ def _run_aggregate(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   try:
-    report = aggregate_corpus(arguments.corpus, client, taxonomies, tier=arguments.tier)
+    report = aggregate_corpus(
+      arguments.corpus,
+      client,
+      taxonomies,
+      tier=arguments.tier,
+      model=LlmConfig.from_env().model_for(arguments.tier),
+    )
   except FileNotFoundError as error:
     logger.error("Run `extract` first: %s", error)
     return EXIT_ERROR

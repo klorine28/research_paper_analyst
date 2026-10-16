@@ -100,6 +100,7 @@ def render_paper_explainer(
   st.write(view.domain_explanation)
   st.markdown(f"**{text.EXPLAINER_LAY_HEADING}**")
   st.write(view.lay_explanation)
+  st.caption(view.provenance)
 
 
 def _load_explainer_view(
