@@ -131,8 +131,13 @@ Builds Coverage Matrices and cards the four in-Corpus gap signals into
   addressed (LLM-grouped).
 
 Matrix detection is deterministic; only cells whose two categories both occur
-in the Corpus count. Sparse threshold is provisional: empty cells only under 25
-Papers, empty-or-single at 25+. Every card carries confidence, reasoning,
+in the Corpus count. One candidate rule at every Corpus size: a cell is a
+candidate if it is empty, or holds one Paper where more than one was expected.
+Confidence starts from L1, the hypergeometric lower tail `P(X ≤ observed)`
+(≤ 0.05 High, ≤ 0.20 Medium, else Low), a ranking score that cards explain in
+counts and never call significant. The artifact records the rule, each cell's
+`l1_probability`, and the smallest equal category sizes that can rank High or
+Medium at this Corpus size. Every card carries confidence, reasoning,
 denominator, and in-Corpus Evidence.
 
 ### Retrieve — `retrieval.py`
@@ -194,7 +199,7 @@ a page.
 | Retrieval Gaps | `retrieval.py` | `retrieval_gaps.json` | out-of-corpus candidates ranked by citation overlap, kept visually and verbally separate (warning banner) as candidates for improving the search, not evidence-linked gaps |
 | Paper Explainer | `explainer.py` | `corpus-manifest.json` + per-Paper `*.explanation.json` | a Paper picker, then that Paper's experiment explained in **domain** and **lay** language, next to a link back to the Paper's metadata (title, venue, DOI) |
 | Paper Comparison | `comparison.py` | `corpus-manifest.json` + `extractions.json` + `normalized_facts.json` | pick 2–15 Papers; compares them field by field (research question, methods, population, datasets, findings, limitations), highlights **agreements/differences** and a **mini coverage matrix** of blind spots (grounded in shared normalized categories), and splits 6–15 Papers into summarized sets of ≤5 before comparing |
-| Conversational Analytics | `analytics.py`, `fact_retrieval.py`, `fact_pool.py`, `chat_history.py` | `corpus-manifest.json`, `extractions.json` + `normalized_facts.json` (per-question facts), `candidate_gaps.json` and `judgments/gap_judgments.json` (summary) | a chat grounded in the Corpus, each question pulling in its relevant extracted facts and Evidence, and a **narrative summary** for a "gaps in the literature" section, built **only from accepted gaps** and stating its denominator (N accepted gaps over M Papers, with rejected and undecided counts excluded); both cite **only Corpus Papers** (every generated citation checked against the Corpus, ungrounded ones dropped and flagged), and the conversation persists to `judgments/chat_history.json` |
+| Conversational Analytics | `analytics.py`, `fact_retrieval.py`, `fact_pool.py`, `chat_history.py`, `export.py` | `corpus-manifest.json`, `extractions.json` + `normalized_facts.json` (per-question facts), `candidate_gaps.json` and `judgments/gap_judgments.json` (summary) | a chat grounded in the Corpus, each question pulling in its relevant extracted facts and Evidence, and a **narrative summary** for a "gaps in the literature" section, built **only from accepted gaps** and stating its denominator (N accepted gaps over M Papers, with rejected and undecided counts excluded), which can be **exported** as Markdown, a BibTeX file of only the Corpus Papers it cites, and the scope-and-limits statement (question, field, what was searched, denominator, year span, unplaced entries); both cite **only Corpus Papers** (every generated citation checked against the Corpus, ungrounded ones dropped and flagged), and the conversation persists to `judgments/chat_history.json` |
 | Verify Extractions | `verify.py`, `extraction_review.py` | `extractions.json` + parsed text | per-Paper review of each extracted fact against its Evidence: approve, edit, flag, remove, or add a fact; edits must quote the parsed text verbatim; saved as a `judgments/` overlay (ADR 0003) |
 | Needs Attention | `attention.py`, `parse_corrections.py` | manifest + `parse-report.json` + `extractions.json` | the Papers that fell out (unparsed, extraction rejected, facts dropped) with reasons, and a paste-corrected-text box that writes a `judgments/` overlay (ADR 0006); the same read model drives the incompleteness banner on every page |
 

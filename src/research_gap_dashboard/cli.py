@@ -665,10 +665,10 @@ def _run_detect(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   logger.info(
-    "Found %d candidate gaps over %d Papers (cells with at most %d Papers).",
+    "Found %d candidate gaps over %d Papers. %s",
     len(report.gaps),
     report.corpus_paper_count,
-    report.sparse_max_count,
+    report.candidate_rule,
   )
   return EXIT_OK
 

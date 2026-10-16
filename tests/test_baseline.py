@@ -304,7 +304,7 @@ def corpus_fixture(cardiology_corpus: Path, tmp_path: Path) -> Path:
       corpus_root=root,
       corpus_paper_count=7,
       extracted_paper_count=8,
-      sparse_max_count=0,
+      candidate_rule="A cell is a candidate if it is empty.",
       normalized_prompt_version="aggregate-v3",
       limitation_prompt_versions=["group-v1", "follow-up-v1"],
       tier="default",

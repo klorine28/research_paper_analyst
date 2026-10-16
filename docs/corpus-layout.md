@@ -57,20 +57,26 @@ rerun over the same artifacts gives the same `candidate_gaps.json`.
 
 - **Matrices** use only the categories that at least one Paper was placed on,
   so an empty cell means "both exist in the Corpus, never together".
-- **Knowledge Gaps** are empty or sparse Topic × Topic cells; **Coverage Gaps**
-  are empty or sparse Topic × Method, Topic × Population, and Topic × Dataset
-  cells.
-- **Sparse** is provisional (`docs/BRIEF.md`): only empty cells for Corpora
-  under 25 Papers; empty or single-Paper cells at 25 and above.
+- **Knowledge Gaps** are candidate Topic × Topic cells; **Coverage Gaps** are
+  candidate Topic × Method, Topic × Population, and Topic × Dataset cells.
+- **The candidate net** is one rule at every Corpus size (ADR 0008 §2): a cell
+  is a candidate if it is empty, or holds one Paper while more than one was
+  expected (row Papers × column Papers / Corpus Papers above 1). The artifact
+  records the rule as `candidate_rule`.
 - **Every card** states its cell count and denominator, a confidence level
   with its reasoning, and Evidence links to the passages that put Papers on
   the cell's two categories. An empty cell has no Papers of its own, so it
   cites the Papers behind its row and its column. Only Papers in the manifest
   are ever cited.
-- **Confidence** is a v1 heuristic, not a statistical test. It compares the
-  cell with the number of Papers expected if its two categories were
-  independent: high when 2 or more were expected, medium from 1, low below 1.
-  A single-Paper cell drops one level.
+- **Confidence** starts from L1 (ADR 0008 §1): the one-sided hypergeometric
+  lower tail `P(X ≤ observed)` of the cell given its two category sizes,
+  recorded as `l1_probability`. At most 0.05 starts High, at most 0.20 Medium,
+  anything above Low. It is a ranking score, not a significance test: no
+  multiplicity correction, and cards explain it in counts ("about 2.5 of 10
+  Papers would combine them; 0 do … about 1 time in 252"). Each card's `trail`
+  records L1 as its `start` step. `l1_smallest_margins` gives, for this
+  Corpus size, the smallest equal category sizes at which an empty cell can
+  rank High or Medium.
 
 ## Per-Paper derived data
 

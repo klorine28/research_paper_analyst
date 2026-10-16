@@ -10,6 +10,7 @@ from conftest import ScriptedLlmClient, StubLlmClient
 
 from research_gap_dashboard import cli
 from research_gap_dashboard.aggregate import (
+  AggregateReport,
   NormalizedFacts,
   aggregate_corpus,
   aggregate_paper,
@@ -470,6 +471,64 @@ def test_aggregate_corpus_writes_artifact_for_every_paper(
   reread = read_normalized_facts(extracted_corpus)
   assert reread.prompt_version == "aggregate-v3"
   assert reread.normalized[0].category_ids("method") == ["retrospective-studies"]
+
+
+def test_aggregate_records_each_axis_hierarchy(
+  extracted_corpus: Path, tmp_path: Path
+) -> None:
+  """The artifact keeps category id → parent id per axis, tree-derived included."""
+  topics = _load(
+    tmp_path,
+    "topic",
+    _TOPIC_TOML
+    + """
+[[topics]]
+id = "diagnostic-imaging"
+label = "Diagnostic Imaging"
+mesh_id = "D003952"
+mesh_tree = "E01.370.350"
+
+[[topics]]
+id = "cardiomyopathies"
+label = "Cardiomyopathies"
+mesh_id = "D009202"
+
+[[topics]]
+id = "dilated"
+label = "Dilated Cardiomyopathy"
+mesh_id = "D002311"
+parent = "cardiomyopathies"
+""",
+  )
+  taxonomies = [topics, _load(tmp_path, "method", _METHOD_TOML)]
+
+  aggregate_corpus(extracted_corpus, _grounded_client(), taxonomies)
+
+  reread = read_normalized_facts(extracted_corpus)
+  assert reread.parents("topic") == {
+    "echocardiography": "diagnostic-imaging",
+    "dilated": "cardiomyopathies",
+  }
+  assert reread.parents("method") == {}
+  assert reread.parents("dataset") == {}
+
+
+def test_an_artifact_without_hierarchies_reads_as_flat() -> None:
+  """NormalizedFacts written before the roll-up layer load with no parents."""
+  legacy = AggregateReport.model_validate(
+    {
+      "corpus_root": ".",
+      "prompt_version": "aggregate-v3",
+      "tier": "default",
+      "taxonomies": [
+        {"axis": "topic", "domain": "x", "source": "y", "category_count": 2}
+      ],
+      "normalized": [],
+      "failures": [],
+    }
+  )
+
+  assert legacy.parents("topic") == {}
 
 
 def test_a_misfiring_axis_fails_the_paper_and_names_the_axis(
