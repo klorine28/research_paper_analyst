@@ -29,7 +29,11 @@ from research_gap_dashboard.aggregate import (
   load_pipeline_taxonomies,
 )
 from research_gap_dashboard.dashboard.judgments import record_judgment
-from research_gap_dashboard.detect import StatementEvidence, UnansweredLimitationGap
+from research_gap_dashboard.detect import (
+  LayerStep,
+  StatementEvidence,
+  UnansweredLimitationGap,
+)
 from research_gap_dashboard.extract import Evidence
 from research_gap_dashboard.cli import EXIT_ERROR, EXIT_INCOMPLETE, EXIT_OK, main
 from research_gap_dashboard import cli
@@ -457,6 +461,14 @@ def _limitation(statement: str) -> UnansweredLimitationGap:
     source_citation_keys=["p1"],
     later_paper_count=0,
     corpus_paper_count=2,
+    trail=[
+      LayerStep(
+        layer="limitation_follow_up",
+        effect="start",
+        level_after="low",
+        reason="",
+      )
+    ],
     evidence=[
       StatementEvidence(
         citation_key="p1",

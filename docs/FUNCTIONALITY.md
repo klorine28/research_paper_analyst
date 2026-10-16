@@ -57,11 +57,11 @@ A Corpus is one directory (see `docs/corpus-layout.md` and
 | Extract | `extract <corpus> [--tier default\|cheap]` | manifest + parsed text | `extractions.json` | yes | yes (uncached) |
 | Explain | `explain <corpus> [--tier default\|cheap]` | manifest + parsed text | per-Paper `*.explanation.json` in `paper-data/` | yes | yes (uncached) |
 | Aggregate | `aggregate <corpus> [--taxonomy FILE ...] [--tier ...]` | extractions + taxonomies | `normalized_facts.json` | yes | yes (uncached) |
-| Detect | `detect <corpus> [--tier ...]` | manifest + extractions + normalized facts | `candidate_gaps.json` | yes (limitations only) | yes (uncached) |
+| Detect | `detect <corpus> [--tier ...]` | manifest + extractions + normalized facts | `candidate_gaps.json` | yes (limitation grouping, and the L5 review of Medium+ cells and Unanswered Limitations) | yes (uncached) |
 | Retrieve | `retrieve <corpus> [--limit N] [--min-overlap N] [--mailto EMAIL]` | manifest (needs `ingest --resolve`) | `retrieval_gaps.json` | no | yes (OpenAlex) |
 | Saturate | `saturate <corpus> (--gap ID \| --accepted \| --auto) [--taxonomy FILE ...] [--tier cheap\|default]` | candidate gaps + manifest + normalized facts + taxonomies (+ Alias Overlay) | appends to `saturation_checks.json` | optional: query variants only on zero hits (cheap tier), and screening of the top hits (both skipped without a key) | yes (OpenAlex + PubMed, LLM) |
-| Add suggested | `add-suggested <corpus> --route retrieval\|saturation (--doi D \| --pmid P \| --openalex-id W) [--title T] [--year Y] [--upload PDF] [--mailto EMAIL]` | a Retrieval Gap or saturation hit + paper list | its PDF in `papers/`, a paper-list entry, `suggested_papers.json`; prints the outcome as JSON (exit 2 when pending) | no | yes (OpenAlex + the open-access host), unless `--upload` |
-| Mark unavailable | `mark-unavailable <corpus> --route ... (--doi ... ) --reason TEXT` | a suggested work | `suggested_papers.json` | no | no |
+| Add suggested | `add-suggested <corpus> --route retrieval\|saturation (--doi D \| --pmid P \| --openalex-id W) [--title T] [--year Y] [--upload PDF] [--mailto EMAIL]` | a Retrieval Gap or saturation hit + paper list | its PDF in `papers/`, a paper-list entry, `suggested_papers.json`, an `entry_log.json` entry with its route and date; prints the outcome as JSON (exit 2 when pending) | no | yes (OpenAlex + the open-access host), unless `--upload` |
+| Mark unavailable | `mark-unavailable <corpus> --route ... (--doi ... ) --reason TEXT` | a suggested work | `entry_log.json` (its unavailable list; the work leaves `suggested_papers.json`) | no | no |
 | Taxonomy | `taxonomy [FILE]` | a taxonomy file | — (validation only) | no | no |
 
 Every command exits `0` on success and `1` on a handled error; the CLI only
@@ -131,11 +131,14 @@ appended to the paper list, and both are kept only if ingest's pairing check
 then pairs them; otherwise everything is rolled back. Without a PDF the work is
 **pending**: recorded, but in neither the paper list nor `papers/`, so it is in
 no denominator. A paper is never added metadata-only. `mark-unavailable` records
-the reason and date; an upload later reverses it. The 10-75 envelope is checked
+the reason and date in the Corpus entry log, the one record of unavailable
+papers; an upload later reverses it. An added Paper is logged there too, with
+its route (retrieval suggestion or saturation hit) and date. The 10-75 envelope is checked
 first, and a work already listed (by DOI or OpenAlex id, whichever route
-suggested it) is never added twice. Every suggestion, its route(s), status and
-dated history live in `suggested_papers.json` at the Corpus root. Public reader:
-`read_suggested_papers(root)`. Re-running the stages is the caller's job: the
+suggested it) is never added twice. Pending and added suggestions, their
+route(s), status and dated history live in `suggested_papers.json` at the
+Corpus root; records an older file marks unavailable are carried into the entry
+log when it is read. Public reader: `read_suggested_papers(root)`. Re-running the stages is the caller's job: the
 dashboard chains `ingest → parse → extract → aggregate → detect` after an add.
 
 ### Ingest — `ingest.py`
@@ -198,6 +201,19 @@ counts and never call significant. The artifact records the rule, each cell's
 `l1_probability`, and the smallest equal category sizes that can rank High or
 Medium at this Corpus size. Every card carries confidence, reasoning,
 denominator, and in-Corpus Evidence.
+
+The **L5 review** (`review.py`, prompt `gap-review-v1`, three synthetic
+examples) runs last, on every cell candidate still at Medium or above and not
+rejected, and on every Unanswered Limitation; Low cells make no call. It
+rejects pseudo-gaps (generic upgrade, template reuse, pseudo-firstness,
+non-closable, low-value replication, taxonomy artifact, little meaning), naming
+the class, or keeps the gap with a Claim, Grounds, a one-sentence Warrant, an
+**Audit Basis** and a **Minimal Study** suggestion. A `least_probable` keep
+lowers the level one step; nothing raises it. Grounds and Audit Basis ids not
+among the candidate's own Evidence are dropped and noted. Rejected candidates
+stay in the artifact with the layer and class on their trail, and reviews are
+cached by input with the prompt version recorded, so a rerun is free. The
+recorded fixture is `tests/fixtures/gap-review/`.
 
 ### Retrieve — `retrieval.py`
 The one gap type that looks **outside** the Corpus (`CONTEXT.md` > Gap Type).
@@ -274,10 +290,10 @@ ticked when the Corpus is complete.
 | Page (step) | Module | Needs artifact | Shows |
 | --- | --- | --- | --- |
 | Home | `guided_flow.py`, `resume.py` | `corpus-manifest.json` (+ stage artifacts, `judgments/gap_judgments.json`, `judgments/resume_point.json`) | **Resume** at the furthest step reached, stating the saved verdicts and journal entries (once the Corpus was worked on); **Recommended next step** with its reason (no scope → Scope; a core stage not run or stale → Build; Papers fell out → Trust; no verdicts yet → Explore; undecided gaps → Judge; otherwise Write) and a button to it; Corpus health (Papers, Papers reached, pipeline stages done, Candidate Gaps, accepted, undecided); the seven steps with completed ones ticked; once detect has run twice, **Changed since last run** (gaps closed and the new Papers covering them, new gaps, verdicts that no longer reach a gap, over the Papers before and now), also shown after any detect run |
-| Corpus Overview (1 Scope) | `overview.py` | `corpus-manifest.json` | scope statement (with how many suggested papers were marked unavailable), paper/venue/year metrics, papers-per-year bar, venue table, exclusions (unmatched entries, orphan PDFs) |
+| Corpus Overview (1 Scope) | `overview.py` | `corpus-manifest.json` | scope statement, paper/venue/year metrics, papers-per-year bar, venue table, exclusions (unmatched entries, orphan PDFs) |
 | Pipeline (2 Build) | `pipeline_status.py`, `run_cost.py`, `pipeline_runner.py` | `corpus-manifest.json` (+ every stage artifact, `llm-usage.json`) | each stage as done / not run / stale (an input newer than its artifact), with a run or re-run button per stage (detect's also runs `saturate --auto` after it); a collapsed **Run details** with each LLM stage's estimated cost and its last run's actual cost; a run estimated above `LLM_COST_CONFIRM_ABOVE` asks for confirmation |
 | Field Meta-Analysis (4 Explore) | `meta_analysis.py`, `coverage.py` | `corpus-manifest.json` (+ `normalized_facts.json`, `candidate_gaps.json`) | a gallery of six graphs: citation network, Topic and Method co-occurrence (with ranked missing pairs that jump to Gap Cards), Trends (emerging/abandoned Topics), an author collaboration table, and limitation follow-up status; each carries its question, gap lens, denominator, caveat and a data-table fallback |
-| Gap Cards (5 Judge) | `gaps.py`, `judgments.py` | `candidate_gaps.json` | one card per Candidate Gap with type, confidence + reasoning, denominator, Evidence passages, and **accept/reject/clear** buttons that persist to `judgments/`; Knowledge, Coverage and Unanswered Limitation cards carry a wider-literature badge (from `saturation_checks.json`), the queries/hits drill-down, and a **Check wider literature** button that runs `saturate --gap`; above the cards, **Check all accepted gaps** runs `saturate --accepted` (counting only gaps not checked in the last 30 days, with its cost estimate going through the `LLM_COST_CONFIRM_ABOVE` confirmation), and a **Possibly addressed only** toggle beside the confidence filter narrows the list to gaps whose latest check found possibly closing work, saying how many gaps it hides; each hit can be **added to the Corpus** (open-access fetch, upload, or mark unavailable), and a hit that is also a Retrieval Gap candidate is marked so |
+| Gap Cards (5 Judge) | `gaps.py`, `judgments.py` | `candidate_gaps.json` | one card per Candidate Gap with type, confidence + reasoning, denominator, Evidence passages (plus, for a gap the L5 review kept, its Audit Basis and a Minimal Study labelled as a suggestion), and **accept/reject/clear** buttons that persist to `judgments/`; candidates a detection layer rejected leave the list (and the chat and narrative) but stay in a collapsed **Rejected by review (N)** section with every rejecting or lowering layer and its reason, where accepting one returns it to the list and records the overridden layer; Knowledge, Coverage and Unanswered Limitation cards carry a wider-literature badge (from `saturation_checks.json`), the queries/hits drill-down, and a **Check wider literature** button that runs `saturate --gap`; above the cards, **Check all accepted gaps** runs `saturate --accepted` (counting only gaps not checked in the last 30 days, with its cost estimate going through the `LLM_COST_CONFIRM_ABOVE` confirmation), and a **Possibly addressed only** toggle beside the confidence filter narrows the list to gaps whose latest check found possibly closing work, saying how many gaps it hides; each hit can be **added to the Corpus** (open-access fetch, upload, or mark unavailable), and a hit that is also a Retrieval Gap candidate is marked so |
 | Unanswered Limitations (4 Explore) | `limitations.py` | `candidate_gaps.json` | every limitation group (addressed or not) with its follow-up count, source Papers, and verbatim source passages; unanswered groups called out from addressed ones |
 | Retrieval Gaps (6 Grow) | `retrieval.py` | `retrieval_gaps.json` | out-of-corpus candidates ranked by citation overlap, kept visually and verbally separate (warning banner) as candidates for improving the search, not evidence-linked gaps; each can be **added to the Corpus** through the same Grow path as saturation hits (open-access PDF fetched, else upload, else mark unavailable with a reason; the stages then re-run), a candidate a saturation check also returned names those gaps, and unavailable ones sit in a collapsed list |
 | Paper Explainer (5 Judge) | `explainer.py` | `corpus-manifest.json` + per-Paper `*.explanation.json` | a Paper picker, then that Paper's experiment explained in **domain** and **lay** language, next to a link back to the Paper's metadata (title, venue, DOI), captioned with the model, prompt version, and cache status read from the explanation file |

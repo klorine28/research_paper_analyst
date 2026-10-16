@@ -31,6 +31,9 @@ SCOPE_NAME = "scope.json"
 # How and when each Paper entered the Corpus: an input next to the scope,
 # written by `entry_log` (ADR 0010).
 ENTRY_LOG_NAME = "entry_log.json"
+# The Grow path's record of suggested Papers, written by the pipeline's `grow`
+# (restated, not imported: ADR 0002).
+SUGGESTED_PAPERS_NAME = "suggested_papers.json"
 
 
 class ArtifactNotFoundError(FileNotFoundError):
@@ -108,6 +111,38 @@ class LayerStepRecord(_ReadModel):
   reason: str = ""
 
 
+class BridgeRecord(_ReadModel):
+  """One category bridging a cell gap's two sides, as the dashboard reads it."""
+
+  axis: str
+  category_id: str
+  label: str = ""
+  row_link_count: int = 0
+  column_link_count: int = 0
+  weight: float = 0.0
+
+
+class AuditBasisRecord(_ReadModel):
+  """What the Corpus covers around a reviewed gap, and the Evidence ids behind it."""
+
+  text: str = ""
+  evidence_ids: list[str] = []
+
+
+class GapReviewRecord(_ReadModel):
+  """The L5 review's verdict on a candidate (ADR 0008 §3), as the dashboard reads it."""
+
+  verdict: str
+  rejection_class: str | None = None
+  claim: str | None = None
+  grounds: list[str] = []
+  warrant: str = ""
+  audit_basis: AuditBasisRecord | None = None
+  minimal_study: str | None = None
+  bucket: str | None = None
+  notes: list[str] = []
+
+
 class CandidateGapRecord(_ReadModel):
   """One Candidate Gap card, projected onto what the Gap Cards view shows."""
 
@@ -118,8 +153,12 @@ class CandidateGapRecord(_ReadModel):
   confidence: str
   confidence_reason: str
   corpus_paper_count: int
-  # Cell gaps: each layer's verdict in order; empty in pre-trail artifacts.
+  # Each layer's verdict in order; empty in pre-trail artifacts.
   trail: list[LayerStepRecord] = []
+  # Cell gaps: bridging categories, strongest first; empty before bridges.
+  bridges: list[BridgeRecord] = []
+  # The L5 review; None when it did not run (Low cells, older artifacts).
+  review: GapReviewRecord | None = None
   # Cell gaps: the L1 ranking score; None in pre-L1 artifacts.
   l1_probability: float | None = None
   cell_count: int | None = None
@@ -134,8 +173,13 @@ class CandidateGapRecord(_ReadModel):
   column_label: str = ""
   row_paper_count: int = 0
   column_paper_count: int = 0
+  # Cell gaps: the limitation groups that corroborate the cell (two witnesses);
+  # empty when none does, and in artifacts written before the layer.
+  corroborating_group_ids: list[str] = []
   # Unanswered Limitations only: how many later Papers were checked.
   later_paper_count: int = 0
+  # Unanswered Limitations only: the group's limitation type, if tagged.
+  bucket: str | None = None
 
 
 class MatrixCategoryRecord(_ReadModel):

@@ -8,11 +8,14 @@ scope it is a Corpus input the dashboard writes (ADR 0007), not an artifact.
 
 The log holds two lists:
 
-- **entries**: one per Paper, written when the dashboard places it (an upload,
-  later an added suggestion), keyed by citation key and/or DOI so it can be
-  matched to the manifest Paper ingest makes of it;
+- **entries**: one per Paper, written when it is placed (a dashboard upload,
+  or a suggestion added through the pipeline's Grow path), keyed by citation
+  key and/or DOI so it can be matched to the manifest Paper ingest makes of it;
 - **unavailable**: suggested papers the researcher could not obtain (ADR 0009),
-  which are never Papers but whose absence is disclosed with the scope.
+  which are never Papers but whose absence is disclosed with the scope. The
+  log is the one record of them: the Grow path's `suggested_papers.json` keeps
+  only what it still has to fetch. Papers that older Corpora marked
+  unavailable there are carried over by `adopt_legacy_unavailable`.
 
 A manifest Paper the log has never seen (every Paper of a Corpus built before
 the log existed, or one added in a terminal) is recorded as "imported", dated
@@ -30,13 +33,14 @@ from datetime import date, datetime, timezone
 from enum import StrEnum
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard.artifacts import (
   ARTIFACTS_DIR,
   ENTRY_LOG_NAME,
   MANIFEST_NAME,
+  SUGGESTED_PAPERS_NAME,
   ManifestArtifact,
 )
 
@@ -52,6 +56,18 @@ class EntryRoute(StrEnum):
   SATURATION_HIT = "saturation_hit"
 
 
+# The Grow path's names for its two routes (`grow.Route`), restated here.
+_SUGGESTION_ROUTES = {
+  "retrieval": EntryRoute.RETRIEVAL_SUGGESTION,
+  "saturation": EntryRoute.SATURATION_HIT,
+}
+
+
+def suggestion_route(route: str) -> EntryRoute:
+  """Map a Grow-path route ("retrieval" or "saturation") to its entry route."""
+  return _SUGGESTION_ROUTES[route]
+
+
 class LogEntry(BaseModel):
   """One Paper's entry into the Corpus. At least one of key or DOI is set."""
 
@@ -65,10 +81,16 @@ class UnavailablePaper(BaseModel):
   """A suggested paper the researcher could not obtain, kept out of the Corpus."""
 
   doi: str = ""
+  pmid: str = ""
+  openalex_id: str = ""
   title: str = ""
   route: EntryRoute
   marked_at: datetime
   reason: str = ""
+
+  def ids(self) -> set[str]:
+    """Return comparable ids, so any shared DOI, PMID or OpenAlex id matches."""
+    return work_ids(self.doi, self.pmid, self.openalex_id)
 
 
 class EntryLog(BaseModel):
@@ -79,10 +101,17 @@ class EntryLog(BaseModel):
 
 
 class PaperIdentity(BaseModel):
-  """What identifies a Paper to the log: its citation key, its DOI, or both."""
+  """
+  What identifies a Paper to the log: its citation key, its DOI, or both.
+
+  A PMID or OpenAlex id is not kept in the entry, but clears a matching
+  unavailable record when the Paper enters after all.
+  """
 
   citation_key: str = ""
   doi: str = ""
+  pmid: str = ""
+  openalex_id: str = ""
 
 
 class PaperEntry(BaseModel):
@@ -184,6 +213,18 @@ def normalize_doi(doi: str) -> str:
   return value
 
 
+def work_ids(doi: str, pmid: str = "", openalex_id: str = "") -> set[str]:
+  """Return comparable `doi:`, `pmid:` and `openalex:` ids for one work."""
+  ids: set[str] = set()
+  if doi.strip():
+    ids.add("doi:" + normalize_doi(doi))
+  if pmid.strip():
+    ids.add(f"pmid:{pmid.strip()}")
+  if openalex_id.strip():
+    ids.add("openalex:" + openalex_id.strip().rsplit("/", 1)[-1].upper())
+  return ids
+
+
 def _find(log: EntryLog, citation_key: str, doi: str) -> LogEntry | None:
   """Return the log entry for a Paper, matched by citation key or DOI."""
   doi = normalize_doi(doi)
@@ -225,8 +266,9 @@ def record_entries(
     log.entries.append(
       LogEntry(citation_key=key, doi=doi, route=route, entered_at=when)
     )
-    if doi:
-      log.unavailable = [item for item in log.unavailable if item.doi != doi]
+    ids = work_ids(doi, paper.pmid, paper.openalex_id)
+    if ids:
+      log.unavailable = [item for item in log.unavailable if not item.ids() & ids]
     added += 1
   if added:
     _save(corpus_root, log)
@@ -234,35 +276,107 @@ def record_entries(
   return added
 
 
-def mark_unavailable(
+def mark_unavailable(  # pylint: disable=too-many-arguments
   corpus_root: Path,
   *,
   doi: str,
   title: str,
   route: EntryRoute,
   reason: str = "",
+  pmid: str = "",
+  openalex_id: str = "",
   at: datetime | None = None,
 ) -> UnavailablePaper:
   """
   Record a suggested paper as unavailable, so its absence is disclosed.
 
-  Marking the same DOI again replaces the earlier record rather than repeating it.
+  Marking the same work again (any shared DOI, PMID or OpenAlex id) replaces
+  the earlier record rather than repeating it.
   """
   log = load_entry_log(corpus_root)
   record = UnavailablePaper(
     doi=normalize_doi(doi),
+    pmid=pmid.strip(),
+    openalex_id=openalex_id.strip(),
     title=title.strip(),
     route=route,
     marked_at=at or _now(),
     reason=reason.strip(),
   )
-  log.unavailable = [
-    item for item in log.unavailable if not record.doi or item.doi != record.doi
-  ]
+  ids = record.ids()
+  log.unavailable = [item for item in log.unavailable if not item.ids() & ids]
   log.unavailable.append(record)
   _save(corpus_root, log)
   logger.info("Marked %s unavailable in %s", record.doi or record.title, corpus_root)
   return record
+
+
+class _LegacySuggestion(BaseModel):
+  model_config = ConfigDict(extra="ignore")
+
+  doi: str = ""
+  pmid: str = ""
+  openalex_id: str = ""
+  title: str = ""
+  routes: list[str] = []
+  status: str = ""
+  reason: str = ""
+  updated_at: datetime
+
+
+class _LegacySuggestions(BaseModel):
+  model_config = ConfigDict(extra="ignore")
+
+  papers: list[_LegacySuggestion] = []
+
+
+def adopt_legacy_unavailable(corpus_root: Path) -> int:
+  """
+  Carry papers marked unavailable in `suggested_papers.json` into the log.
+
+  Before the log owned "unavailable", the Grow path kept that status in its own
+  record. Each such paper the log does not know yet (neither as unavailable
+  nor as an entered Paper) is recorded with its original date and reason, so
+  it is not lost. Returns how many were carried over; the suggested-Papers
+  file itself is left alone (it is the pipeline's to rewrite).
+  """
+  path = corpus_root / SUGGESTED_PAPERS_NAME
+  if not path.is_file():
+    return 0
+  try:
+    legacy = _LegacySuggestions.model_validate_json(path.read_text(encoding="utf-8"))
+  except ValidationError:
+    logger.error("Could not read %s; no unavailable papers carried over", path)
+    return 0
+  log = load_entry_log(corpus_root)
+  known = {work_id for item in log.unavailable for work_id in item.ids()}
+  known |= {f"doi:{entry.doi}" for entry in log.entries if entry.doi}
+  adopted = 0
+  for paper in legacy.papers:
+    ids = work_ids(paper.doi, paper.pmid, paper.openalex_id)
+    if paper.status != "unavailable" or not ids or ids & known:
+      continue
+    route = next(
+      (_SUGGESTION_ROUTES[r] for r in paper.routes if r in _SUGGESTION_ROUTES),
+      EntryRoute.RETRIEVAL_SUGGESTION,
+    )
+    log.unavailable.append(
+      UnavailablePaper(
+        doi=normalize_doi(paper.doi),
+        pmid=paper.pmid.strip(),
+        openalex_id=paper.openalex_id.strip(),
+        title=paper.title.strip(),
+        route=route,
+        marked_at=paper.updated_at,
+        reason=paper.reason.strip(),
+      )
+    )
+    known |= ids
+    adopted += 1
+  if adopted:
+    _save(corpus_root, log)
+    logger.info("Carried %d unavailable paper(s) into %s", adopted, corpus_root)
+  return adopted
 
 
 def _manifest_written_at(corpus_root: Path) -> datetime:
@@ -280,8 +394,10 @@ def reconcile_entry_log(corpus_root: Path, manifest: ManifestArtifact) -> EntryL
   Papers the log has never seen are written as "imported", dated by the
   manifest, so an existing Corpus gets a complete log the first time it is
   opened. Log entries for papers that are not (or no longer) in the manifest
-  stay on disk but are not shown: they never became Papers.
+  stay on disk but are not shown: they never became Papers. Papers an older
+  Corpus marked unavailable outside the log are carried into it first.
   """
+  adopt_legacy_unavailable(corpus_root)
   log = load_entry_log(corpus_root)
   unlogged = [
     PaperIdentity(citation_key=paper.citation_key, doi=paper.doi)

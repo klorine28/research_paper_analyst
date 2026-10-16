@@ -18,6 +18,7 @@ import httpx
 import pytest
 
 from research_gap_dashboard import cli
+from research_gap_dashboard.dashboard.entry_log import EntryRoute, load_entry_log
 from research_gap_dashboard.grow import (
   GrowError,
   WorkRef,
@@ -290,9 +291,10 @@ def test_mark_unavailable_records_reason_and_date_and_upload_reverses_it(
     now=_NOW,
   )
 
-  assert record.status == "unavailable"
   assert record.reason == "Library has no access"
-  assert record.updated_at == _NOW
+  assert record.marked_at == _NOW
+  assert load_entry_log(corpus).unavailable == [record]
+  assert read_suggested_papers(corpus).papers == []
   assert len(check_corpus(corpus).paired) == 10
 
   outcome = add_suggested_paper(
@@ -305,8 +307,10 @@ def test_mark_unavailable_records_reason_and_date_and_upload_reverses_it(
   )
 
   assert outcome.status == "added"
-  history = [event.status for event in read_suggested_papers(corpus).papers[0].history]
-  assert history == ["unavailable", "added"]
+  assert load_entry_log(corpus).unavailable == []
+  assert [entry.route for entry in load_entry_log(corpus).entries] == [
+    EntryRoute.SATURATION_HIT
+  ]
 
 
 def test_mark_unavailable_needs_a_reason(corpus: Path):
@@ -361,4 +365,4 @@ def test_cli_marks_a_paper_unavailable(corpus: Path):
   )
 
   assert code == cli.EXIT_OK
-  assert read_suggested_papers(corpus).papers[0].reason == "Not held by the library"
+  assert load_entry_log(corpus).unavailable[0].reason == "Not held by the library"
