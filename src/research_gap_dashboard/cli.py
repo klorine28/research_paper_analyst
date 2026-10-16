@@ -41,6 +41,7 @@ from research_gap_dashboard.ingest import (
 )
 from research_gap_dashboard.llm import (
   LlmClient,
+  LlmConfig,
   LlmConfigError,
   LlmUsage,
   build_llm_client,
@@ -58,7 +59,11 @@ from research_gap_dashboard.retrieval import (
   DEFAULT_MIN_OVERLAP,
   detect_retrieval_gaps,
 )
-from research_gap_dashboard.saturate import SaturationError, saturate_gap
+from research_gap_dashboard.saturate import (
+  HitScreener,
+  SaturationError,
+  saturate_gap,
+)
 from research_gap_dashboard.sources import (
   DEFAULT_SEARCH_LIMIT,
   OpenAlexAdapter,
@@ -98,7 +103,7 @@ LLM_CACHE_DIR = ".llm-cache"
 # details to report what a run actually cost (issue #70).
 LLM_USAGE_PATH = Path("artifacts") / "llm-usage.json"
 # The commands whose LLM usage is recorded.
-_LLM_COMMANDS = frozenset({"extract", "explain", "aggregate", "detect"})
+_LLM_COMMANDS = frozenset({"extract", "explain", "aggregate", "detect", "saturate"})
 
 # Works fetched per source per saturation-check query.
 SATURATE_SEARCH_LIMIT = DEFAULT_SEARCH_LIMIT
@@ -273,6 +278,15 @@ def build_parser() -> argparse.ArgumentParser:
     required=True,
     help="Gap id to check, e.g. topicxtopic:heart-failure:myocardial-ischemia.",
   )
+  saturate.add_argument(
+    "--tier",
+    choices=["default", "cheap"],
+    default="cheap",
+    help=(
+      "Model tier to screen the top hits with (default: the cheap model). "
+      "Without ANTHROPIC_API_KEY, hits are screened by title/abstract only."
+    ),
+  )
   _add_taxonomy_option(saturate)
   promote = subcommands.add_parser(
     "promote-gold",
@@ -430,6 +444,7 @@ def _run_saturate(arguments: argparse.Namespace) -> int:
       _build_search_sources(),
       taxonomies,
       limit=SATURATE_SEARCH_LIMIT,
+      screener=_hit_screener(arguments),
     )
   except SaturationError as error:
     logger.error("%s", error)
@@ -442,10 +457,29 @@ def _run_saturate(arguments: argparse.Namespace) -> int:
     logger.info("  %s: %s", search.source, search.query)
     if search.error:
       logger.warning("    not searched: %s", search.error)
+  if check.llm_screening and check.llm_screening.status == "not_run":
+    logger.warning("LLM screening: %s", check.llm_screening.reason)
   logger.info("%s", check.status_reason)
   # Offline or rate-limited: the run completes, but the check did not happen
   # (ADR 0009: surface, don't block).
   return EXIT_INCOMPLETE if check.status == "not_run" else EXIT_OK
+
+
+def _hit_screener(arguments: argparse.Namespace) -> HitScreener | None:
+  """
+  Build the LLM screener for a saturation check, or None without a key.
+
+  A missing key degrades the check to title/abstract screening, recorded as
+  such on the snapshot, rather than failing it: the searches are worth keeping
+  (ADR 0006, surface, don't block).
+  """
+  try:
+    client = _llm_client(arguments)
+  except LlmConfigError as error:
+    logger.warning("%s", error)
+    return None
+  model = LlmConfig.from_env().model_for(arguments.tier)
+  return HitScreener(client, model=model, tier=arguments.tier)
 
 
 def _run_parse(arguments: argparse.Namespace) -> int:

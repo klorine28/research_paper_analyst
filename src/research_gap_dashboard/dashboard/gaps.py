@@ -93,8 +93,10 @@ class SaturationHitView(BaseModel):
 
   title: str
   details: str = Field(description="Year, venue, DOI or PMID and sources.")
-  screened: bool = Field(description="Its title/abstract mention both concepts.")
+  screened: bool = Field(description="It passed every screening step that ran.")
   reason: str
+  llm_verdict: str = Field(default="", description="The LLM verdict, as shown.")
+  llm_reason: str = ""
 
 
 class SaturationView(BaseModel):
@@ -115,6 +117,9 @@ class SaturationView(BaseModel):
   searches: list[SaturationSearchView] = []
   hits: list[SaturationHitView] = []
   screened_count: int = 0
+  llm_screening: str = Field(
+    default="", description="How the LLM screening ran, with model and prompt."
+  )
   history: list[str] = []
 
 
@@ -334,8 +339,20 @@ def _badge(check: SaturationCheckRecord) -> str:
     check.status, text.GAP_SATURATION_BADGES["not_run"]
   )
   return template.format(
-    count=sum(1 for hit in check.hits if hit.verdict == "mentions_both"),
+    count=sum(1 for hit in check.hits if hit.counts),
     date=check.checked_at.date().isoformat(),
+  )
+
+
+def _llm_screening(check: SaturationCheckRecord) -> str:
+  """Say how a check's LLM screening ran; empty on snapshots that predate it."""
+  run = check.llm_screening
+  if run is None:
+    return ""
+  if run.status != "screened":
+    return text.GAP_SATURATION_LLM_NOT_RUN.format(reason=run.reason)
+  return text.GAP_SATURATION_LLM_RUN.format(
+    count=run.screened_count, model=run.model, version=run.prompt_version
   )
 
 
@@ -382,12 +399,19 @@ def _saturation(
           hit.venue,
           f"DOI {hit.doi}" if hit.doi else f"PMID {hit.pmid}" if hit.pmid else "",
         ),
-        screened=hit.verdict == "mentions_both",
+        screened=hit.counts,
         reason=hit.reason,
+        llm_verdict=(
+          text.GAP_SATURATION_LLM_VERDICTS.get(hit.llm_verdict, hit.llm_verdict)
+          if hit.llm_verdict
+          else ""
+        ),
+        llm_reason=hit.llm_reason,
       )
       for hit in latest.hits
     ],
-    screened_count=sum(1 for hit in latest.hits if hit.verdict == "mentions_both"),
+    screened_count=sum(1 for hit in latest.hits if hit.counts),
+    llm_screening=_llm_screening(latest),
     history=[
       text.GAP_SATURATION_HISTORY_ENTRY.format(
         date=check.checked_at.strftime("%Y-%m-%d %H:%M"), badge=_badge(check)

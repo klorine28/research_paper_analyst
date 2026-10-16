@@ -352,6 +352,24 @@ class SaturationHitRecord(_ReadModel):
   pmid: str = ""
   verdict: str = ""
   reason: str = ""
+  llm_verdict: str | None = None
+  llm_reason: str = ""
+
+  @property
+  def counts(self) -> bool:
+    """Whether it passed every screening step that ran on it (LLM "no" fails)."""
+    return self.verdict == "mentions_both" and self.llm_verdict != "no"
+
+
+class LlmScreeningRecord(_ReadModel):
+  """How a check's LLM screening ran: status, reason, and its provenance."""
+
+  status: str = ""
+  reason: str = ""
+  prompt_version: str = ""
+  model: str = ""
+  screened_count: int = 0
+  errors: list[str] = []
 
 
 class SaturationCheckRecord(_ReadModel):
@@ -366,6 +384,7 @@ class SaturationCheckRecord(_ReadModel):
   concepts: list[SaturationConceptRecord] = []
   searches: list[SaturationSearchRecord] = []
   hits: list[SaturationHitRecord] = []
+  llm_screening: LlmScreeningRecord | None = None
 
 
 class SaturationChecksArtifact(_ReadModel):
