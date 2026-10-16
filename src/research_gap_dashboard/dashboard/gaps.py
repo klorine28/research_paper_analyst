@@ -7,6 +7,11 @@ view shows, including the verbatim Evidence passages, and the researcher's
 accept/reject state merged in from the judgment log so a restored session shows
 the same verdicts. Cards keep the artifact's order so the same artifact always
 lists gaps the same way.
+
+A card a detection layer rejected is kept, never dropped (ADR 0008 "demote,
+never delete"): it leaves the filtered list, and the chat and narrative built
+on it, until the researcher accepts it, and it is always listed with every
+rejection and lowering under "Rejected by review".
 """
 
 from collections.abc import Collection, Iterable, Sequence
@@ -159,6 +164,20 @@ class SaturationView(BaseModel):
   second_attempt_note: str = ""
 
 
+ReviewEffect = Literal["reject", "lower"]
+
+
+class ReviewStep(BaseModel):
+  """One detection layer's rejection or lowering of a candidate, as shown."""
+
+  layer: str
+  effect: ReviewEffect
+  level_after: str
+  reason: str
+  # The verdict in plain words: which layer, what it did, and why.
+  label: str
+
+
 class GapCard(BaseModel):
   """
   One Candidate Gap card the view renders, with its judgment state.
@@ -190,6 +209,23 @@ class GapCard(BaseModel):
   data: GapData
   status: Status
   saturation: SaturationView
+  # Every layer step that rejected or lowered the candidate, in trail order.
+  review: list[ReviewStep] = []
+
+  @property
+  def rejected_by_review(self) -> bool:
+    """Whether a detection layer rejected this candidate."""
+    return any(step.effect == "reject" for step in self.review)
+
+  @property
+  def surfaced(self) -> bool:
+    """Whether the gap list shows it: not rejected by review, or accepted anyway."""
+    return not self.rejected_by_review or self.status == "accepted"
+
+  @property
+  def review_layer(self) -> str:
+    """The layer whose rejection an accept overrides; empty if none rejected it."""
+    return next((s.layer for s in self.review if s.effect == "reject"), "")
 
 
 class GapCardsData(BaseModel):
@@ -221,6 +257,15 @@ class GapCardsData(BaseModel):
     """How many gaps still await a verdict."""
     return sum(1 for card in self.cards if card.status is None)
 
+  @property
+  def reviewed_cards(self) -> list[GapCard]:
+    """The "Rejected by review" section: rejected cards, then lowered ones."""
+    rejected = [card for card in self.cards if card.rejected_by_review]
+    lowered = [
+      card for card in self.cards if card.review and not card.rejected_by_review
+    ]
+    return [*rejected, *lowered]
+
 
 # Levels in display order, and the default view: Low-confidence gaps are hidden
 # until the researcher asks for them (issue #108), but never silently, since the
@@ -234,6 +279,9 @@ class FilteredGapCards(BaseModel):
 
   cards: list[GapCard]
   total_count: int
+  # Rejected by a detection layer and not accepted: out of the list, not the
+  # filters' doing, and listed under "Rejected by review" instead.
+  review_hidden_count: int = 0
 
   @property
   def shown_count(self) -> int:
@@ -243,7 +291,7 @@ class FilteredGapCards(BaseModel):
   @property
   def hidden_count(self) -> int:
     """How many gaps the filter hides."""
-    return self.total_count - self.shown_count
+    return self.total_count - self.shown_count - self.review_hidden_count
 
 
 def filter_by_confidence(data: GapCardsData, levels: Iterable[str]) -> FilteredGapCards:
@@ -516,6 +564,34 @@ def _second_attempt(check: SaturationCheckRecord) -> dict[str, str]:
   }
 
 
+def _review(record: CandidateGapRecord) -> list[ReviewStep]:
+  """List the trail steps that rejected or lowered the candidate, worded."""
+  steps: list[ReviewStep] = []
+  for step in record.trail:
+    if step.effect not in ("reject", "lower"):
+      continue
+    layer = text.GAP_REVIEW_LAYER_LABELS.get(step.layer, step.layer)
+    if step.effect == "reject":
+      label = text.GAP_REVIEW_REJECTED.format(layer=layer, reason=step.reason)
+      effect: ReviewEffect = "reject"
+    else:
+      level = text.CONFIDENCE_LABELS.get(step.level_after, step.level_after)
+      label = text.GAP_REVIEW_LOWERED.format(
+        level=level, layer=layer, reason=step.reason
+      )
+      effect = "lower"
+    steps.append(
+      ReviewStep(
+        layer=step.layer,
+        effect=effect,
+        level_after=step.level_after,
+        reason=step.reason,
+        label=label,
+      )
+    )
+  return steps
+
+
 def _reasons(record: CandidateGapRecord) -> list[str]:
   """List each layer's reason in order, or the lone reason a pre-trail card has."""
   return [step.reason for step in record.trail] or [record.confidence_reason]
@@ -565,6 +641,7 @@ def _card(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     data=_data(record, matrices),
     status=status,
     saturation=_saturation(record, checks, grow),
+    review=_review(record),
   )
 
 
@@ -689,7 +766,8 @@ def narrative_scope(
   only the gaps shrink. Rejected, undecided and filtered-out gaps are excluded.
   """
   chosen = [level for level in CONFIDENCE_LEVELS if level in set(levels)]
-  shown = filter_by_confidence(data, chosen).cards
+  filtered = filter_by_confidence(data, chosen)
+  shown = filtered.cards
   shown_ids = {card.gap_id for card in shown}
   accepted = [card for card in shown if card.status == "accepted"]
   hidden_accepted = sum(
@@ -697,7 +775,7 @@ def narrative_scope(
     for card in data.cards
     if card.status == "accepted" and card.gap_id not in shown_ids
   )
-  hidden = data.gap_count - len(shown)
+  hidden = filtered.hidden_count
   return NarrativeScope(
     context=corpus.model_copy(
       update={
@@ -802,17 +880,24 @@ def filter_gap_cards(
   its confidence level are all selected, and, with `possibly_addressed_only`,
   when its latest wider-literature check found possibly closing work (ADR 0009
   §14). `None` means no filter on that facet. The hidden count is what lets
-  the page always say how many gaps the filters keep out of view.
+  the page always say how many gaps the filters keep out of view. A card
+  rejected by review is never shown until accepted, whatever the filters, and
+  is counted apart from what the filters hide.
   """
+  surfaced = [card for card in data.cards if card.surfaced]
   cards = [
     card
-    for card in data.cards
+    for card in surfaced
     if _status_filter(card) in statuses
     and (gap_types is None or card.gap_type in gap_types)
     and (confidence_levels is None or card.confidence in confidence_levels)
     and (not possibly_addressed_only or is_possibly_addressed(card))
   ]
-  return FilteredGapCards(cards=cards, total_count=data.gap_count)
+  return FilteredGapCards(
+    cards=cards,
+    total_count=data.gap_count,
+    review_hidden_count=data.gap_count - len(surfaced),
+  )
 
 
 def is_possibly_addressed(card: GapCard) -> bool:
