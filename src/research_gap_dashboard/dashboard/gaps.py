@@ -32,6 +32,7 @@ from research_gap_dashboard.dashboard.artifacts import (
   CandidateGapRecord,
   CandidateGapsArtifact,
   CoverageMatrixRecord,
+  GapReviewRecord,
   RetrievalGapsArtifact,
   SaturationCheckRecord,
   SaturationChecksArtifact,
@@ -84,6 +85,13 @@ class NeighbourCell(BaseModel):
   paper_count: int
 
 
+class BridgeView(BaseModel):
+  """One bridging category on a cell gap's Tier 3, in the artifact's order."""
+
+  label: str
+  text: str
+
+
 class GapData(BaseModel):
   """
   Tier 3, "show the data": what a card's confidence was computed from.
@@ -98,6 +106,7 @@ class GapData(BaseModel):
   expected_count: float | None
   observed_count: int | None
   reasons: list[str]
+  bridges: list[BridgeView] = []
 
 
 class SaturationSearchView(BaseModel):
@@ -183,7 +192,8 @@ class GapCard(BaseModel):
   One Candidate Gap card the view renders, with its judgment state.
 
   Fields map onto ADR 0008's three tiers: Tier 1 is the title, confidence, `why`
-  and cell count; Tier 2 the Evidence; Tier 3 `data`. `saturation` is the
+  and cell count; Tier 2 the Evidence, Audit Basis and Minimal Study; Tier 3
+  `data`. `saturation` is the
   wider-literature check, shown across all three tiers.
   """
 
@@ -206,9 +216,17 @@ class GapCard(BaseModel):
   # Paper its Evidence cites. The card's Explainer and Comparison links use it.
   paper_keys: list[str]
   evidence: list[EvidencePassage]
+  # Tier 2, from the L5 review; empty when the review did not keep the gap.
+  audit_basis: str = ""
+  audit_basis_evidence_ids: list[str] = []
+  minimal_study: str = ""
   data: GapData
   status: Status
   saturation: SaturationView
+  # Two witnesses: the corroborating limitation groups' labels; empty if none.
+  flagged_by_authors: list[str] = []
+  # Unanswered Limitations: the group's limitation type label; "" if untagged.
+  bucket_label: str = ""
   # Every layer step that rejected or lowered the candidate, in trail order.
   review: list[ReviewStep] = []
 
@@ -420,6 +438,18 @@ def _data(record: CandidateGapRecord, matrices: list[CoverageMatrixRecord]) -> G
     expected_count=expected,
     observed_count=record.cell_count,
     reasons=_reasons(record),
+    bridges=[
+      BridgeView(
+        label=bridge.label,
+        text=text.GAP_DATA_BRIDGE.format(
+          label=bridge.label,
+          axis=bridge.axis,
+          row_count=bridge.row_link_count,
+          column_count=bridge.column_link_count,
+        ),
+      )
+      for bridge in record.bridges
+    ],
   )
 
 
@@ -597,6 +627,12 @@ def _reasons(record: CandidateGapRecord) -> list[str]:
   return [step.reason for step in record.trail] or [record.confidence_reason]
 
 
+def _kept_review(record: CandidateGapRecord) -> GapReviewRecord | None:
+  """Return the review behind a card's Audit Basis and Minimal Study, if kept."""
+  review = record.review
+  return review if review is not None and review.verdict == "keep" else None
+
+
 def _card(  # pylint: disable=too-many-arguments,too-many-positional-arguments
   record: CandidateGapRecord,
   status: Status,
@@ -604,8 +640,11 @@ def _card(  # pylint: disable=too-many-arguments,too-many-positional-arguments
   matrices: list[CoverageMatrixRecord],
   checks: list[SaturationCheckRecord],
   grow: _GrowContext,
+  group_labels: dict[str, str],
 ) -> GapCard:
   """Assemble one display card from an artifact record and its judgment."""
+  review = _kept_review(record)
+  audit_basis = review.audit_basis if review is not None else None
   return GapCard(
     gap_id=record.gap_id,
     key=gap_key(record),
@@ -638,9 +677,21 @@ def _card(  # pylint: disable=too-many-arguments,too-many-positional-arguments
       )
       for index, link in enumerate(record.evidence)
     ],
+    audit_basis=audit_basis.text if audit_basis is not None else "",
+    audit_basis_evidence_ids=audit_basis.evidence_ids if audit_basis else [],
+    minimal_study=(review.minimal_study or "") if review is not None else "",
     data=_data(record, matrices),
     status=status,
     saturation=_saturation(record, checks, grow),
+    flagged_by_authors=[
+      group_labels.get(group_id, group_id)
+      for group_id in record.corroborating_group_ids
+    ],
+    bucket_label=(
+      text.LIMITATION_BUCKET_LABELS.get(record.bucket, record.bucket)
+      if record.bucket
+      else ""
+    ),
     review=_review(record),
   )
 
@@ -829,6 +880,10 @@ def build_gap_cards(  # pylint: disable=too-many-arguments
   checks_by_gap: dict[str, list[SaturationCheckRecord]] = {}
   for check in (saturation or SaturationChecksArtifact()).checks:
     checks_by_gap.setdefault(check.gap_id, []).append(check)
+  group_labels = {
+    group.group_id: group.label or group.group_id
+    for group in artifact.limitation_groups
+  }
   cards = [
     _card(
       record,
@@ -837,6 +892,7 @@ def build_gap_cards(  # pylint: disable=too-many-arguments
       artifact.matrices,
       checks_by_gap.get(record.gap_id, []),
       grow,
+      group_labels,
     )
     for record in artifact.gaps
   ]

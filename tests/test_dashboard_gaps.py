@@ -10,12 +10,23 @@ the researcher's saved accept/reject state.
 
 import json
 import re
+import shutil
 from pathlib import Path
 
 import pytest
 
 from conftest import StubLlmClient, open_page
-from test_detect import _PLACEMENTS, _ROLL_UP, _ROLL_UP_PARENTS, _write_corpus
+from test_detect import (
+  _BRIDGES,
+  _PLACEMENTS,
+  _ROLL_UP,
+  _ROLL_UP_PARENTS,
+  _WITNESS_EXTRACTIONS,
+  _WITNESS_GROUPING,
+  RoutedLlmClient,
+  _tags,
+  _write_corpus,
+)
 
 from research_gap_dashboard.dashboard.trust_gate import acknowledge_denominator
 import research_gap_dashboard.dashboard as dashboard_pkg
@@ -42,6 +53,8 @@ from research_gap_dashboard.dashboard.gaps import (
 )
 from research_gap_dashboard.dashboard.judgments import load_judgments, record_judgment
 from research_gap_dashboard.detect import detect_corpus
+from research_gap_dashboard.limitations import GROUP_PROMPT_VERSION, TAG_PROMPT_VERSION
+from research_gap_dashboard.llm import RecordedLlmClient
 
 
 @pytest.fixture(name="corpus")
@@ -762,6 +775,167 @@ def test_an_artifact_without_trails_still_builds_cards(corpus: Path):
   card = _card(corpus, "topicxmethod:takotsubo:rct")
 
   assert card.data.reasons == [card.confidence_reason]
+
+
+def test_tier_three_lists_the_bridges_strongest_first(tmp_path: Path):
+  """A cell's bridging categories reach its Tier 3, Adamic-Adar order kept."""
+  root = _write_corpus(tmp_path / "corpus", _BRIDGES)
+  detect_corpus(root, StubLlmClient({}))
+
+  card = _card(root, "topicxmethod:takotsubo:rct")
+
+  assert [bridge.label for bridge in card.data.bridges] == ["Female", "Aged"]
+  assert card.data.bridges[0].text == text.GAP_DATA_BRIDGE.format(
+    label="Female", axis="population", row_count=2, column_count=2
+  )
+
+
+def test_the_card_shows_its_bridges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+  """The rendered Tier 3 names each bridge under its own heading."""
+  root = _write_corpus(tmp_path / "corpus", _BRIDGES)
+  detect_corpus(root, StubLlmClient({}))
+  app = _run_gap_cards_app(root, monkeypatch)
+  app.multiselect[0].set_value(["high", "medium", "low"]).run()
+
+  assert not app.exception
+  data = [e for e in app.expander if e.label == text.GAP_TIER_DATA_LABEL]
+  texts = [" ".join(block.value for block in tier.markdown) for tier in data]
+  bridged = [t for t in texts if "- Female (population" in t]
+  assert len(bridged) == 1
+  assert text.GAP_DATA_BRIDGES_HEADING in bridged[0]
+  assert bridged[0].index("- Female (population") < bridged[0].index(
+    "- Aged (population"
+  )
+
+
+def test_a_card_without_bridges_lists_none(corpus: Path):
+  """No bridge, no list: older artifacts and unbridged cells read the same."""
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  assert card.data.bridges == []
+
+
+@pytest.fixture(name="witnessed")
+def witnessed_fixture(tmp_path: Path) -> Path:
+  """
+  Write a Corpus whose limitation group 01 corroborates Takotsubo x RCT.
+
+  Group 01 is a study-design limitation about Takotsubo; group 02 a generic
+  sample-size one. Both stay unanswered (no Paper has a year).
+  """
+  client = RoutedLlmClient(
+    {
+      GROUP_PROMPT_VERSION: [_WITNESS_GROUPING],
+      TAG_PROMPT_VERSION: [
+        _tags(
+          ("01", "study_design", ["topic:takotsubo"]),
+          ("02", "sample_size", []),
+        )
+      ],
+    }
+  )
+  root = _write_corpus(
+    tmp_path / "corpus", _PLACEMENTS, extractions=_WITNESS_EXTRACTIONS
+  )
+  detect_corpus(root, client)
+  return root
+
+
+def test_a_corroborated_card_lists_the_groups_that_flag_it(witnessed: Path):
+  """A two-witness card names its limitation groups; an unflagged one none."""
+  flagged = _card(witnessed, "topicxmethod:takotsubo:rct")
+  plain = _card(witnessed, "topicxtopic:heart-failure:takotsubo")
+
+  assert flagged.flagged_by_authors == ["No randomized trial"]
+  assert plain.flagged_by_authors == []
+
+
+def test_an_unanswered_limitation_card_shows_its_bucket(witnessed: Path):
+  """A limitation card carries its group's type; an untagged one shows none."""
+  data = build_gap_cards(load_candidate_gaps(witnessed), load_judgments(witnessed))
+  buckets = {
+    card.title: card.bucket_label
+    for card in data.cards
+    if card.gap_type == "unanswered_limitation"
+  }
+
+  assert buckets == {
+    "No randomized trial": "Study design",
+    "Small sample": "Sample size",
+    "Older patients": "",
+  }
+
+
+def test_the_page_shows_the_authors_flag_and_the_bucket(
+  witnessed: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """Tier 1 says "also flagged by authors" and a limitation card's type."""
+  app = _run_gap_cards_app(witnessed, monkeypatch)
+  app.multiselect[0].set_value(["high", "medium", "low"]).run()
+
+  captions = " ".join(caption.value for caption in app.caption)
+  assert not app.exception
+  assert "Also flagged by authors: No randomized trial" in captions
+  assert "Limitation type: Sample size" in captions
+
+
+REVIEW_FIXTURE = Path(__file__).parent / "fixtures" / "gap-review"
+
+
+@pytest.fixture(name="reviewed_corpus")
+def reviewed_corpus_fixture(tmp_path: Path) -> Path:
+  """Copy the gap-review fixture Corpus and detect it with its recorded answers."""
+  # Its own parent directory, so the app's corpus picker sees only this Corpus.
+  root = tmp_path / "reviewed" / "corpus"
+  shutil.copytree(REVIEW_FIXTURE / "corpus", root)
+  detect_corpus(
+    root, RecordedLlmClient.from_file(REVIEW_FIXTURE / "llm-responses.json")
+  )
+  return root
+
+
+def test_a_kept_gap_card_carries_audit_basis_and_minimal_study(reviewed_corpus: Path):
+  """Tier 2 fields come from the review that kept the gap, with its Evidence ids."""
+  card = _card(reviewed_corpus, "topicxmethod:takotsubo:rct")
+
+  assert card.audit_basis.startswith("Takotsubo is studied only")
+  assert card.audit_basis_evidence_ids == [
+    "tako1:research_question[0]",
+    "hf1:study_design[0]",
+  ]
+  assert "randomized trial" in card.minimal_study
+  assert card.data.reasons[-1].startswith("Kept by review")
+
+
+def test_a_rejected_or_unreviewed_card_has_no_review_fields(
+  reviewed_corpus: Path, corpus: Path
+):
+  """A reject carries no Audit Basis or Minimal Study, nor does an unreviewed card."""
+  rejected = _card(reviewed_corpus, "topicxtopic:heart-failure:takotsubo")
+  unreviewed = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  for card in (rejected, unreviewed):
+    assert card.audit_basis == ""
+    assert card.minimal_study == ""
+  assert "pseudo-firstness" in rejected.data.reasons[-1]
+
+
+def test_tier_two_shows_the_audit_basis_and_a_labelled_minimal_study(
+  reviewed_corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """The researcher reads the Audit Basis, and the Minimal Study as a suggestion."""
+  app = _run_gap_cards_app(reviewed_corpus, monkeypatch)
+
+  assert not app.exception
+  justification = [
+    e for e in app.expander if e.label == text.GAP_TIER_JUSTIFICATION_LABEL
+  ]
+  markdown = " ".join(block.value for tier in justification for block in tier.markdown)
+  assert text.GAP_AUDIT_BASIS_HEADING in markdown
+  assert text.GAP_MINIMAL_STUDY_HEADING in markdown
+  assert "suggestion" in text.GAP_MINIMAL_STUDY_HEADING
+  captions = " ".join(c.value for tier in justification for c in tier.caption)
+  assert text.GAP_MINIMAL_STUDY_CAVEAT in captions
 
 
 # "Rejected by review" (ADR 0008 §5, issue #109). The roll-up Corpus's hierarchy

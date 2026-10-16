@@ -313,6 +313,12 @@ def _render_headline(card: GapCard) -> None:
     + _card_status_label(card)
   )
   st.write(card.why)
+  if card.flagged_by_authors:
+    st.caption(
+      text.GAP_FLAGGED_BY_AUTHORS.format(groups="; ".join(card.flagged_by_authors))
+    )
+  if card.bucket_label:
+    st.caption(text.GAP_LIMITATION_BUCKET.format(bucket=card.bucket_label))
   if card.cell_count is not None:
     st.caption(
       text.GAP_CELL_COUNT_LABEL.format(
@@ -324,10 +330,24 @@ def _render_headline(card: GapCard) -> None:
 
 
 def _render_justification(card: GapCard) -> None:
-  """Tier 2: the explanation, any wider-literature result, and the Evidence."""
+  """
+  Tier 2: the explanation, wider-literature result, review, and Evidence.
+
+  The review's Audit Basis and Minimal Study show only when it kept the gap.
+  """
   st.write(card.explanation)
   if card.saturation.summary:
     st.write(card.saturation.summary)
+  if card.audit_basis:
+    st.markdown(f"**{text.GAP_AUDIT_BASIS_HEADING}**")
+    st.write(card.audit_basis)
+    if card.audit_basis_evidence_ids:
+      ids = ", ".join(card.audit_basis_evidence_ids)
+      st.caption(text.GAP_AUDIT_BASIS_EVIDENCE.format(ids=ids))
+  if card.minimal_study:
+    st.markdown(f"**{text.GAP_MINIMAL_STUDY_HEADING}**")
+    st.write(card.minimal_study)
+    st.caption(text.GAP_MINIMAL_STUDY_CAVEAT)
   st.markdown(f"**{text.GAP_EVIDENCE_HEADING}**")
   for index, passage in enumerate(card.evidence):
     st.markdown(
@@ -348,7 +368,7 @@ _MAX_NEIGHBOURS = 10
 
 
 def _render_data(card: GapCard, corpus_root: Path) -> None:
-  """Tier 3: the Papers per category, neighbouring cells, score and reasons."""
+  """Tier 3: the Papers per category, neighbours, bridges, score and reasons."""
   data = card.data
   st.markdown(f"**{text.GAP_DATA_PAPERS_HEADING}**")
   for group in data.category_papers:
@@ -376,6 +396,10 @@ def _render_data(card: GapCard, corpus_root: Path) -> None:
     hidden = len(data.neighbours) - len(shown)
     if hidden > 0:
       st.caption(text.GAP_DATA_NEIGHBOURS_MORE.format(count=hidden))
+  if data.bridges:
+    st.markdown(f"**{text.GAP_DATA_BRIDGES_HEADING}**")
+    st.markdown("\n".join(bridge.text for bridge in data.bridges))
+    st.caption(text.GAP_DATA_BRIDGES_ORDER)
   st.markdown(f"**{text.GAP_DATA_SCORE_HEADING}**")
   if data.expected_count is not None:
     st.markdown(

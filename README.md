@@ -231,3 +231,11 @@ On the Needs Attention page, pasting a broken Paper's correct text and clicking
 **Apply correction & re-extract** saves the text to a `judgments/` overlay, then
 runs `apply-parse-corrections` and `extract` in one locked run and redraws the
 queue (ADR 0006/0007).
+
+## Acknowledgments
+
+The L5 review's pseudo-gap classes (generic upgrade, template reuse,
+pseudo-firstness, non-closable, low-value replication) and the Audit Basis and
+Minimal Study card fields are adapted from
+[aipoch/medical-research-skills](https://github.com/aipoch/medical-research-skills)
+(MIT). This credit appears here only, never in the dashboard's output.

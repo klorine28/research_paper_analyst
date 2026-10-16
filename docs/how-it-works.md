@@ -213,7 +213,11 @@ Builds the Coverage Matrices from the normalized facts and **cards every
 candidate cell** (empty, or one Paper where more than one was expected), ranked
 by the L1 hypergeometric score, as a Candidate Gap — Knowledge, Coverage, and
 Unanswered-Limitation types (the last via the limitation grouping + follow-up
-matcher in `limitations.py`).
+matcher in `limitations.py`). Deterministic layers adjust each cell's level
+(L2 taxonomy roll-up), then an LLM review (`review.py`, L5) challenges every
+Medium+ cell and every Unanswered Limitation: it rejects pseudo-gaps or keeps
+them with an Audit Basis and a Minimal Study, and may lower a level, never
+raise it.
 Output: `artifacts/candidate_gaps.json`. Gaps are candidates for human judgment,
 with a confidence and the reasoning attached — never verdicts.
 
@@ -256,7 +260,7 @@ the research journal persist under `judgments/`.
 | Funnel diagnostic, corpus baseline | `diagnose.py`, `baseline.py` |
 | Fact extraction + Evidence gate | `extract.py` |
 | Taxonomy normalization | `aggregate.py`, `taxonomy.py` |
-| Gap detection | `detect.py`, `limitations.py` |
+| Gap detection | `detect.py`, `limitations.py`, `review.py` |
 | Out-of-corpus retrieval | `retrieval.py` |
 | Scholarly-API adapters | `sources.py` |
 | Cached LLM seam | `llm.py` |
