@@ -660,6 +660,14 @@ CONFIDENCE_LABELS: dict[str, str] = {
   "medium": "Medium",
   "high": "High",
 }
+# Told to the model above a filtered gap list (issue #98); not shown on a page.
+GAP_SCOPE_NOTE = (
+  "Only the gaps at {levels} confidence are listed, as the dashboard's "
+  "confidence filter surfaces them; {hidden} gap(s) at {hidden_levels} "
+  "confidence are hidden and not part of this discussion."
+)
+GAP_SCOPE_NOTE_ALL = "Every Candidate Gap is listed, at {levels} confidence."
+GAP_SCOPE_NO_LEVELS = "no"
 EVIDENCE_ROLE_LABELS: dict[str, str] = {
   "row": "establishes",
   "column": "establishes",
@@ -1140,17 +1148,20 @@ ANALYTICS_DROPPED_LABEL = (
 ANALYTICS_SUMMARY_HEADING = "Narrative summary"
 ANALYTICS_SUMMARY_INTRO = (
   "A few paragraphs for a 'gaps in the literature' section, drawn only from "
-  "the Candidate Gaps you accepted on the Gap Cards page and citing only this "
-  "Corpus's Papers."
+  "the Candidate Gaps you accepted among those the Gap Cards confidence filter "
+  "shows, and citing only this Corpus's Papers."
 )
 ANALYTICS_SUMMARY_NEEDS_ACCEPTED = (
-  "You have not accepted any Candidate Gaps yet ({undecided} still undecided). "
-  "The narrative summary is built only from gaps you accept, so open the Gap "
-  "Cards page, accept the gaps you judge real, then come back here."
+  "You have not accepted any of the gaps at {levels} confidence yet "
+  "({undecided} still undecided; {hidden} more hidden by the confidence "
+  "filter). The narrative summary is built only from shown gaps you accept, so "
+  "open the Gap Cards page, accept the gaps you judge real, then come back here."
 )
 ANALYTICS_SUMMARY_DENOMINATOR = (
-  "Covers {accepted} accepted gap(s) over {papers} Papers. "
-  "Excluded: {rejected} rejected and {undecided} undecided gap(s)."
+  "Covers {accepted} accepted gap(s) at {levels} confidence over {papers} "
+  "Papers. Excluded: {rejected} rejected and {undecided} undecided gap(s), and "
+  "{hidden} gap(s) hidden by the confidence filter ({hidden_accepted} of them "
+  "accepted)."
 )
 ANALYTICS_SUMMARY_NEEDS_GAPS = (
   "No Candidate Gaps found for this Corpus yet: run the detect stage to "
@@ -1341,9 +1352,10 @@ EXPORT_SCOPE_NOT_RECORDED = (
   "Research question, field and what was searched: not recorded for this Corpus."
 )
 EXPORT_SCOPE_DENOMINATOR = (
-  "This write-up covers {accepted} accepted Candidate Gap(s) over {papers} "
-  "Papers in the Corpus ({years}). Excluded: {rejected} rejected and "
-  "{undecided} undecided gap(s)."
+  "This write-up covers {accepted} accepted Candidate Gap(s) at {levels} "
+  "confidence over {papers} Papers in the Corpus ({years}). Excluded: "
+  "{rejected} rejected and {undecided} undecided gap(s), and {hidden} gap(s) "
+  "at other confidence levels ({hidden_accepted} of them accepted)."
 )
 EXPORT_SCOPE_YEARS_UNKNOWN = "publication years unknown"
 EXPORT_SCOPE_LIMITS = (

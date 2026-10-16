@@ -7,7 +7,6 @@ import streamlit as st
 from research_gap_dashboard import analytics as analytics_api
 from research_gap_dashboard.analytics import (
   CorpusPaper,
-  GapFact,
   GroundedChatAnswer,
   GroundedNarrative,
   GroundingContext,
@@ -32,11 +31,14 @@ from research_gap_dashboard.dashboard.entry_log import reconcile_entry_log
 from research_gap_dashboard.dashboard.export import build_write_up
 from research_gap_dashboard.dashboard.fact_pool import load_fact_pool
 from research_gap_dashboard.dashboard.gaps import (
+  DEFAULT_CONFIDENCE_FILTER,
   GapCard,
+  GapCardsData,
   NarrativeScope,
   build_gap_cards,
   narrative_scope,
   scope_context_to_gap,
+  surfaced_gap_context,
 )
 from research_gap_dashboard.dashboard.journal import (
   delete_entry,
@@ -53,6 +55,7 @@ from research_gap_dashboard.dashboard.views.run_controls import (
 )
 from research_gap_dashboard.dashboard.views.session_keys import (
   DISCUSS_GAP_KEY,
+  GAP_CONFIDENCE_FILTER_KEY,
   NARRATIVE_KEY,
 )
 
@@ -233,10 +236,32 @@ def _scoped_gap_card(corpus_root: Path, gap_id: str) -> GapCard | None:
   return next((card for card in data.cards if card.gap_id == gap_id), None)
 
 
+def _confidence_levels() -> list[str]:
+  """
+  Return the confidence levels the Gap Cards filter shows (default High, Medium).
+
+  Chat and narrative read the same remembered filter as the Gap Cards page
+  (issue #98), so all three discuss the same surfaced gaps.
+  """
+  return list(
+    st.session_state.get(GAP_CONFIDENCE_FILTER_KEY, DEFAULT_CONFIDENCE_FILTER)
+  )
+
+
+def _gap_cards(corpus_root: Path) -> GapCardsData:
+  """Build the gap cards with their verdicts, without widening Evidence."""
+  return build_gap_cards(load_candidate_gaps(corpus_root), load_judgments(corpus_root))
+
+
 def _grounding_context(
   corpus_root: Path, manifest: ManifestArtifact, has_gaps: bool
 ) -> GroundingContext:
-  """Map this Corpus's artifact read models onto the analytics grounding context."""
+  """
+  Map this Corpus's artifact read models onto the analytics grounding context.
+
+  Only the gaps the confidence filter surfaces enter it (issue #98); the
+  narrative narrows them further to the accepted ones.
+  """
   papers = [
     CorpusPaper(
       citation_key=paper.citation_key,
@@ -246,21 +271,10 @@ def _grounding_context(
     )
     for paper in manifest.papers
   ]
-  gap_facts: list[GapFact] = []
-  if has_gaps:
-    for gap in load_candidate_gaps(corpus_root).gaps:
-      gap_facts.append(
-        GapFact(
-          gap_type=gap.gap_type,
-          title=gap.title,
-          explanation=gap.explanation,
-          confidence=gap.confidence,
-          source_citation_keys=gap.source_citation_keys,
-        )
-      )
-  return GroundingContext(
-    papers=papers, gaps=gap_facts, fact_pool=load_fact_pool(corpus_root)
-  )
+  context = GroundingContext(papers=papers, fact_pool=load_fact_pool(corpus_root))
+  if not has_gaps:
+    return context
+  return surfaced_gap_context(_gap_cards(corpus_root), context, _confidence_levels())
 
 
 def _render_narrative_summary(
@@ -270,7 +284,7 @@ def _render_narrative_summary(
   client: LlmClient,
   has_gaps: bool,
 ) -> None:
-  """Render the narrative summary over accepted gaps only, stating its denominator."""
+  """Render the narrative over shown, accepted gaps only, stating its denominator."""
   corpus_root = chosen.root
   st.subheader(text.ANALYTICS_SUMMARY_HEADING)
   st.caption(text.ANALYTICS_SUMMARY_INTRO)
@@ -278,21 +292,25 @@ def _render_narrative_summary(
     st.info(text.ANALYTICS_SUMMARY_NEEDS_GAPS)
     render_run_buttons(corpus_root, ["detect"], scope="analytics-summary")
     return
-  scope = narrative_scope(
-    build_gap_cards(load_candidate_gaps(corpus_root), load_judgments(corpus_root)),
-    context,
-  )
+  scope = narrative_scope(_gap_cards(corpus_root), context, _confidence_levels())
   if scope.accepted_count == 0:
     st.info(
-      text.ANALYTICS_SUMMARY_NEEDS_ACCEPTED.format(undecided=scope.undecided_count)
+      text.ANALYTICS_SUMMARY_NEEDS_ACCEPTED.format(
+        levels=scope.levels_label,
+        undecided=scope.undecided_count,
+        hidden=scope.hidden_count,
+      )
     )
     return
   st.caption(
     text.ANALYTICS_SUMMARY_DENOMINATOR.format(
       accepted=scope.accepted_count,
+      levels=scope.levels_label,
       papers=scope.paper_count,
       rejected=scope.rejected_count,
       undecided=scope.undecided_count,
+      hidden=scope.hidden_count,
+      hidden_accepted=scope.hidden_accepted_count,
     )
   )
   signature = (str(corpus_root), _narrative_signature(scope))
