@@ -396,17 +396,17 @@ def _render_controls(card: GapCard, corpus_root: Path) -> None:
   if accept_col.button(
     text.GAP_ACCEPT_BUTTON, key=f"accept-{card.gap_id}", width="stretch"
   ):
-    record_judgment(corpus_root, card.gap_id, "accepted")
+    record_judgment(corpus_root, card.key, "accepted", title=card.title)
     st.rerun()
   if reject_col.button(
     text.GAP_REJECT_BUTTON, key=f"reject-{card.gap_id}", width="stretch"
   ):
-    record_judgment(corpus_root, card.gap_id, "rejected")
+    record_judgment(corpus_root, card.key, "rejected", title=card.title)
     st.rerun()
   if clear_col.button(
     text.GAP_CLEAR_BUTTON, key=f"clear-{card.gap_id}", width="stretch"
   ):
-    clear_judgment(corpus_root, card.gap_id)
+    clear_judgment(corpus_root, card.key)
     st.rerun()
 
   _render_paper_links(card)

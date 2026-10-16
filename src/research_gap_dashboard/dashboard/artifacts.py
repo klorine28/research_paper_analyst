@@ -8,7 +8,7 @@ does not break the front end.
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
@@ -19,6 +19,8 @@ PAPERS_DIR = "papers"
 EXPLANATION_SUFFIX = ".explanation.json"
 MANIFEST_NAME = "corpus-manifest.json"
 CANDIDATE_GAPS_NAME = "candidate_gaps.json"
+# Mirrors detect.PREVIOUS_CANDIDATE_GAPS_NAME: the artifact the last run replaced.
+PREVIOUS_CANDIDATE_GAPS_NAME = "candidate_gaps.previous.json"
 NORMALIZED_FACTS_NAME = "normalized_facts.json"
 RETRIEVAL_GAPS_NAME = "retrieval_gaps.json"
 SATURATION_CHECKS_NAME = "saturation_checks.json"
@@ -204,6 +206,8 @@ class CandidateGapsArtifact(_ReadModel):
 
   corpus_root: Path
   corpus_paper_count: int = 0
+  # Every Paper in the manifest; empty in artifacts written before it was kept.
+  paper_citation_keys: list[str] = []
   extracted_paper_count: int = 0
   # Which cells became candidates, and what L1 can rank High at this size;
   # empty / None in artifacts written before L1.
@@ -285,6 +289,35 @@ def load_candidate_gaps(corpus_root: Path) -> CandidateGapsArtifact:
     )
   raw = json.loads(path.read_text(encoding="utf-8"))
   return CandidateGapsArtifact.model_validate(raw)
+
+
+def load_previous_candidate_gaps(corpus_root: Path) -> CandidateGapsArtifact | None:
+  """Read the CandidateGaps artifact the last detect run replaced, if any."""
+  path = corpus_root / ARTIFACTS_DIR / PREVIOUS_CANDIDATE_GAPS_NAME
+  if not path.is_file():
+    return None
+  return CandidateGapsArtifact.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+def candidate_gaps_versions(
+  corpus_root: Path,
+) -> list[tuple[datetime, CandidateGapsArtifact]]:
+  """
+  List the CandidateGaps artifacts on disk, each with when it was written.
+
+  The current artifact and the one the last run replaced; detect keeps the
+  replaced file's modification time, so both dates are when detect wrote them.
+  """
+  versions: list[tuple[datetime, CandidateGapsArtifact]] = []
+  for name in (CANDIDATE_GAPS_NAME, PREVIOUS_CANDIDATE_GAPS_NAME):
+    path = corpus_root / ARTIFACTS_DIR / name
+    if path.is_file():
+      written_at = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+      artifact = CandidateGapsArtifact.model_validate_json(
+        path.read_text(encoding="utf-8")
+      )
+      versions.append((written_at, artifact))
+  return versions
 
 
 class RetrievalCandidateRecord(_ReadModel):

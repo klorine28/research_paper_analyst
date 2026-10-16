@@ -1217,3 +1217,32 @@ EXPORT_SCOPE_CAVEAT = (
   "Every gap here was computed only over the Papers in this Corpus, not the "
   "whole literature. The gaps are candidates for human judgment, not verdicts."
 )
+
+# "Changed since last run" (issue #93, ADR 0010 §5): what the last detect run
+# changed against the one before, after the run and on the Home screen.
+RUN_CHANGES_HEADING = "Changed since last run"
+RUN_CHANGES_SUMMARY = (
+  "The last detect run closed {closed} gap(s), found {new} new gap(s) and left "
+  "{orphaned} verdict(s) without a gap, over {current} Papers ({previous} "
+  "before)."
+)
+RUN_CHANGES_NEW_PAPERS = "Papers new in this run: {keys}."
+RUN_CHANGES_NOTHING = (
+  "Nothing changed: the same gaps as the run before, and every verdict still "
+  "reaches its gap."
+)
+RUN_CHANGES_DETAILS_LABEL = "What changed"
+RUN_CHANGES_CLOSED_HEADING = "**Gaps closed ({count})**"
+RUN_CHANGES_CLOSED_BY = "{type}: {title}, now covered by new Paper(s) {keys}"
+RUN_CHANGES_CLOSED_OTHER = (
+  "{type}: {title}, closed by no new Paper (a changed Extraction, mapping or grouping)"
+)
+RUN_CHANGES_NEW_HEADING = "**New gaps ({count})**"
+RUN_CHANGES_NEW_LINE = "{type}: {title}"
+RUN_CHANGES_ORPHANED_HEADING = "**Verdicts that no longer reach a gap ({count})**"
+RUN_CHANGES_ORPHANED_LINE = "{decision}: {title}"
+RUN_CHANGES_DECISIONS: dict[str, str] = {"accepted": "Accepted", "rejected": "Rejected"}
+RUN_CHANGES_CAVEAT = (
+  "Closed means no longer a candidate in this Corpus, not proven filled; new "
+  "gaps are candidates for human judgment, not verdicts."
+)

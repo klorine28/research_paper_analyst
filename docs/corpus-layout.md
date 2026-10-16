@@ -45,6 +45,7 @@ it knows where everything lives.
 | `artifacts/extractions.json` | `extract` | Each Paper's eight Extraction fields (including the one plain-words study design), every fact with its verified Evidence passage, plus rejected Papers |
 | `artifacts/normalized_facts.json` | `aggregate` | Each Paper's phrases mapped onto the Topic, Method, Population, and Dataset taxonomies (axis, original term, category, source fact, Evidence), plus unmapped terms and Method-axis phrases that are "not a study design" (see `docs/taxonomy.md`) |
 | `artifacts/candidate_gaps.json` | `detect` | The Coverage Matrices (Topic × Topic, × Method, × Population, × Dataset), every limitation group with its follow-ups, and one card per Knowledge Gap, Coverage Gap, or Unanswered Limitation (see below) |
+| `artifacts/candidate_gaps.previous.json` | `detect` | The `candidate_gaps.json` the latest run replaced, with its modification time kept: the baseline of the "changed since last run" summary and the date that tells which artifact older gap verdicts were made on |
 
 ### Candidate Gaps
 
@@ -52,6 +53,14 @@ it knows where everything lives.
 Matrix detection makes no LLM call and is fully deterministic; limitation
 grouping needs the Anthropic API key and goes through the disk cache, so a
 rerun over the same artifacts gives the same `candidate_gaps.json`.
+
+A gap verdict in `judgments/gap_judgments.json` follows a Knowledge or Coverage
+Gap by its `gap_id` (the cell), and an Unanswered Limitation by its verbatim
+source statements (citation key and quoted passage), because a re-run may
+renumber, split or merge limitation groups (ADR 0010 §5). Verdicts saved by
+group id alone are migrated once, on first read, against the artifact that was
+on screen when they were made; one that no artifact on disk dates is reported
+as orphaned instead of being guessed onto a reused group id.
 
 #### Knowledge and Coverage Gaps
 

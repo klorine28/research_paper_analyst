@@ -1,0 +1,74 @@
+{
+  "corpus_root": "corpora/judgment-migration",
+  "corpus_paper_count": 3,
+  "extracted_paper_count": 3,
+  "matrices": [],
+  "limitation_groups": [],
+  "gaps": [
+    {
+      "gap_id": "topicxmethod:takotsubo:rct",
+      "gap_type": "coverage_gap",
+      "title": "Takotsubo Cardiomyopathy x Randomized Controlled Trial",
+      "explanation": "No Paper combines these.",
+      "confidence": "medium",
+      "confidence_reason": "Empty cell.",
+      "corpus_paper_count": 3,
+      "cell_count": 0,
+      "source_citation_keys": [],
+      "evidence": [
+        {
+          "citation_key": "smith2020",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "takotsubo",
+          "original_term": "takotsubo syndrome",
+          "evidence": {"passage": "Takotsubo syndrome was diagnosed", "section": "Methods"}
+        }
+      ],
+      "row_axis": "topic",
+      "row_id": "takotsubo",
+      "row_label": "Takotsubo Cardiomyopathy",
+      "column_axis": "method",
+      "column_id": "rct",
+      "column_label": "Randomized Controlled Trial",
+      "row_paper_count": 2,
+      "column_paper_count": 1
+    },
+    {
+      "gap_id": "limitation:limitation-group-01",
+      "gap_type": "unanswered_limitation",
+      "title": "Small single-centre samples",
+      "explanation": "One Paper states this limitation.",
+      "confidence": "low",
+      "confidence_reason": "No later Paper was checked.",
+      "corpus_paper_count": 3,
+      "source_citation_keys": ["smith2020"],
+      "evidence": [
+        {
+          "citation_key": "smith2020",
+          "statement": "The sample came from one centre.",
+          "evidence": {"passage": "our cohort was drawn from a single centre", "section": "Discussion"}
+        }
+      ],
+      "later_paper_count": 0
+    },
+    {
+      "gap_id": "limitation:limitation-group-02",
+      "gap_type": "unanswered_limitation",
+      "title": "No long-term follow-up",
+      "explanation": "One Paper states this limitation.",
+      "confidence": "low",
+      "confidence_reason": "No later Paper was checked.",
+      "corpus_paper_count": 3,
+      "source_citation_keys": ["jones2021"],
+      "evidence": [
+        {
+          "citation_key": "jones2021",
+          "statement": "Follow-up stopped at discharge.",
+          "evidence": {"passage": "patients were not followed beyond discharge", "section": "Limitations"}
+        }
+      ],
+      "later_paper_count": 0
+    }
+  ]
+}
