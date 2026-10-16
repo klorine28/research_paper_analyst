@@ -322,10 +322,24 @@ def _render_headline(card: GapCard) -> None:
 
 
 def _render_justification(card: GapCard) -> None:
-  """Tier 2: the explanation, any wider-literature result, and the Evidence."""
+  """
+  Tier 2: the explanation, wider-literature result, review, and Evidence.
+
+  The review's Audit Basis and Minimal Study show only when it kept the gap.
+  """
   st.write(card.explanation)
   if card.saturation.summary:
     st.write(card.saturation.summary)
+  if card.audit_basis:
+    st.markdown(f"**{text.GAP_AUDIT_BASIS_HEADING}**")
+    st.write(card.audit_basis)
+    if card.audit_basis_evidence_ids:
+      ids = ", ".join(card.audit_basis_evidence_ids)
+      st.caption(text.GAP_AUDIT_BASIS_EVIDENCE.format(ids=ids))
+  if card.minimal_study:
+    st.markdown(f"**{text.GAP_MINIMAL_STUDY_HEADING}**")
+    st.write(card.minimal_study)
+    st.caption(text.GAP_MINIMAL_STUDY_CAVEAT)
   st.markdown(f"**{text.GAP_EVIDENCE_HEADING}**")
   for index, passage in enumerate(card.evidence):
     st.markdown(

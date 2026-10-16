@@ -42,6 +42,7 @@ from research_gap_dashboard.limitations import (
   GROUP_PROMPT_VERSION,
   TAG_PROMPT_VERSION,
 )
+from research_gap_dashboard.review import REVIEW_PROMPT_VERSION
 from research_gap_dashboard.sources import OpenAlexAdapter, PubMedAdapter
 from research_gap_dashboard.taxonomy import Axis
 
@@ -165,9 +166,28 @@ def _write_corpus(
   return root
 
 
+# A review that keeps the candidate at its level: what the fake LLMs answer to
+# the L5 review unless a test scripts something else.
+KEEP_REVIEW: dict[str, Any] = {
+  "verdict": "keep",
+  "rejection_class": None,
+  "claim": "The combination is unstudied in the Corpus.",
+  "grounds": [],
+  "warrant": "Both categories are well covered, never together.",
+  "audit_basis": None,
+  "minimal_study": None,
+  "bucket": "more_probable",
+}
+
+
 def _detect(root: Path, client: Any = None) -> CandidateGapsReport:
-  """Run detect with a fake LLM (unused when no Paper states a limitation)."""
-  return detect_corpus(root, client or StubLlmClient({}))
+  """Run detect with a fake LLM whose review keeps every candidate at its level."""
+  return detect_corpus(root, client or RoutedLlmClient({}))
+
+
+def _before_review(trail: list[Any]) -> list[tuple[str, str, str]]:
+  """List the deterministic layers' steps: every step but the L5 review's."""
+  return [(s.layer, s.effect, s.level_after) for s in trail if s.layer != "l5_review"]
 
 
 def _gap(report: CandidateGapsReport, gap_id: str) -> CellGap:
@@ -286,9 +306,7 @@ def test_an_empty_cell_between_two_halves_ranks_high(tmp_path: Path) -> None:
   gap = _gap(report, "topicxmethod:takotsubo:rct")
   assert gap.l1_probability == pytest.approx(0.00397, abs=1e-5)
   assert gap.confidence == "high"
-  assert [(s.layer, s.effect, s.level_after) for s in gap.trail] == [
-    ("l1", "start", "high")
-  ]
+  assert _before_review(gap.trail) == [("l1", "start", "high")]
   assert "2.5 of 10 Papers" in gap.confidence_reason
   assert "1 time in 252" in gap.confidence_reason
 
@@ -477,13 +495,18 @@ def test_cli_detect_requires_an_api_key(tmp_path: Path, monkeypatch) -> None:
 
 
 class RoutedLlmClient:  # pylint: disable=too-few-public-methods
-  """A keyless fake LLM answering each prompt version from its own script."""
+  """
+  A keyless fake LLM answering each prompt version from its own script.
+
+  An unscripted review is answered with `KEEP_REVIEW`, any other unscripted
+  prompt with an empty object.
+  """
 
   name = "routed"
 
   def __init__(self, scripts: dict[str, list[dict[str, Any]]]):
-    self.scripts = scripts
-    self.calls: dict[str, int] = {version: 0 for version in scripts}
+    self.scripts = {REVIEW_PROMPT_VERSION: [KEEP_REVIEW], **scripts}
+    self.calls: dict[str, int] = {version: 0 for version in self.scripts}
     self.tiers: dict[str, str] = {}
 
   def complete(  # pylint: disable=unused-argument
@@ -902,7 +925,8 @@ def test_without_a_hierarchy_the_roll_up_is_a_no_op(tmp_path: Path) -> None:
   report = _roll_up_report(tmp_path, parents=None)
 
   cells = [gap for gap in report.gaps if isinstance(gap, CellGap)]
-  assert all(len(gap.trail) == 1 and not gap.rejected for gap in cells)
+  assert all(len(_before_review(gap.trail)) == 1 for gap in cells)
+  assert not any(gap.rejected for gap in cells)
   assert _gap(report, "topicxmethod:takotsubo:rct").confidence == "medium"
 
 
@@ -1001,14 +1025,17 @@ def test_exactly_two_bridges_raise_one_level(tmp_path: Path) -> None:
   """Two categories each linked to both sides by two Papers raise the cell."""
   gap = _gap(_bridges_report(tmp_path), "topicxmethod:takotsubo:rct")
 
+  # L5 review (#120) runs after bridges; the default scripted review keeps it.
   assert [(s.layer, s.effect, s.level_after) for s in gap.trail] == [
     ("l1", "start", "low"),
     ("bridges", "raise", "medium"),
+    ("l5_review", "none", "medium"),
   ]
   assert gap.confidence == "medium"
   assert {b.category_id for b in gap.bridges} == {"aged", "female"}
-  assert "Aged" in gap.trail[-1].reason
-  assert "Female" in gap.trail[-1].reason
+  bridges_step = next(step for step in gap.trail if step.layer == "bridges")
+  assert "Aged" in bridges_step.reason
+  assert "Female" in bridges_step.reason
 
 
 def test_one_bridge_does_not_raise(tmp_path: Path) -> None:
@@ -1140,8 +1167,9 @@ def test_a_group_naming_one_side_and_the_other_axis_raises_one_level(
   gap = _gap(report, "topicxmethod:takotsubo:rct")
   assert gap.confidence == _UP[before.confidence]
   assert gap.corroborating_group_ids == ["limitation-group-01"]
-  step = gap.trail[-1]
-  assert (step.layer, step.effect) == ("two_witness", "raise")
+  # L5 review (#120) runs last; look up the two-witness step itself.
+  step = next(step for step in gap.trail if step.layer == "two_witness")
+  assert step.effect == "raise"
   assert "also flagged by authors" in step.reason
   assert "No randomized trial" in step.reason
 

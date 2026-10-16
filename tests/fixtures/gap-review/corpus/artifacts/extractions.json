@@ -1,0 +1,9 @@
+{
+  "corpus_root": ".",
+  "prompt_version": "extract-fixture",
+  "tier": "default",
+  "model": "",
+  "extractions": [],
+  "failures": [],
+  "unverified": []
+}
