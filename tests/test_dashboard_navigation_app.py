@@ -153,7 +153,7 @@ def test_the_first_step_goes_back_home_and_the_last_has_no_next(
 def test_any_page_opens_from_the_sidebar_whatever_the_corpus_state(
   fallout: Path, monkeypatch: pytest.MonkeyPatch
 ):
-  """Free navigation: Gap Cards opens even though Trust still needs work."""
+  """Free navigation: Gap Cards opens, behind the Trust gate's lock screen (#77)."""
   app = open_page(_run(fallout, monkeypatch), text.PAGE_GAP_CARDS)
 
   assert not app.exception

@@ -47,6 +47,15 @@ Evidence; a work already in the Corpus is never a hit. Each run appends one
 dated snapshot to `artifacts/saturation_checks.json` and never rewrites an
 earlier one, so the history of checks stays inspectable.
 
+Automatic mode (`saturate_auto`, chained after detect by the dashboard's
+pipeline panel) checks the high-confidence gaps, strongest first, at most
+`AUTO_CHECK_CAP` per run; the rest are logged as left for on-demand. It reuses
+a snapshot of the same query and source younger than `AUTO_FRESHNESS`, and stops
+asking a source that is offline or rate-limited, so the run still completes with
+its checks "not run (reason)". `SATURATE_AUTO=off` switches it off. Each run is
+logged in the same artifact. A manual check always searches live.
+
+
 "Check all accepted" (`saturate_accepted`) runs the check on every gap the
 researcher accepted on the Gap Cards page, in the CandidateGaps artifact's
 order. It honours the 30-day freshness window (`CHECK_FRESHNESS`): an accepted
@@ -54,14 +63,14 @@ gap whose latest check ran within it is not searched again, and its existing
 snapshot stands. A check that did not run (offline) is never fresh. A manual
 check of one gap (`saturate_gap`) always searches live (ADR 0009 §9).
 
-Not here yet (a later ticket of the spec): the automatic mode after `detect`.
 """
 
 import logging
+import os
 import re
 import xml.etree.ElementTree as ET
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -140,14 +149,27 @@ LIMITATION_SCREENING_METHOD = (
 # How long a check stays fresh for "check all accepted": within it, the existing
 # snapshot is reused instead of searching again (ADR 0009 §2).
 CHECK_FRESHNESS = timedelta(days=30)
-# What started a check: one card's button (or `--gap`), or "check all accepted".
-SaturationTrigger = Literal["manual", "accepted"]
 SaturationStatus = Literal["possibly_addressed", "no_closing_work_found", "not_run"]
 ScreeningVerdict = Literal["mentions_both", "missing_concept", "predates_statement"]
 LlmVerdict = Literal["addresses", "partial", "no"]
+# Automatic checks after detect (ADR 0009 §2): at most this many gaps are
+# searched live per run, and a snapshot of the same queries younger than the
+# freshness window is reused instead of searching again.
+AUTO_CHECK_CAP = 20
+AUTO_FRESHNESS = timedelta(days=30)
+# The opt-out: set to "off" to switch automatic checks off (default on).
+AUTO_CHECKS_ENV = "SATURATE_AUTO"
+_ON = frozenset({"on", "1", "true", "yes"})
+_OFF = frozenset({"off", "0", "false", "no"})
+HTTP_TOO_MANY_REQUESTS = 429
+HTTP_SERVER_ERROR = 500
+
 # Which attempt ran a search or found a hit: the vocabulary-built base queries,
 # or the LLM-rephrased second attempt run only when the base found nothing.
 Attempt = Literal["base", "llm_variant"]
+# What launched a check: a researcher (card button, CLI `--gap`), the automatic
+# run chained after detect, or "check all accepted".
+Trigger = Literal["manual", "auto", "accepted"]
 TermOrigin = Literal["label", "alias", "corpus_term", "llm_variant"]
 
 # The pseudo-axis of a limitation's key-phrase concept: its terms come from the
@@ -301,6 +323,7 @@ _TEXT: dict[str, str] = {
     "by title/abstract only."
   ),
   "llm_all_failed": "Not run: every screening call failed ({errors}).",
+  "source_tripped": ("not searched: {source} failed earlier in this run ({failure})"),
 }
 
 
@@ -477,7 +500,7 @@ class SaturationCheck(BaseModel):
   gap_type: str
   gap_title: str
   checked_at: datetime
-  trigger: SaturationTrigger = "manual"
+  trigger: Trigger = "manual"
   status: SaturationStatus
   status_reason: str
   screening_method: str = SCREENING_METHOD
@@ -510,12 +533,50 @@ class AcceptedChecksRun(BaseModel):
   skipped: dict[str, str] = {}
 
 
+AutoOutcome = Literal["checked", "cached", "left_for_on_demand", "not_checkable"]
+
+
+class AutoRunEntry(BaseModel):
+  """What an automatic run did with one high-confidence gap."""
+
+  gap_id: str
+  outcome: AutoOutcome
+  check_id: str = Field(
+    default="", description="The snapshot written (checked) or reused (cached)."
+  )
+  status: SaturationStatus | None = Field(
+    default=None, description="That snapshot's status; None when none applies."
+  )
+  note: str = Field(default="", description="Why a gap was not checked, if so.")
+
+
+class AutoRun(BaseModel):
+  """
+  One automatic run after detect: which gaps it checked, reused or left.
+
+  Entries are in the order the run considered the gaps, strongest first.
+  """
+
+  run_at: datetime
+  cap: int = Field(description="Most gaps searched live in one run.")
+  freshness_days: int = Field(description="How old a reused snapshot may be.")
+  entries: list[AutoRunEntry] = []
+
+  @property
+  def left_for_on_demand(self) -> list[str]:
+    """The gaps past the cap, left for the researcher to check from the card."""
+    return [e.gap_id for e in self.entries if e.outcome == "left_for_on_demand"]
+
+
 class SaturationChecksReport(BaseModel):
   """The append-only saturation-check log for one Corpus."""
 
   corpus_root: Path
   label: str = OUT_OF_CORPUS_LABEL
   checks: list[SaturationCheck] = []
+  auto_runs: list[AutoRun] = Field(
+    default=[], description="Every automatic run, oldest first (append-only)."
+  )
 
 
 def _utc_now() -> datetime:
@@ -523,7 +584,7 @@ def _utc_now() -> datetime:
   return datetime.now(UTC).replace(microsecond=0)
 
 
-def saturate_gap(  # pylint: disable=too-many-arguments,too-many-locals
+def saturate_gap(  # pylint: disable=too-many-arguments
   root: Path,
   gap_id: str,
   sources: Sequence[TopicSearchSource],
@@ -533,7 +594,7 @@ def saturate_gap(  # pylint: disable=too-many-arguments,too-many-locals
   screener: HitScreener | None = None,
   now: Callable[[], datetime] = _utc_now,
   query_variants: QueryVariantModel | None = None,
-  trigger: SaturationTrigger = "manual",
+  trigger: Trigger = "manual",
 ) -> SaturationCheck:
   """
   Search every source for work closing one gap; append the dated result.
@@ -550,24 +611,71 @@ def saturate_gap(  # pylint: disable=too-many-arguments,too-many-locals
   for a second attempt; it is never called otherwise.
   """
   gap = _find_gap(root, gap_id)
+  plan = _plan(root, gap, taxonomies)
+  return _run_check(
+    root,
+    gap,
+    plan,
+    sources,
+    limit=limit,
+    screener=screener,
+    now=now,
+    query_variants=query_variants,
+    trigger=trigger,
+  )
+
+
+@dataclass(frozen=True)
+class _CheckPlan:
+  """What one gap is searched and screened by, before any search runs."""
+
+  concepts: list[ConceptTerms]
+  corpus_ids: set[str]
+  stated_year: int | None
+  statement_ids: list[str]
+  screening_method: str
+
+
+def _plan(
+  root: Path, gap: CellGap | UnansweredLimitationGap, taxonomies: Sequence[Taxonomy]
+) -> _CheckPlan:
+  """Build a gap's search concepts; raise if a limitation has nothing to search."""
   manifest = read_manifest(root)
   corpus_ids = _corpus_work_ids([(p.doi, "", p.openalex_id) for p in manifest.papers])
-  stated_year: int | None = None
-  statement_ids: list[str] = []
-  screening_method = SCREENING_METHOD
   if isinstance(gap, CellGap):
     concepts = [
       _cell_concept(gap, gap.row_axis, gap.row_id, gap.row_label, taxonomies),
       _cell_concept(gap, gap.column_axis, gap.column_id, gap.column_label, taxonomies),
     ]
-  else:
-    concepts = limitation_concepts(gap, taxonomies, _read_normalized(root))
-    if not any(c.axis == STATEMENT_AXIS for c in concepts):
-      raise SaturationError(_TEXT["no_key_phrases"].format(gap_id=gap.gap_id))
-    stated_year = _stated_year(gap, manifest)
-    statement_ids = [statement.statement_id for statement in gap.evidence]
-    screening_method = LIMITATION_SCREENING_METHOD
+    return _CheckPlan(concepts, corpus_ids, None, [], SCREENING_METHOD)
+  concepts = limitation_concepts(gap, taxonomies, _read_normalized(root))
+  if not any(c.axis == STATEMENT_AXIS for c in concepts):
+    raise SaturationError(_TEXT["no_key_phrases"].format(gap_id=gap.gap_id))
+  return _CheckPlan(
+    concepts,
+    corpus_ids,
+    _stated_year(gap, manifest),
+    [statement.statement_id for statement in gap.evidence],
+    LIMITATION_SCREENING_METHOD,
+  )
 
+
+def _run_check(  # pylint: disable=too-many-arguments,too-many-locals
+  root: Path,
+  gap: CellGap | UnansweredLimitationGap,
+  plan: _CheckPlan,
+  sources: Sequence[TopicSearchSource],
+  *,
+  limit: int,
+  screener: HitScreener | None,
+  now: Callable[[], datetime],
+  query_variants: QueryVariantModel | None,
+  trigger: Trigger,
+) -> SaturationCheck:
+  """Search, screen and append one dated snapshot for a planned gap."""
+  concepts = plan.concepts
+  corpus_ids = plan.corpus_ids
+  stated_year = plan.stated_year
   searches, hits, records = _search_all(sources, concepts, limit, corpus_ids)
   hits = _since_statement(hits, stated_year)
   second_attempt: QueryVariantAttempt | None = None
@@ -611,11 +719,11 @@ def saturate_gap(  # pylint: disable=too-many-arguments,too-many-locals
     status=status,
     status_reason=reason,
     screening_method=(
-      screening_method + LLM_SCREENING_SUFFIX.format(limit=llm_run.limit)
+      plan.screening_method + LLM_SCREENING_SUFFIX.format(limit=llm_run.limit)
       if llm_run.status == "screened"
-      else screening_method
+      else plan.screening_method
     ),
-    statement_ids=statement_ids,
+    statement_ids=plan.statement_ids,
     concepts=concepts,
     searches=searches,
     hits=hits,
@@ -627,6 +735,221 @@ def saturate_gap(  # pylint: disable=too-many-arguments,too-many-locals
   _write_report(root, report)
   logger.info("Saturation check on %s: %s. %s", gap.gap_id, status, reason)
   return check
+
+
+def auto_checks_enabled(env: Mapping[str, str] | None = None) -> bool:
+  """
+  Read the opt-out for automatic checks: on unless `SATURATE_AUTO` says off.
+
+  An unreadable value is an error naming the setting, not a silent default.
+  """
+  env = os.environ if env is None else env
+  value = env.get(AUTO_CHECKS_ENV, "").strip().lower()
+  if value in _ON or not value:
+    return True
+  if value in _OFF:
+    return False
+  raise SaturationError(
+    f"{AUTO_CHECKS_ENV}={env[AUTO_CHECKS_ENV]!r} is not understood: use 'on' "
+    "or 'off' (automatic saturation checks after detect, default on)."
+  )
+
+
+def saturate_auto(  # pylint: disable=too-many-arguments,too-many-locals
+  root: Path,
+  sources: Sequence[TopicSearchSource],
+  taxonomies: Sequence[Taxonomy],
+  *,
+  cap: int = AUTO_CHECK_CAP,
+  freshness: timedelta = AUTO_FRESHNESS,
+  limit: int = DEFAULT_SEARCH_LIMIT,
+  screener: HitScreener | None = None,
+  now: Callable[[], datetime] = _utc_now,
+  query_variants: QueryVariantModel | None = None,
+) -> AutoRun:
+  """
+  Check the Corpus's high-confidence gaps, strongest first; log the rest.
+
+  A gap whose latest snapshot ran the same queries on every source, and is
+  younger than `freshness`, is reused rather than searched (a "not run"
+  snapshot never is). At most `cap` gaps are searched live; a reused gap does
+  not count toward it, and the gaps past it are logged as left for on-demand.
+  A source that fails for being unreachable or rate-limited is not asked again
+  in this run: later checks record it as not searched, so an offline run still
+  completes, with its checks "not run (reason)". The run is appended to the
+  log with what happened to each gap.
+  """
+  run_at = now()
+  run = AutoRun(run_at=run_at, cap=cap, freshness_days=freshness.days)
+  guarded: list[TopicSearchSource] = [_GuardedSource(source) for source in sources]
+  live = 0
+  for gap in _auto_candidates(root):
+    try:
+      plan = _plan(root, gap, taxonomies)
+    except SaturationError as error:
+      run.entries.append(
+        AutoRunEntry(gap_id=gap.gap_id, outcome="not_checkable", note=str(error))
+      )
+      continue
+    fresh = _fresh_check(root, gap.gap_id, plan, sources, run_at - freshness)
+    if fresh is not None:
+      run.entries.append(
+        AutoRunEntry(
+          gap_id=gap.gap_id,
+          outcome="cached",
+          check_id=fresh.check_id,
+          status=fresh.status,
+        )
+      )
+      continue
+    if live >= cap:
+      run.entries.append(AutoRunEntry(gap_id=gap.gap_id, outcome="left_for_on_demand"))
+      continue
+    live += 1
+    check = _run_check(
+      root,
+      gap,
+      plan,
+      guarded,
+      limit=limit,
+      screener=screener,
+      now=now,
+      query_variants=query_variants,
+      trigger="auto",
+    )
+    run.entries.append(
+      AutoRunEntry(
+        gap_id=gap.gap_id,
+        outcome="checked",
+        check_id=check.check_id,
+        status=check.status,
+      )
+    )
+  report = read_saturation_checks(root)
+  report.corpus_root = root
+  report.auto_runs.append(run)
+  _write_report(root, report)
+  _log_auto_run(run)
+  return run
+
+
+def _log_auto_run(run: AutoRun) -> None:
+  """Log what an automatic run did, naming the gaps left for on-demand."""
+  outcomes = Counter(entry.outcome for entry in run.entries)
+  logger.info(
+    "Automatic saturation checks: %d high-confidence gap(s); %d checked, "
+    "%d reused (checked within %d days), %d left for on-demand, %d not checkable.",
+    len(run.entries),
+    outcomes["checked"],
+    outcomes["cached"],
+    run.freshness_days,
+    outcomes["left_for_on_demand"],
+    outcomes["not_checkable"],
+  )
+  for entry in run.entries:
+    status = f" ({entry.status})" if entry.status else ""
+    note = f": {entry.note}" if entry.note else ""
+    logger.info("  %s: %s%s%s", entry.gap_id, entry.outcome, status, note)
+  if run.left_for_on_demand:
+    logger.info(
+      "Left for on-demand checks (past the cap of %d): %s",
+      run.cap,
+      ", ".join(run.left_for_on_demand),
+    )
+
+
+def _auto_candidates(root: Path) -> list[CellGap | UnansweredLimitationGap]:
+  """
+  Return the high-confidence gaps an automatic run checks, strongest first.
+
+  Cell gaps come first, by L1 probability (the less likely the observed count
+  under independence, the stronger); then Unanswered Limitations, by how many
+  later Papers failed to follow them up. A rejected cell candidate is skipped.
+  """
+  gaps = [
+    gap
+    for gap in read_candidate_gaps(root).gaps
+    if gap.confidence == "high" and not (isinstance(gap, CellGap) and gap.rejected)
+  ]
+
+  def strength(gap: CellGap | UnansweredLimitationGap) -> tuple[int, float, str]:
+    if isinstance(gap, CellGap):
+      return (0, gap.l1_probability, gap.gap_id)
+    return (1, -gap.later_paper_count, gap.gap_id)
+
+  return sorted(gaps, key=strength)
+
+
+def _fresh_check(
+  root: Path,
+  gap_id: str,
+  plan: _CheckPlan,
+  sources: Sequence[TopicSearchSource],
+  since: datetime,
+) -> SaturationCheck | None:
+  """
+  Return the latest snapshot an automatic run may reuse for a gap, if any.
+
+  The cache is keyed by query and source (ADR 0009 §2): the snapshot must have
+  searched every current source with the exact base query the gap would be
+  sent now, without error, no earlier than `since`.
+  """
+  wanted = {
+    (source.name, build_query(source.name, plan.concepts)) for source in sources
+  }
+  for check in reversed(read_saturation_checks(root).checks):
+    if check.gap_id != gap_id or check.status == "not_run":
+      continue
+    if check.checked_at < since:
+      continue
+    searched = {
+      (search.source, search.query)
+      for search in check.searches
+      if search.attempt == "base" and not search.error
+    }
+    if wanted <= searched:
+      return check
+  return None
+
+
+class SourceUnavailableError(Exception):
+  """A source already failed this run for being unreachable or rate-limited."""
+
+
+class _GuardedSource:  # pylint: disable=too-few-public-methods
+  """
+  A source that stops being asked once it is unreachable or rate-limited.
+
+  An automatic run checks up to `AUTO_CHECK_CAP` gaps; asking an offline or
+  throttling API once per gap would only hammer it (ADR 0009 §2). A failure
+  specific to one query (another HTTP status) does not trip the guard.
+  """
+
+  def __init__(self, source: TopicSearchSource):
+    self.name = source.name
+    self._source = source
+    self._failure = ""
+
+  def search(self, query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[WorkRecord]:
+    """Search the wrapped source, unless it already failed this run."""
+    if self._failure:
+      raise SourceUnavailableError(
+        _TEXT["source_tripped"].format(source=self.name, failure=self._failure)
+      )
+    try:
+      return self._source.search(query, limit=limit)
+    except httpx.HTTPError as error:
+      if _source_wide(error):
+        self._failure = f"{type(error).__name__}: {error}"
+      raise
+
+
+def _source_wide(error: httpx.HTTPError) -> bool:
+  """Whether an error means the whole source is out of reach, not one query."""
+  if isinstance(error, httpx.HTTPStatusError):
+    code = error.response.status_code
+    return code == HTTP_TOO_MANY_REQUESTS or code >= HTTP_SERVER_ERROR
+  return isinstance(error, httpx.TransportError)
 
 
 def saturate_accepted(  # pylint: disable=too-many-arguments
@@ -1249,7 +1572,12 @@ def _search(
   query = build_query(source.name, concepts)
   try:
     records = source.search(query, limit=limit)
-  except (httpx.HTTPError, ET.ParseError, ValueError) as error:
+  except (
+    httpx.HTTPError,
+    ET.ParseError,
+    ValueError,
+    SourceUnavailableError,
+  ) as error:
     logger.warning("%s search failed: %s", source.name, error)
     return (
       SourceSearch(

@@ -373,6 +373,51 @@ COLUMN_ENTRY = "Entry"
 COLUMN_REASON = "Reason"
 COLUMN_FILE = "File"
 
+# The Corpus entry log (ADR 0010 §4, issue #92): how and when each Paper
+# entered the Corpus. A Corpus grown from the tool's own suggestions is not a
+# searched one, so the summary sits with the scope and the Overview keeps the
+# timeline. Keyed by the entry route's value.
+ENTRY_ROUTE_SUMMARY = {
+  "imported": "{count} imported",
+  "uploaded": "{count} added by upload",
+  "retrieval_suggestion": "{count} from retrieval suggestions",
+  "saturation_hit": "{count} from saturation checks",
+}
+ENTRY_ROUTE_LABEL = {
+  "imported": "Imported",
+  "uploaded": "Added by upload",
+  "retrieval_suggestion": "Retrieval suggestion",
+  "saturation_hit": "Saturation check hit",
+}
+ENTRY_LOG_HEADING = "How the Corpus was assembled"
+ENTRY_LOG_SUMMARY = "**How these {total} Papers entered the Corpus:** {summary}."
+ENTRY_LOG_GROWN_CAVEAT = (
+  "Some Papers were added after the initial import, by following the tool's "
+  "own suggestions or by later uploads. A Corpus grown this way is not the same "
+  "as one built from a single search."
+)
+ENTRY_LOG_TIMELINE_LABEL = "Timeline: when Papers entered the Corpus"
+ENTRY_LOG_PAPERS_LABEL = "Each Paper's entry route and date"
+ENTRY_LOG_DATES_NOTE = (
+  "Papers already in the Corpus before the entry log existed are recorded as "
+  "imported, dated by the ingest that first listed them."
+)
+ENTRY_LOG_UNAVAILABLE_LABEL = (
+  "Suggested papers marked unavailable ({count}): they could not be obtained, "
+  "so they are not in the Corpus and nothing here is computed over them."
+)
+ENTRY_LOG_UNAVAILABLE_SCOPE = (
+  "{count} suggested paper(s) could not be obtained and are not in the Corpus."
+)
+COLUMN_DATE = "Date"
+COLUMN_ROUTE = "Route"
+COLUMN_ADDED = "Papers added"
+COLUMN_CORPUS_SIZE = "Corpus size after"
+COLUMN_PAPER = "Paper"
+COLUMN_DOI = "DOI"
+COLUMN_TITLE = "Title"
+EXPORT_SCOPE_ENTRY_LOG = "How the Papers entered the Corpus: {summary}."
+
 # Gap Cards page. Every card is a Candidate Gap: a signal for human judgment,
 # never a verdict (CONTEXT.md > Candidate Gap; CODING_STANDARDS.md > Research
 # integrity).
@@ -405,7 +450,8 @@ RUN_INCOMPLETE = (
 RUN_INCOMPLETE_BY_STAGE: dict[str, str] = {
   "saturate": (
     "`{stage}` completed, but no source could be searched (offline or "
-    "rate-limited). The check is recorded as not run; see the run output below."
+    "rate-limited). The affected checks are recorded as not run; see the run "
+    "output below."
   ),
 }
 RUN_FAILED = "`{stage}` failed. See the run output below for the reason."
@@ -1090,6 +1136,14 @@ STAGE_LAST_RUN = "Last written {when:%Y-%m-%d %H:%M}."
 STAGE_NEWER_INPUTS = "Changed since: {inputs}"
 STAGE_NEWER_INPUTS_MORE = " and {count} more"
 RUN_STAGE_BUTTON = "\u25b6 Run {stage}"
+# The cap and window restate saturate.AUTO_CHECK_CAP / AUTO_FRESHNESS (ADR 0009).
+PIPELINE_AUTO_SATURATE_NOTE = (
+  "After detect, its high-confidence gaps are checked against the wider "
+  "literature (OpenAlex, PubMed): strongest first, at most 20 per run, reusing "
+  "checks younger than 30 days. The rest are left for the gap cards' check "
+  "button. Offline, the checks are recorded as not run. Set SATURATE_AUTO=off "
+  "to switch this off."
+)
 RERUN_STAGE_BUTTON = "\u21bb Re-run {stage}"
 RUN_DETAILS_LABEL = "Run details"
 RUN_DETAILS_INTRO = (
@@ -1155,6 +1209,12 @@ HOME_INTRO = (
   "Judge \u2192 Grow \u2192 Write. Follow the recommended step, or jump to any "
   "page from the sidebar."
 )
+HOME_RESUME_HEADING = "Pick up where you left off"
+HOME_RESUME_REACHED = "The furthest step you reached on this Corpus is **{step}**."
+HOME_RESUME_SAVED = (
+  "Your {verdicts} gap verdicts and {entries} journal entries are saved."
+)
+HOME_RESUME_BUTTON = "Resume at {step} \u2192"
 HOME_RECOMMENDED_HEADING = "Recommended next step"
 HOME_GO_TO_STEP = "Go to {step} \u2192"
 HOME_HEALTH_HEADING = "Corpus health"
@@ -1192,6 +1252,10 @@ RECOMMEND_TRUST = (
 RECOMMEND_EXPLORE = (
   "The Corpus is built and nothing fell out. Look at the map before judging the "
   "{gaps} Candidate Gaps."
+)
+RECOMMEND_EXPLORE_ACKNOWLEDGED = (
+  "You acknowledged that the {gaps} Candidate Gaps come from {reached} of {total} "
+  "Papers. Look at the map before judging them."
 )
 RECOMMEND_JUDGE = "{undecided} of {gaps} Candidate Gaps are still undecided."
 RECOMMEND_WRITE = (
@@ -1238,3 +1302,34 @@ EXPORT_SCOPE_CAVEAT = (
   "Every gap here was computed only over the Papers in this Corpus, not the "
   "whole literature. The gaps are candidates for human judgment, not verdicts."
 )
+
+# The soft Trust gate (issue #77): Explore, Judge, Grow and Write stay locked until
+# the fallout is fixed or the researcher acknowledges the denominator. The
+# acknowledgement holds for one Corpus state; a changed state asks again.
+TRUST_GATE_HEADING = "Face the denominator first"
+TRUST_GATE_INTRO = (
+  "{step} is locked because the Corpus is incomplete. Everything on this step "
+  "comes from {reached} of {total} Papers"
+)
+TRUST_GATE_DROPPED = ", and {dropped} of those are missing some facts"
+TRUST_GATE_OUTRO = (
+  ". Fix what fell out on the Needs Attention page, or acknowledge the "
+  "denominator and continue. The incompleteness banner stays on every page "
+  "either way, and you will be asked again if the Corpus changes."
+)
+TRUST_GATE_ACKNOWLEDGE_BUTTON = (
+  "I understand: these gaps come from {reached} of {total} Papers{dropped}. Continue."
+)
+TRUST_GATE_ACKNOWLEDGE_DROPPED = ", {dropped} of them missing some facts"
+TRUST_GATE_FIX_BUTTON = "Fix the fallout (Needs Attention)"
+TRUST_GATE_ACKNOWLEDGED_NOTE = (
+  "You acknowledged that this analysis rests on {reached} of {total} Papers."
+)
+
+
+def trust_gate_message(step: str, reached: int, total: int, dropped: int) -> str:
+  """Compose why a gated step is locked, stating the denominator."""
+  message = TRUST_GATE_INTRO.format(step=step, reached=reached, total=total)
+  if dropped:
+    message += TRUST_GATE_DROPPED.format(dropped=dropped)
+  return message + TRUST_GATE_OUTRO

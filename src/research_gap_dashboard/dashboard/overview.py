@@ -18,6 +18,7 @@ from research_gap_dashboard.dashboard.artifacts import (
   NormalizedFactsArtifact,
 )
 from research_gap_dashboard.dashboard.attention import IncompletenessBanner
+from research_gap_dashboard.dashboard.entry_log import EntryLogView
 
 # The four descriptive axes the Corpus is placed on, in the order the overview
 # shows them. Human labels live here, not in the detect stage (ADR 0002).
@@ -150,6 +151,7 @@ class OverviewData(BaseModel):
   completeness: CompletenessGauge | None = None
   axis_frequencies: list[AxisFrequency] = []
   fact_density: FactDensity | None = None
+  entry_log: EntryLogView | None = None
   scope_statement: str = text.SCOPE_STATEMENT
 
   @property
@@ -178,6 +180,7 @@ def build_overview(
   normalized: NormalizedFactsArtifact | None = None,
   extractions: ExtractionsArtifact | None = None,
   completeness: IncompletenessBanner | None = None,
+  entry_log: EntryLogView | None = None,
 ) -> OverviewData:
   """
   Compute the Corpus Overview from the CorpusManifest and optional artifacts.
@@ -187,7 +190,8 @@ def build_overview(
   parse/extract completeness gauge (from the incompleteness banner), the per-axis
   frequency bars (from NormalizedFacts), and the facts-per-paper density (from
   Extractions). Each is optional so the page still renders on a freshly ingested
-  Corpus.
+  Corpus. The entry log, when given, carries each Paper's route and date and the
+  suggested papers marked unavailable.
   """
   years = [paper.year for paper in manifest.papers]
   known_years = [year for year in years if year is not None]
@@ -209,6 +213,7 @@ def build_overview(
     completeness=_completeness(completeness),
     axis_frequencies=_axis_frequencies(normalized, corpus_keys),
     fact_density=_fact_density(extractions, manifest),
+    entry_log=entry_log,
   )
 
 

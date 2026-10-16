@@ -15,7 +15,7 @@ in the pipeline panel's collapsed Run details (issue #70).
 """
 
 import os
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import streamlit as st
@@ -43,6 +43,8 @@ def render_run_button(  # pylint: disable=too-many-arguments
   args: Sequence[str] = (),
   key: str | None = None,
   primary: bool = True,
+  then: Sequence[str] = (),
+  stage_args: Mapping[str, Sequence[str]] | None = None,
   estimate: CostEstimate | None = None,
 ) -> None:
   """
@@ -51,7 +53,9 @@ def render_run_button(  # pylint: disable=too-many-arguments
   `key` tells apart two buttons for the same stage on one page (e.g. one per
   Corpus, or one per empty chart); it defaults to the stage name. Every button
   goes through the cost confirmation, wherever it sits. `primary=False` draws
-  a quieter button, for one repeated on every card. `estimate` replaces the
+  a quieter button, for one repeated on every card. `then` chains commands
+  after the stage under the same lock, with any options of their own in
+  `stage_args` (detect, then `saturate --auto`). `estimate` replaces the
   stage's own estimate when the run's size isn't the Corpus's (e.g. a check of
   every accepted gap).
   """
@@ -60,7 +64,9 @@ def render_run_button(  # pylint: disable=too-many-arguments
   if render_pending_confirmation(corpus_root, button_key):
     return
   if st.button(label, key=button_key, type="primary" if primary else "secondary"):
-    request_run(corpus_root, [stage], button_key, args, estimate=estimate)
+    request_run(
+      corpus_root, [stage, *then], button_key, args, stage_args, estimate=estimate
+    )
 
 
 def request_run(
@@ -68,6 +74,7 @@ def request_run(
   stages: Sequence[str],
   button_key: str,
   args: Sequence[str] = (),
+  stage_args: Mapping[str, Sequence[str]] | None = None,
   *,
   estimate: CostEstimate | None = None,
 ) -> None:
@@ -78,15 +85,17 @@ def request_run(
   `button_key` names, on the next rerun. `estimate`, when given, is the whole
   run's estimate and is used instead of each stage's.
   """
+  extra = {stage: tuple(options) for stage, options in (stage_args or {}).items()}
   if any(_must_confirm(corpus_root, stage, estimate) for stage in stages):
     st.session_state[PENDING_RUN_KEY] = (
       str(corpus_root),
       tuple(stages),
       button_key,
       tuple(args),
+      extra,
     )
     st.rerun()
-  _launch(corpus_root, stages, args)
+  _launch(corpus_root, stages, args, extra)
 
 
 def render_pending_confirmation(corpus_root: Path, button_key: str) -> bool:
@@ -94,14 +103,14 @@ def render_pending_confirmation(corpus_root: Path, button_key: str) -> bool:
   pending = st.session_state.get(PENDING_RUN_KEY)
   if pending is None or pending[0] != str(corpus_root) or pending[2] != button_key:
     return False
-  _, stages, _, args = pending
+  _, stages, _, args, stage_args = pending
   st.warning(text.RUN_CONFIRM_PROMPT.format(stage=" \u2192 ".join(stages)))
   confirm, cancel = st.columns(2)
   if confirm.button(
     text.RUN_CONFIRM_BUTTON, key=f"confirm-{button_key}", type="primary"
   ):
     st.session_state.pop(PENDING_RUN_KEY, None)
-    _launch(corpus_root, stages, args)
+    _launch(corpus_root, stages, args, stage_args)
   if cancel.button(text.RUN_CANCEL_BUTTON, key=f"cancel-{button_key}"):
     st.session_state.pop(PENDING_RUN_KEY, None)
     st.rerun()
@@ -132,11 +141,18 @@ def _must_confirm(
   return needs_confirmation(estimate, threshold)
 
 
-def _launch(corpus_root: Path, stages: Sequence[str], args: Sequence[str] = ()) -> None:
+def _launch(
+  corpus_root: Path,
+  stages: Sequence[str],
+  args: Sequence[str] = (),
+  stage_args: Mapping[str, Sequence[str]] | None = None,
+) -> None:
   """Run the stages now under one lock, keep their results, and redraw."""
   with st.spinner(text.RUN_IN_PROGRESS.format(stage=" \u2192 ".join(stages))):
     # Looked up on the module at call time so tests can patch the subprocess.
-    results = pipeline_runner.run_stages(corpus_root, stages, args=args)
+    results = pipeline_runner.run_stages(
+      corpus_root, stages, args=args, stage_args=stage_args
+    )
   st.session_state[LAST_RUN_KEY] = (str(corpus_root), results)
   st.rerun()
 
