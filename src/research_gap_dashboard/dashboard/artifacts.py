@@ -31,6 +31,9 @@ SCOPE_NAME = "scope.json"
 # How and when each Paper entered the Corpus: an input next to the scope,
 # written by `entry_log` (ADR 0010).
 ENTRY_LOG_NAME = "entry_log.json"
+# The Grow path's record of suggested Papers, written by the pipeline's `grow`
+# (restated, not imported: ADR 0002).
+SUGGESTED_PAPERS_NAME = "suggested_papers.json"
 
 
 class ArtifactNotFoundError(FileNotFoundError):

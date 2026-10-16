@@ -11,6 +11,11 @@ never added twice:
 3. otherwise the researcher marks it **unavailable**, with a reason and date,
    which an upload later reverses.
 
+How a Paper entered the Corpus, and which suggested papers could not be had,
+is recorded in the Corpus entry log (ADR 0010 §4) through the dashboard's
+`entry_log` functions: an add logs the Paper with its route and date, and
+"unavailable" lives only there.
+
 A Paper is never added metadata-only: without full text it cannot carry
 Evidence. The paper-list entry is written only together with a PDF that is
 really a PDF, and only if ingest's own pairing check then pairs them; anything
@@ -18,9 +23,11 @@ else is rolled back. Until its PDF arrives a suggestion is **pending**: it is
 in neither the paper list nor `papers/`, so it is outside every denominator.
 The 10-75 Paper envelope is checked before anything is placed (ADR 0010 §5).
 
-Every suggestion is kept in `suggested_papers.json` at the Corpus root, with
-its route(s), status and dated history. Like the paper list and `scope.json`
-it is a Corpus input, not a derived artifact: it records how the Corpus grew.
+`suggested_papers.json` at the Corpus root keeps what the Grow path itself
+still needs: pending suggestions and the added ones (so a work is never added
+twice), with route(s) and dated history. Papers an older file marks
+unavailable are carried into the entry log when it is read and dropped from
+it on the next write.
 Re-running the stages after an add is the caller's job (the dashboard chains
 them through its runner, ADR 0007).
 """
@@ -36,6 +43,14 @@ import httpx
 from pydantic import BaseModel, Field
 
 from research_gap_dashboard.corpus_layout import inspect_corpus_layout
+from research_gap_dashboard.dashboard import entry_log
+from research_gap_dashboard.dashboard.entry_log import (
+  PaperIdentity,
+  UnavailablePaper,
+  adopt_legacy_unavailable,
+  record_entries,
+  suggestion_route,
+)
 from research_gap_dashboard.ingest import (
   MAX_PAPERS,
   CorpusLayoutError,
@@ -57,6 +72,7 @@ BIB_NAME = "corpus.bib"
 _PDF_MAGIC = b"%PDF-"
 
 Route = Literal["retrieval", "saturation"]
+# "unavailable" is only read from older files: the entry log owns that status.
 SuggestionStatus = Literal["pending", "added", "unavailable"]
 AddStatus = Literal["added", "pending", "already_in_corpus"]
 PdfSource = Literal["", "open_access", "upload"]
@@ -122,12 +138,12 @@ class SuggestedPaper(BaseModel):  # pylint: disable=too-many-instance-attributes
 
 
 class SuggestedPapers(BaseModel):
-  """A Corpus's record of suggested Papers: added, pending and unavailable."""
+  """A Corpus's record of suggested Papers: added and pending."""
 
   label: str = (
     "Papers suggested from outside the Corpus (Retrieval Gaps and saturation "
-    "hits). Only 'added' ones are Papers; pending and unavailable ones are in "
-    "no denominator."
+    "hits). Only 'added' ones are Papers; pending ones are in no denominator. "
+    "Papers marked unavailable are in entry_log.json."
   )
   papers: list[SuggestedPaper] = []
 
@@ -162,11 +178,20 @@ def suggested_papers_path(root: Path) -> Path:
 
 
 def read_suggested_papers(root: Path) -> SuggestedPapers:
-  """Read the Corpus's suggested-Papers record, or an empty one."""
+  """
+  Read the Corpus's suggested-Papers record, or an empty one.
+
+  Records an older file marks unavailable are carried into the entry log and
+  left out, so the next write drops them.
+  """
   path = suggested_papers_path(root)
   if not path.is_file():
     return SuggestedPapers()
-  return SuggestedPapers.model_validate_json(path.read_text(encoding="utf-8"))
+  ledger = SuggestedPapers.model_validate_json(path.read_text(encoding="utf-8"))
+  if any(paper.status == "unavailable" for paper in ledger.papers):
+    adopt_legacy_unavailable(root)
+    ledger.papers = [paper for paper in ledger.papers if paper.status != "unavailable"]
+  return ledger
 
 
 def _write(root: Path, ledger: SuggestedPapers) -> None:
@@ -225,9 +250,8 @@ def add_suggested_paper(  # pylint: disable=too-many-arguments,too-many-locals
     source = "open_access"
   if pdf is None:
     reason = lookup_note or note
-    if record.status != "unavailable":
-      record.status = "pending"
-      record.reason = reason
+    record.status = "pending"
+    record.reason = reason
     record.updated_at = now
     record.history.append(
       SuggestionEvent(at=now, status=record.status, route=route, note=reason)
@@ -253,6 +277,19 @@ def add_suggested_paper(  # pylint: disable=too-many-arguments,too-many-locals
     )
   )
   _write(root, ledger)
+  record_entries(
+    root,
+    [
+      PaperIdentity(
+        citation_key=record.citation_key,
+        doi=record.doi,
+        pmid=record.pmid,
+        openalex_id=record.openalex_id,
+      )
+    ],
+    suggestion_route(route),
+    at=now,
+  )
   logger.info("Added %s to the Corpus as %s", ref.lookup_ref(), record.citation_key)
   return AddOutcome(
     status="added",
@@ -270,11 +307,12 @@ def mark_unavailable(  # pylint: disable=too-many-arguments
   title: str = "",
   year: int | None = None,
   now: datetime | None = None,
-) -> SuggestedPaper:
+) -> UnavailablePaper:
   """
-  Record that a suggested work can't be obtained, with its reason and date.
+  Record in the entry log that a suggested work can't be obtained, and why.
 
-  It stops being offered as a suggestion; uploading its PDF later adds it.
+  It stops being offered as a suggestion and leaves the suggested-Papers
+  record, where it was pending; uploading its PDF later adds it.
   """
   now = now or datetime.now(UTC)
   reason = reason.strip()
@@ -287,15 +325,20 @@ def mark_unavailable(  # pylint: disable=too-many-arguments
   if (record is not None and record.status == "added") or ref.ids() & _corpus_ids(root):
     raise GrowError("This paper is already in the Corpus.")
   record = _merge(ledger, record, ref, route, None, title=title, year=year, now=now)
-  record.status = "unavailable"
-  record.reason = reason
-  record.updated_at = now
-  record.history.append(
-    SuggestionEvent(at=now, status="unavailable", route=route, note=reason)
+  ledger.papers.remove(record)
+  marked = entry_log.mark_unavailable(
+    root,
+    doi=record.doi,
+    pmid=record.pmid,
+    openalex_id=record.openalex_id,
+    title=record.title,
+    route=suggestion_route(route),
+    reason=reason,
+    at=now,
   )
   _write(root, ledger)
   logger.info("Marked %s unavailable: %s", ref.lookup_ref(), reason)
-  return record
+  return marked
 
 
 def _find(ledger: SuggestedPapers, ids: set[str]) -> SuggestedPaper | None:

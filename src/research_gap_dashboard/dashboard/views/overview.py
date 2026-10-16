@@ -33,7 +33,6 @@ from research_gap_dashboard.dashboard.overview import (
   build_overview,
   overview_preview_bar,
 )
-from research_gap_dashboard.dashboard.suggestions import load_suggested_papers
 from research_gap_dashboard.dashboard.views.run_controls import (
   render_last_run,
   render_run_buttons,
@@ -82,11 +81,6 @@ def render_overview(overview: OverviewData, corpus_root: Path) -> None:
   st.header(text.OVERVIEW_HEADING)
   render_last_run(corpus_root)
   st.info(overview.scope_statement)
-  # A paper the researcher could not obtain is part of the scope: the Corpus
-  # is missing relevant work, and says so (ADR 0009 \u00a712).
-  unavailable = len(load_suggested_papers(corpus_root).unavailable)
-  if unavailable:
-    st.caption(text.OVERVIEW_UNAVAILABLE_DISCLOSURE.format(count=unavailable))
 
   paper_col, venue_col, year_col = st.columns(3)
   paper_col.metric(text.METRIC_PAPER_COUNT, overview.paper_count)

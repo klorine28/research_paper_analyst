@@ -9,7 +9,7 @@ it knows where everything lives.
   corpus.bib          # the paper list: a BibTeX file, or dois.txt (one DOI per line)
   scope.json          # the scope statement: question, field, what was searched
   entry_log.json      # how and when each Paper entered, and suggested papers marked unavailable
-  suggested_papers.json  # suggested Papers added, pending or unavailable (Grow path)
+  suggested_papers.json  # suggested Papers added or pending (Grow path)
   papers/             # the Papers' PDFs, and nothing else
   paper-data/         # per-Paper derived data (parsed sections, Extractions, LLM cache)
   artifacts/          # stage outputs (ingest -> extract -> aggregate -> detect)
@@ -36,8 +36,9 @@ it knows where everything lives.
   Paper's entry route (imported, added by upload, from a retrieval suggestion,
   from a saturation check) and date, plus suggested papers marked unavailable
   (ADR 0010 §4). The dashboard writes it when it places a paper list (the
-  initial import before the first ingest, "added by upload" after) and when a
-  suggestion is added or marked unavailable. A manifest Paper the log has never
+  initial import before the first ingest, "added by upload" after); the Grow
+  path (`add-suggested`, `mark-unavailable`) writes it when a suggestion is
+  added or marked unavailable. It is the one record of unavailable papers. A manifest Paper the log has never
   seen is recorded as imported, dated by the manifest, the first time the
   dashboard opens the Corpus, so older Corpora get a complete log. The
   Overview shows the route summary and timeline; the scope line on every page
@@ -48,10 +49,11 @@ it knows where everything lives.
   manifest, so the dashboard can refuse before ingesting.
 - **Suggested Papers are recorded at the root.** `suggested_papers.json` lists
   every Retrieval Gap candidate or saturation hit the researcher acted on: its
-  route(s), status (`added`, `pending`, `unavailable`), reason and dated
-  history. Only `add-suggested` and `mark-unavailable` write it; like the paper
-  list it is a Corpus input recording how the Corpus grew, not an artifact. A
-  pending or unavailable paper has no paper-list entry and no PDF, so it is in
+  route(s), status (`added`, `pending`), reason and dated history: what the
+  Grow path still needs. Only `add-suggested` and `mark-unavailable` write it;
+  like the paper list it is a Corpus input, not an artifact. Papers marked
+  unavailable live in `entry_log.json`; an older file's `unavailable` records
+  are carried into the log when read. A pending or unavailable paper has no paper-list entry and no PDF, so it is in
   no denominator.
 - **The dashboard may place inputs.** Its Add Papers panel writes uploaded PDFs
   into `papers/` and creates or appends to the paper list (ADR 0007).

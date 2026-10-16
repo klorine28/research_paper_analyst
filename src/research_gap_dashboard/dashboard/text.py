@@ -1070,11 +1070,6 @@ SUGGEST_MARKED = "Marked unavailable."
 SUGGEST_MARK_FAILED = "Could not mark the paper unavailable: {reason}"
 SUGGEST_LOCKED = "Another run is using this Corpus; try again when it finishes."
 SUGGEST_IN_PROGRESS = "Looking for an open-access PDF\u2026"
-OVERVIEW_UNAVAILABLE_DISCLOSURE = (
-  "{count} relevant paper(s) suggested from outside the Corpus could not be "
-  "included: they are marked unavailable (see the Retrieval Gaps page and the gap "
-  "cards' wider-literature checks)."
-)
 
 # Paper Explainer page. Each Paper's experiment explained in two registers,
 # grounded in the Paper's own text (see `explain`).
