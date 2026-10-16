@@ -8,6 +8,7 @@ it knows where everything lives.
 <corpus>/
   corpus.bib          # the paper list: a BibTeX file, or dois.txt (one DOI per line)
   scope.json          # the scope statement: question, field, what was searched
+  suggested_papers.json  # suggested Papers added, pending or unavailable (Grow path)
   papers/             # the Papers' PDFs, and nothing else
   paper-data/         # per-Paper derived data (parsed sections, Extractions, LLM cache)
   artifacts/          # stage outputs (ingest -> extract -> aggregate -> detect)
@@ -34,6 +35,13 @@ it knows where everything lives.
   the layout check.
   `ingest --check` reports the pairing and the envelope without writing the
   manifest, so the dashboard can refuse before ingesting.
+- **Suggested Papers are recorded at the root.** `suggested_papers.json` lists
+  every Retrieval Gap candidate or saturation hit the researcher acted on: its
+  route(s), status (`added`, `pending`, `unavailable`), reason and dated
+  history. Only `add-suggested` and `mark-unavailable` write it; like the paper
+  list it is a Corpus input recording how the Corpus grew, not an artifact. A
+  pending or unavailable paper has no paper-list entry and no PDF, so it is in
+  no denominator.
 - **The dashboard may place inputs.** Its Add Papers panel writes uploaded PDFs
   into `papers/` and creates or appends to the paper list (ADR 0007).
 

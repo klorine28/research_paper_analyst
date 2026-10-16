@@ -364,6 +364,7 @@ class SaturationHitRecord(_ReadModel):
   venue: str = ""
   doi: str = ""
   pmid: str = ""
+  openalex_id: str = ""
   verdict: str = ""
   reason: str = ""
   attempt: str = "base"

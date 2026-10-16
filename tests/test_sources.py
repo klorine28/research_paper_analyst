@@ -354,3 +354,60 @@ def test_source_identity_treats_blank_settings_as_unset():
 
   assert identity.openalex_mailto is None
   assert identity.pubmed_api_key is None
+
+
+# A trimmed OpenAlex single-work response with its open-access locations.
+OA_WORK_RESPONSE = {
+  "id": "https://openalex.org/W42",
+  "doi": "https://doi.org/10.5555/open.1",
+  "ids": {"pmid": "https://pubmed.ncbi.nlm.nih.gov/123456"},
+  "title": "An open paper",
+  "publication_year": 2021,
+  "authorships": [{"author": {"display_name": "Ada Lovelace"}}],
+  "primary_location": {"source": {"display_name": "Open Journal"}},
+  "best_oa_location": {"pdf_url": "https://example.org/best.pdf"},
+  "locations": [
+    {"is_oa": True, "pdf_url": "https://example.org/best.pdf"},
+    {"is_oa": True, "pdf_url": "https://repo.example.org/copy.pdf"},
+    {"is_oa": False, "pdf_url": "https://paywall.example.org/x.pdf"},
+  ],
+  "open_access": {"is_oa": True, "oa_url": "https://example.org/landing"},
+}
+
+
+def test_open_access_lists_the_work_and_its_pdf_urls_best_first():
+  """A work's open-access PDF URLs come best first, without repeats or paywalls."""
+  urls: list[str] = []
+  adapter = OpenAlexAdapter(fetch=_fetch_returning(OA_WORK_RESPONSE, urls))
+
+  work = adapter.open_access("doi:10.5555/open.1")
+
+  assert work is not None
+  assert work.record.doi == "10.5555/open.1"
+  assert work.record.pmid == "123456"
+  assert work.record.authors == ["Ada Lovelace"]
+  assert work.pdf_urls == [
+    "https://example.org/best.pdf",
+    "https://repo.example.org/copy.pdf",
+    "https://example.org/landing",
+  ]
+  assert urlparse(urls[0]).path == "/works/doi:10.5555/open.1"
+
+
+def test_open_access_reports_a_closed_work_with_no_pdf_urls():
+  """A paywalled work still resolves, with nothing to download."""
+  closed = {**OA_WORK_RESPONSE, "best_oa_location": None, "locations": []}
+  closed["open_access"] = {"is_oa": False, "oa_url": None}
+  adapter = OpenAlexAdapter(fetch=_fetch_returning(closed))
+
+  work = adapter.open_access("W42")
+
+  assert work is not None
+  assert work.pdf_urls == []
+
+
+def test_open_access_returns_none_when_the_work_is_absent():
+  """An unknown work has no record and nothing to fetch."""
+  adapter = OpenAlexAdapter(fetch=_fetch_returning(None))
+
+  assert adapter.open_access("pmid:1") is None

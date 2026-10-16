@@ -154,6 +154,14 @@ def _pair(root: Path) -> CorpusManifest:
   return _match(root, entries, report.pdf_paths)
 
 
+def read_paper_list_entries(root: Path) -> list[PaperListEntry]:
+  """Read the Corpus's paper list as ingest reads it, whether or not paired."""
+  report = inspect_corpus_layout(root)
+  if report.paper_list_path is None:
+    raise CorpusLayoutError(f"Corpus directory '{root}' has no paper list.")
+  return _read_paper_list(report.paper_list_path)
+
+
 def _resolve(manifest: CorpusManifest, adapter: SourceAdapter) -> None:
   """
   Enrich each Paper with canonical metadata, flagging DOIs that don't resolve.

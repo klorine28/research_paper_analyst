@@ -57,6 +57,10 @@ NARRATIVE_KEY = "narrative_summary"
 # that followed, so both stay on screen across the rerun the upload triggers
 # (issue #75).
 UPLOAD_STATE_KEY = "paper_upload_state"
+# The last Grow-path action on a suggested Paper, as (corpus root, suggestion
+# key, level, message), so its outcome stays under that suggestion across the
+# rerun the action triggers (issue #91).
+SUGGESTION_OUTCOME_KEY = "suggestion_outcome"
 # The page shown is kept here as plain state, not a widget's: the sidebar, the
 # step bar and Previous/Next all write it from their button callbacks. The Home
 # screen knows steps, not pages, so its "Recommended next step" button records a

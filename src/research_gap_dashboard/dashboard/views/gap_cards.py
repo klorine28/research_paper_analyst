@@ -1,4 +1,9 @@
-"""The Gap Cards page: one card per Candidate Gap, with Evidence and accept/reject."""
+"""
+The Gap Cards page: one card per Candidate Gap, with Evidence and accept/reject.
+
+A card's wider-literature hits can be added to the Corpus through the shared
+Grow path; a hit that is also a Retrieval Gap candidate says so (#91).
+"""
 
 from pathlib import Path
 
@@ -8,7 +13,9 @@ from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard.artifacts import (
   CorpusChoice,
   has_candidate_gaps,
+  has_retrieval_gaps,
   load_candidate_gaps,
+  load_retrieval_gaps,
   load_saturation_checks,
 )
 from research_gap_dashboard.dashboard.comparison import MAX_SELECTION, MIN_SELECTION
@@ -19,6 +26,7 @@ from research_gap_dashboard.dashboard.gaps import (
   FilteredGapCards,
   GapCard,
   GapCardsData,
+  SaturationHitView,
   SaturationSearchView,
   SaturationView,
   StatusFilter,
@@ -31,9 +39,13 @@ from research_gap_dashboard.dashboard.judgments import (
   load_judgments,
   record_judgment,
 )
+from research_gap_dashboard.dashboard.suggestions import load_suggested_papers
 from research_gap_dashboard.dashboard.views.run_controls import (
   render_last_run,
   render_run_button,
+)
+from research_gap_dashboard.dashboard.views.suggestions import (
+  render_suggestion_actions,
 )
 from research_gap_dashboard.dashboard.views.session_keys import (
   COMPARISON_PAPERS_KEY,
@@ -70,6 +82,10 @@ def render_page(chosen: CorpusChoice) -> None:
     load_judgments(chosen.root),
     chosen.root,
     load_saturation_checks(chosen.root),
+    suggested=load_suggested_papers(chosen.root),
+    retrieval=(
+      load_retrieval_gaps(chosen.root) if has_retrieval_gaps(chosen.root) else None
+    ),
   )
   render_gap_cards(data, chosen.root)
 
@@ -220,7 +236,7 @@ def _render_gap_card(card: GapCard, corpus_root: Path) -> None:
     with st.expander(text.GAP_TIER_JUSTIFICATION_LABEL):
       _render_justification(card)
     with st.expander(text.GAP_TIER_DATA_LABEL):
-      _render_data(card)
+      _render_data(card, corpus_root)
     _render_controls(card, corpus_root)
 
 
@@ -267,7 +283,7 @@ def _render_justification(card: GapCard) -> None:
 _MAX_NEIGHBOURS = 10
 
 
-def _render_data(card: GapCard) -> None:
+def _render_data(card: GapCard, corpus_root: Path) -> None:
   """Tier 3: the Papers per category, neighbouring cells, score and reasons."""
   data = card.data
   st.markdown(f"**{text.GAP_DATA_PAPERS_HEADING}**")
@@ -308,10 +324,10 @@ def _render_data(card: GapCard) -> None:
   for reason in data.reasons:
     st.caption(reason)
   if card.saturation.checkable:
-    _render_saturation(card.saturation)
+    _render_saturation(card.saturation, card.gap_id, corpus_root)
 
 
-def _render_saturation(view: SaturationView) -> None:
+def _render_saturation(view: SaturationView, gap_id: str, corpus_root: Path) -> None:
   """Tier 3 drill-down: the verbatim queries, every hit with its verdict, history."""
   st.markdown(f"**{text.GAP_SATURATION_HEADING}**")
   if view.status == "not_checked":
@@ -341,9 +357,11 @@ def _render_saturation(view: SaturationView) -> None:
     )
     + "*"
   )
+  offered = [hit for hit in view.hits if not hit.state.unavailable]
+  unavailable = [hit for hit in view.hits if hit.state.unavailable]
   if not view.hits:
     st.caption(text.GAP_SATURATION_NO_HITS)
-  if view.hits:
+  if offered:
     st.markdown(
       "\n".join(
         "- "
@@ -365,11 +383,48 @@ def _render_saturation(view: SaturationView) -> None:
           if hit.llm_verdict
           else ""
         )
-        for hit in view.hits
+        + _hit_markers(hit)
+        for hit in offered
       )
     )
+    _render_add_hit(offered, gap_id, corpus_root)
+  if unavailable:
+    st.markdown(f"*{text.GAP_SATURATION_UNAVAILABLE_HEADING}*")
+    for hit in unavailable:
+      st.markdown(f"- {hit.title}")
+      if hit.suggestion is not None:
+        render_suggestion_actions(corpus_root, hit.suggestion, hit.state, scope=gap_id)
   st.markdown(f"*{text.GAP_SATURATION_HISTORY_HEADING}*")
   st.markdown("\n".join(view.history))
+
+
+def _hit_markers(hit: SaturationHitView) -> str:
+  """Return the double signal and Grow-path state shown after a hit's line."""
+  markers = text.GAP_SATURATION_STATE_MARKERS.get(hit.state.status, "")
+  if hit.retrieval_overlap:
+    markers += text.GAP_SATURATION_ALSO_RETRIEVAL.format(count=hit.retrieval_overlap)
+  return markers
+
+
+def _render_add_hit(
+  hits: list[SaturationHitView], gap_id: str, corpus_root: Path
+) -> None:
+  """Pick one hit and offer the Grow path for it (one picker, however many hits)."""
+  addable = [hit for hit in hits if hit.suggestion is not None]
+  if not addable:
+    return
+  st.markdown(f"*{text.GAP_SATURATION_ADD_HEADING}*")
+  index = st.selectbox(
+    text.GAP_SATURATION_ADD_PICKER,
+    range(len(addable)),
+    format_func=lambda i: addable[i].title,
+    key=f"add-hit-pick-{gap_id}",
+  )
+  chosen = addable[index or 0]
+  if chosen.suggestion is not None:
+    render_suggestion_actions(
+      corpus_root, chosen.suggestion, chosen.state, scope=gap_id
+    )
 
 
 def _render_searches(searches: list[SaturationSearchView]) -> None:
