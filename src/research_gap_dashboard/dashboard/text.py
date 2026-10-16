@@ -1179,6 +1179,12 @@ HOME_INTRO = (
   "Judge \u2192 Grow \u2192 Write. Follow the recommended step, or jump to any "
   "page from the sidebar."
 )
+HOME_RESUME_HEADING = "Pick up where you left off"
+HOME_RESUME_REACHED = "The furthest step you reached on this Corpus is **{step}**."
+HOME_RESUME_SAVED = (
+  "Your {verdicts} gap verdicts and {entries} journal entries are saved."
+)
+HOME_RESUME_BUTTON = "Resume at {step} \u2192"
 HOME_RECOMMENDED_HEADING = "Recommended next step"
 HOME_GO_TO_STEP = "Go to {step} \u2192"
 HOME_HEALTH_HEADING = "Corpus health"
@@ -1216,6 +1222,10 @@ RECOMMEND_TRUST = (
 RECOMMEND_EXPLORE = (
   "The Corpus is built and nothing fell out. Look at the map before judging the "
   "{gaps} Candidate Gaps."
+)
+RECOMMEND_EXPLORE_ACKNOWLEDGED = (
+  "You acknowledged that the {gaps} Candidate Gaps come from {reached} of {total} "
+  "Papers. Look at the map before judging them."
 )
 RECOMMEND_JUDGE = "{undecided} of {gaps} Candidate Gaps are still undecided."
 RECOMMEND_WRITE = (
@@ -1262,3 +1272,34 @@ EXPORT_SCOPE_CAVEAT = (
   "Every gap here was computed only over the Papers in this Corpus, not the "
   "whole literature. The gaps are candidates for human judgment, not verdicts."
 )
+
+# The soft Trust gate (issue #77): Explore, Judge, Grow and Write stay locked until
+# the fallout is fixed or the researcher acknowledges the denominator. The
+# acknowledgement holds for one Corpus state; a changed state asks again.
+TRUST_GATE_HEADING = "Face the denominator first"
+TRUST_GATE_INTRO = (
+  "{step} is locked because the Corpus is incomplete. Everything on this step "
+  "comes from {reached} of {total} Papers"
+)
+TRUST_GATE_DROPPED = ", and {dropped} of those are missing some facts"
+TRUST_GATE_OUTRO = (
+  ". Fix what fell out on the Needs Attention page, or acknowledge the "
+  "denominator and continue. The incompleteness banner stays on every page "
+  "either way, and you will be asked again if the Corpus changes."
+)
+TRUST_GATE_ACKNOWLEDGE_BUTTON = (
+  "I understand: these gaps come from {reached} of {total} Papers{dropped}. Continue."
+)
+TRUST_GATE_ACKNOWLEDGE_DROPPED = ", {dropped} of them missing some facts"
+TRUST_GATE_FIX_BUTTON = "Fix the fallout (Needs Attention)"
+TRUST_GATE_ACKNOWLEDGED_NOTE = (
+  "You acknowledged that this analysis rests on {reached} of {total} Papers."
+)
+
+
+def trust_gate_message(step: str, reached: int, total: int, dropped: int) -> str:
+  """Compose why a gated step is locked, stating the denominator."""
+  message = TRUST_GATE_INTRO.format(step=step, reached=reached, total=total)
+  if dropped:
+    message += TRUST_GATE_DROPPED.format(dropped=dropped)
+  return message + TRUST_GATE_OUTRO

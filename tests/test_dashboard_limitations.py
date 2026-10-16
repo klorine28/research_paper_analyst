@@ -21,6 +21,7 @@ from test_detect import (
   RoutedLlmClient,
 )
 
+from research_gap_dashboard.dashboard.trust_gate import acknowledge_denominator
 import research_gap_dashboard.dashboard as dashboard_pkg
 
 from research_gap_dashboard.dashboard.artifacts import load_candidate_gaps
@@ -114,6 +115,8 @@ def _run_limitations_app(corpus: Path, monkeypatch: pytest.MonkeyPatch):
   """Run the Streamlit shell on the Unanswered Limitations page for a corpus."""
   from streamlit.testing.v1 import AppTest
 
+  # Past the soft Trust gate (#77): this fixture Corpus is partial.
+  acknowledge_denominator(corpus)
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
