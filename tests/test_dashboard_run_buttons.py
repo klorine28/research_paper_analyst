@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import StubLlmClient
+from conftest import StubLlmClient, open_page
 
 import research_gap_dashboard.analytics as analytics_module
 import research_gap_dashboard.dashboard as dashboard_pkg
@@ -63,7 +63,7 @@ def _open(corpora_dir: Path, monkeypatch: pytest.MonkeyPatch, page: str | None):
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
   if page is not None:
-    app.radio[0].set_value(page).run()
+    open_page(app, page)
   return app
 
 

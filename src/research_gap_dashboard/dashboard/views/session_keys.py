@@ -6,11 +6,10 @@ citation-network node's Explainer jump) writes these keys; the shell reads them
 before building the page picker.
 """
 
-# The nav radio carries a key so a gap card can switch the page to
-# Conversational Analytics programmatically. A widget's key can't be written once
-# the widget exists, so a page records its target in PENDING_NAV_KEY and the
-# shell applies it before the radio is built; the discuss key names the gap a
-# scoped chat is focused on (issue #48).
+# NAV_PAGE_KEY holds the title of the page shown. A page that switches to
+# another one (a gap card's "Discuss this gap") records its target in
+# PENDING_NAV_KEY and reruns; the shell applies it before building the sidebar.
+# The discuss key names the gap a scoped chat is focused on (issue #48).
 NAV_PAGE_KEY = "nav_page"
 PENDING_NAV_KEY = "pending_nav_page"
 DISCUSS_GAP_KEY = "discuss_gap_id"
@@ -49,3 +48,9 @@ COMPARISON_PAPERS_KEY = "comparison_paper_keys"
 # gives the widget a new identity and throws the researcher's later choice away.
 EXPLAINER_PICKER_KEY = "explainer_paper_picker"
 COMPARISON_PICKER_KEY = "comparison_paper_picker"
+# The page shown is kept here as plain state, not a widget's: the sidebar, the
+# step bar and Previous/Next all write it from their button callbacks. The Home
+# screen knows steps, not pages, so its "Recommended next step" button records a
+# step under PENDING_STEP_KEY and the shell opens that step's first page
+# (issue #76).
+PENDING_STEP_KEY = "pending_nav_step"
