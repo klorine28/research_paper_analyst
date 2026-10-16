@@ -16,6 +16,7 @@ from research_gap_dashboard.dashboard.artifacts import (
   ManifestArtifact,
 )
 from research_gap_dashboard.dashboard.evidence_context import ExpandedEvidence
+from research_gap_dashboard.dashboard.overview import MiniBar
 
 _TILE_TEXT = "#0b2545"
 
@@ -98,18 +99,20 @@ def _render_tile_panel_header(title: str, shade: str) -> None:
   )
 
 
-def render_mini_bar(labels: list[str], values: list[int], *, key: str) -> None:
+def render_mini_bar(bar: MiniBar | None, *, key: str) -> None:
   """
-  Render a compact bar thumbnail: value labels on bars, full names on hover.
+  Render a compact bar thumbnail: value labels on bars, its text alternative below.
 
   A miniature shows the shape of a distribution at a glance with a little
   detail. Long category names (paper titles, venue names) would swallow a fixed
   small chart, so the x ticks stay hidden and each bar instead carries its
-  count; the full name is on hover and in the expanded panel below.
+  count; the full names are on hover, in the text alternative under the chart,
+  and in the expanded panel below.
   """
-  if not labels:
+  if bar is None:
     st.caption(text.OVERVIEW_TILE_PREVIEW_EMPTY)
     return
+  labels, values = bar.labels, bar.values
   figure = go.Figure(
     go.Bar(
       x=list(range(len(labels))),
@@ -140,6 +143,7 @@ def render_mini_bar(labels: list[str], values: list[int], *, key: str) -> None:
     config={"displayModeBar": False},
     key=f"ovmini_{key}",
   )
+  st.caption(bar.summary)
 
 
 def render_evidence_body(

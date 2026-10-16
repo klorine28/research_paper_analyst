@@ -20,6 +20,7 @@ from research_gap_dashboard.dashboard.artifacts import (
   load_normalized_facts,
 )
 from research_gap_dashboard.dashboard.coverage import (
+  MAX_TREND_LINES,
   TopicTrend,
   TrendsData,
   TrendStatus,
@@ -27,6 +28,7 @@ from research_gap_dashboard.dashboard.coverage import (
   build_trends_figure,
   trends_cap_caption,
   trends_table_rows,
+  trends_text_summary,
 )
 from research_gap_dashboard.detect import detect_corpus
 
@@ -210,3 +212,30 @@ def test_trends_table_lists_each_tabled_topic_with_its_volume_and_status():
       "Trend": "Steady",
     }
   ]
+
+
+def test_trends_text_alternative_states_what_it_shows_and_its_denominator(
+  corpus: Path,
+):
+  """The text summary names the chart, its lines, its span and its denominator."""
+  trends = build_trends(load_normalized_facts(corpus), load_manifest(corpus))
+
+  summary = trends_text_summary(trends)
+
+  assert "line chart" in summary.lower()
+  assert "2 of 2 Topics" in summary
+  assert "2018\u20132021" in summary
+  assert "5 of 6 Papers" in summary
+  assert "Takotsubo Cardiomyopathy (4 Papers)" in summary
+  assert "1 emerging" in summary
+  assert "1 abandoned" in summary
+
+
+def test_trends_text_alternative_counts_only_the_plotted_lines():
+  """Past the line cap, the summary says how many Topics are drawn as lines."""
+  trends = _many_topics(["steady"] * 9)
+
+  summary = trends_text_summary(trends)
+
+  assert f"{MAX_TREND_LINES} of 9 Topics" in summary
+  assert "40 of 40 Papers" in summary

@@ -25,7 +25,17 @@ from research_gap_dashboard.dashboard.artifacts import (
   load_manifest,
 )
 from research_gap_dashboard.dashboard.attention import IncompletenessBanner
-from research_gap_dashboard.dashboard.overview import build_overview
+from research_gap_dashboard.dashboard.overview import (
+  AxisFrequency,
+  CategoryCount,
+  FactDensity,
+  OverviewData,
+  PaperFactCount,
+  VenueCount,
+  YearCount,
+  build_overview,
+  overview_preview_bar,
+)
 from research_gap_dashboard.dashboard.text import (
   NEW_CORPUS_SUBMIT,
   NO_CORPORA,
@@ -380,3 +390,91 @@ def test_dashboard_imports_no_pipeline_logic():
         if name in pipeline_paths:
           offenders.append(f"{source.relative_to(package_dir)} imports {name}")
   assert not offenders
+
+
+def _preview_overview() -> OverviewData:
+  """Build an OverviewData with more venues than a thumbnail holds."""
+  return OverviewData(
+    paper_count=10,
+    papers_per_year=[
+      YearCount(year=2018, count=4),
+      YearCount(year=2019, count=5),
+      YearCount(year=None, count=1),
+    ],
+    venues=[VenueCount(venue=f"Venue {i}", count=10 - i) for i in range(9)],
+    earliest_year=2018,
+    latest_year=2019,
+    unmatched_entries=[],
+    orphan_pdfs=[],
+    axis_frequencies=[
+      AxisFrequency(
+        axis="topic",
+        label="Topic",
+        papers_placed=7,
+        categories=[
+          CategoryCount(category_id="t1", label="Heart", count=6),
+          CategoryCount(category_id="t2", label="Lung", count=2),
+        ],
+      )
+    ],
+    fact_density=FactDensity(
+      papers=[
+        PaperFactCount(citation_key="a", label="Paper A", count=5),
+        PaperFactCount(citation_key="b", label="Paper B", count=1),
+      ],
+      total_facts=6,
+    ),
+  )
+
+
+def test_papers_per_year_preview_names_every_bar_and_the_corpus_size():
+  """The year thumbnail's text alternative lists each year, Unknown included."""
+  bar = overview_preview_bar("papers_year", _preview_overview())
+
+  assert bar is not None
+  assert bar.labels == ["2018", "2019", UNKNOWN_YEAR_LABEL]
+  assert "bar chart" in bar.summary.lower()
+  assert "all 10 Papers" in bar.summary
+  assert f"2018 (4); 2019 (5); {UNKNOWN_YEAR_LABEL} (1)" in bar.summary
+
+
+def test_venues_preview_states_it_shows_the_top_venues_only():
+  """Only eight venues fit, and the text alternative says of how many."""
+  bar = overview_preview_bar("venues", _preview_overview())
+
+  assert bar is not None
+  assert len(bar.labels) == 8
+  assert "8 of 9 venues" in bar.summary
+  assert "10 Papers" in bar.summary
+  assert "Venue 0 (10)" in bar.summary
+
+
+def test_axes_preview_states_its_axis_and_placed_papers():
+  """The axis thumbnail's denominator is the Papers placed on that axis."""
+  bar = overview_preview_bar("axes", _preview_overview())
+
+  assert bar is not None
+  assert "2 of 2 Topic categories" in bar.summary
+  assert "7 of 10 Papers" in bar.summary
+  assert "Heart (6); Lung (2)" in bar.summary
+
+
+def test_facts_preview_states_the_extracted_papers_and_fact_total():
+  """The density thumbnail's denominator is the extracted Papers and their facts."""
+  bar = overview_preview_bar("facts", _preview_overview())
+
+  assert bar is not None
+  assert "2 of 2 extracted Papers" in bar.summary
+  assert "6 facts" in bar.summary
+  assert "Paper A (5); Paper B (1)" in bar.summary
+
+
+def test_previews_without_data_have_no_bar():
+  """Empty sections return no bar, so the tile says there is nothing yet."""
+  overview = _preview_overview().model_copy(
+    update={"venues": [], "axis_frequencies": [], "fact_density": None}
+  )
+
+  assert overview_preview_bar("venues", overview) is None
+  assert overview_preview_bar("axes", overview) is None
+  assert overview_preview_bar("facts", overview) is None

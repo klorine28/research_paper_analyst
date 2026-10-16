@@ -29,13 +29,17 @@ from research_gap_dashboard.dashboard.limitations import (
 )
 from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard.meta_analysis import (
+  AuthorCollaborationTable,
+  AuthorRow,
   LimitationFollowUpView,
+  author_preview_bar,
   build_author_table,
   build_citation_network,
   build_cooccurrence,
   build_limitation_bar_figure,
   build_limitation_flow,
   build_network_figure,
+  limitation_bar_text_summary,
   node_role,
   short_paper_label,
 )
@@ -652,3 +656,47 @@ def test_selected_node_colour_passes_contrast_and_grayscale_screen():
   for other in (text.META_CONNECTED_COLOR, text.META_ISOLATED_COLOR):
     delta = abs(_lightness(text.META_SELECTED_COLOR) - _lightness(other))
     assert delta >= _GRAYSCALE_DELTA_L, other
+
+
+def test_limitation_bar_text_alternative_states_each_share_of_the_total():
+  """The text summary names the bar, its denominator and every segment's share."""
+  summary = limitation_bar_text_summary(_limitation_view())
+
+  assert "segmented bar" in summary.lower()
+  assert "9 limitation group(s)" in summary
+  assert "4 (44%) addressed" in summary
+  assert "3 (33%) still open" in summary
+  assert "2 (22%) with no later Paper" in summary
+
+
+def test_author_preview_bar_lists_each_bar_with_its_denominator():
+  """The authors thumbnail carries a text alternative naming every bar."""
+  table = AuthorCollaborationTable(
+    title="",
+    question="",
+    caveat="",
+    gap_lens="",
+    rows=[
+      AuthorRow(author="Ito", paper_count=3, collaborator_count=2),
+      AuthorRow(author="Okabe", paper_count=2, collaborator_count=1),
+    ],
+    total_authors=5,
+    papers_with_authors=4,
+  )
+
+  bar = author_preview_bar(table)
+
+  assert bar is not None
+  assert bar.labels == ["Ito", "Okabe"]
+  assert bar.values == [3, 2]
+  assert "bar chart" in bar.summary.lower()
+  assert "2 of 5 authors" in bar.summary
+  assert "4 Papers" in bar.summary
+  assert "Ito (3); Okabe (2)" in bar.summary
+
+
+def test_author_preview_bar_is_none_without_authors():
+  """No author rows means no thumbnail, so the tile says why instead."""
+  table = AuthorCollaborationTable(title="", question="", caveat="", gap_lens="")
+
+  assert author_preview_bar(table) is None

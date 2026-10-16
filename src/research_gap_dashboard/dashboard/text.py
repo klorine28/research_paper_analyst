@@ -322,6 +322,39 @@ PREVIEW_VENUES = "{count} venues \u00b7 top: {top} ({n})"
 PREVIEW_AXES = "{count} {axis} categories \u00b7 top: {top} ({n})"
 PREVIEW_FACTS = "{facts} facts \u00b7 mean {mean:.1f}/paper"
 
+# Text alternatives for the bar thumbnails (chart audit C7). The thumbnails hide
+# their category axis, so each summary names every bar with its count and
+# states what the bars were counted over. ``{bars}`` is filled by bar_listing.
+MINI_BAR_ALT_PAPERS_YEAR = (
+  "Bar chart of Papers per publication year, over all {total} Papers in the "
+  "Corpus: {bars}."
+)
+MINI_BAR_ALT_VENUES = (
+  "Bar chart of the top {shown} of {venues} venues by Paper count, over the "
+  "{total} Papers in the Corpus: {bars}."
+)
+MINI_BAR_ALT_AXIS = (
+  "Bar chart of the top {shown} of {categories} {axis} categories by Paper "
+  "count, over the {placed} of {total} Papers placed on the {axis} axis (a "
+  "Paper can sit in several categories): {bars}."
+)
+MINI_BAR_ALT_FACTS = (
+  "Bar chart of verified facts per Paper for the top {shown} of {papers} "
+  "extracted Papers ({facts} facts in all): {bars}."
+)
+MINI_BAR_ALT_AUTHORS = (
+  "Bar chart of the top {shown} of {authors} authors by Paper count, over the "
+  "{papers} Papers in the Corpus that list authors: {bars}."
+)
+
+
+def bar_listing(labels: list[str], values: list[int]) -> str:
+  """Name every bar with its count, in chart order, for a text alternative."""
+  return "; ".join(
+    f"{label} ({value})" for label, value in zip(labels, values, strict=True)
+  )
+
+
 PAPERS_PER_YEAR_EXPLAINER = (
   "**What it answers:** When were the Papers in this Corpus published?\n\n"
   "**How to read it:** Each bar is one year; its height is how many Papers "
@@ -699,6 +732,12 @@ TRENDS_DENOMINATOR = (
   "Lines are built from the {with_year} of {total} Papers in the Corpus that "
   "carry a publication year."
 )
+TRENDS_ALT = (
+  "Line chart of Papers per year for {shown} of {topics} Topics, {span}, "
+  "counted over the {with_year} of {total} Papers in the Corpus that carry a "
+  "publication year. Most-covered Topic: {top} ({top_total} Papers). "
+  "{emerging} emerging and {abandoned} abandoned Topic(s)."
+)
 TRENDS_MISSING_YEAR = (
   "{without_year} Paper(s) carry no publication year and are not on the timeline."
 )
@@ -900,9 +939,10 @@ META_LIMITATION_NO_LATER_LABEL = "No later Paper to check yet"
 META_LIMITATION_BAR_ROW = "Limitation groups"
 META_LIMITATION_BAR_X = "Number of limitation groups"
 META_LIMITATION_SUMMARY = (
-  "Of {total} limitation group(s): {addressed} addressed by a later Paper, "
-  "{open} still open after later Papers were checked, and {no_later} with no "
-  "later Paper in the Corpus to check yet."
+  "Segmented bar of the {total} limitation group(s) flagged across this "
+  "Corpus's Papers: {addressed} ({addressed_pct}%) addressed by a later Paper, "
+  "{open} ({open_pct}%) still open after later Papers were checked, and "
+  "{no_later} ({no_later_pct}%) with no later Paper in the Corpus to check yet."
 )
 META_LIMITATION_TOP_ADDRESSED = "Most-addressed limitations:"
 META_LIMITATION_TOP_ROW = "\u2022 {label} \u2014 {count} follow-up(s)"

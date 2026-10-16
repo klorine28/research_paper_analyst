@@ -23,6 +23,7 @@ from research_gap_dashboard.dashboard.coverage import (
   build_trends_figure,
   trends_cap_caption,
   trends_table_rows,
+  trends_text_summary,
 )
 from research_gap_dashboard.dashboard.limitations import (
   build_limitations,
@@ -35,9 +36,11 @@ from research_gap_dashboard.dashboard.meta_analysis import (
   build_author_table,
   build_citation_network,
   build_cooccurrence,
+  author_preview_bar,
   build_limitation_bar_figure,
   build_limitation_flow,
   build_network_figure,
+  limitation_bar_text_summary,
 )
 from research_gap_dashboard.dashboard.views.run_controls import (
   render_last_run,
@@ -159,19 +162,19 @@ def _render_meta_preview(chart_id: str, bundle: _MetaBundle) -> None:
   elif chart_id == "trends":
     if bundle.trends is not None and bundle.trends.has_data:
       _render_meta_thumb(build_trends_figure(bundle.trends), "trends")
+      st.caption(trends_text_summary(bundle.trends))
     else:
       st.caption(text.META_PREVIEW_EMPTY)
   elif chart_id == "authors":
-    rows = bundle.authors.rows[:8]
-    if rows:
-      render_mini_bar(
-        [row.author for row in rows], [row.paper_count for row in rows], key="authors"
-      )
+    bar = author_preview_bar(bundle.authors)
+    if bar is not None:
+      render_mini_bar(bar, key="authors")
     else:
       st.caption(text.META_PREVIEW_EMPTY)
   elif chart_id == "limitation":
     if bundle.limitation is not None and not bundle.limitation.is_empty:
       _render_meta_thumb(build_limitation_bar_figure(bundle.limitation), "limitation")
+      st.caption(limitation_bar_text_summary(bundle.limitation))
     else:
       st.caption(text.META_PREVIEW_EMPTY)
 
@@ -477,14 +480,7 @@ def render_limitation_flow(
   st.plotly_chart(
     build_limitation_bar_figure(view), use_container_width=True, key="meta-limitation"
   )
-  st.caption(
-    text.META_LIMITATION_SUMMARY.format(
-      total=view.total,
-      addressed=view.addressed_count,
-      open=view.open_checked_count,
-      no_later=view.no_later_count,
-    )
-  )
+  st.caption(limitation_bar_text_summary(view))
   if view.top_addressed:
     st.caption(text.META_LIMITATION_TOP_ADDRESSED)
     for label, count in view.top_addressed:
@@ -512,6 +508,7 @@ def _render_trends(trends: TrendsData) -> None:
   if cap_caption is not None:
     st.caption(cap_caption)
   st.plotly_chart(build_trends_figure(trends), use_container_width=True)
+  st.caption(trends_text_summary(trends))
   if cap_caption is not None:
     st.dataframe(trends_table_rows(trends), use_container_width=True, hide_index=True)
 

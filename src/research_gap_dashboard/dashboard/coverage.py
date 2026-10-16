@@ -265,3 +265,28 @@ def trends_table_rows(trends: TrendsData) -> list[dict[str, str | int]]:
     }
     for topic in trends.tabled_topics
   ]
+
+
+def trends_text_summary(trends: TrendsData) -> str:
+  """
+  State the Trends chart in words: its lines, span, denominator and highlights.
+
+  The text alternative for readers who cannot see the lines (chart audit C7);
+  the per-year counts of Topics past the line cap are in the table already.
+  """
+  if not trends.has_data:
+    return text.TRENDS_NO_DATA
+  years = trends.years
+  span = f"{years[0]}\u2013{years[-1]}" if years[0] != years[-1] else str(years[0])
+  top = trends.topics[0]
+  return text.TRENDS_ALT.format(
+    shown=len(trends.plotted_topics),
+    topics=len(trends.topics),
+    span=span,
+    with_year=trends.papers_with_year,
+    total=trends.corpus_paper_count,
+    top=top.label,
+    top_total=top.total,
+    emerging=len(trends.emerging),
+    abandoned=len(trends.abandoned),
+  )

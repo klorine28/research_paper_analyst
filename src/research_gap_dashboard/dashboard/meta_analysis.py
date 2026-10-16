@@ -46,6 +46,7 @@ from research_gap_dashboard.dashboard.artifacts import (
   PaperRecord,
 )
 from research_gap_dashboard.dashboard.limitations import LimitationsData
+from research_gap_dashboard.dashboard.overview import PREVIEW_BARS, MiniBar
 
 # The layout seed is fixed so the same Corpus always draws the same graph: a
 # reproducible figure is an honesty requirement, not a convenience.
@@ -900,3 +901,37 @@ def build_limitation_bar_figure(view: LimitationFollowUpView) -> go.Figure:
     legend={"orientation": "h", "y": -0.3},
   )
   return figure
+
+
+def limitation_bar_text_summary(view: LimitationFollowUpView) -> str:
+  """State the limitation bar in words: its denominator and each segment's share."""
+  total = view.total or 1
+
+  def share(count: int) -> int:
+    return round(100 * count / total)
+
+  return text.META_LIMITATION_SUMMARY.format(
+    total=view.total,
+    addressed=view.addressed_count,
+    addressed_pct=share(view.addressed_count),
+    open=view.open_checked_count,
+    open_pct=share(view.open_checked_count),
+    no_later=view.no_later_count,
+    no_later_pct=share(view.no_later_count),
+  )
+
+
+def author_preview_bar(table: AuthorCollaborationTable) -> MiniBar | None:
+  """Build the authors tile's bar thumbnail, or None when no author is listed."""
+  rows = table.rows[:PREVIEW_BARS]
+  if not rows:
+    return None
+  labels = [row.author for row in rows]
+  values = [row.paper_count for row in rows]
+  summary = text.MINI_BAR_ALT_AUTHORS.format(
+    shown=len(rows),
+    authors=table.total_authors,
+    papers=table.papers_with_authors,
+    bars=text.bar_listing(labels, values),
+  )
+  return MiniBar(labels=labels, values=values, summary=summary)

@@ -154,6 +154,18 @@ baseline). `docs/FUNCTIONALITY.md` was stale and has been corrected.
   text summaries partially cover the node-link charts; Trends, the limitation
   bar, and the mini-bars have no text alternative. Add a short text summary
   beside each (the networks already model one — extend the pattern).
+
+  > **Resolved (#102).** Trends, the limitation bar and every mini-bar now carry
+  > a text summary under the chart, in the thumbnail tile and the expanded
+  > panel alike. Each states what the chart shows and its denominator: Trends
+  > names its lines, span, dated-Paper count, most-covered Topic and
+  > emerging/abandoned counts (`trends_text_summary`); the limitation bar gives
+  > each segment's count and share of the limitation groups
+  > (`limitation_bar_text_summary`); each mini-bar lists every bar with its
+  > count and the Papers it was counted over (`MiniBar.summary`), which also
+  > answers C6's hover-only labels. Pinned by tests in
+  > `tests/test_dashboard_coverage.py`, `tests/test_dashboard_meta_analysis.py`
+  > and `tests/test_dashboard_overview.py`.
 - **C8 (severity 2).** **Interactive-only, no static export.** The dashboard
   renders only live Plotly; there is no static figure export, no DPI/dimension
   control, no provenance manifest. For a tool whose output a researcher may put
