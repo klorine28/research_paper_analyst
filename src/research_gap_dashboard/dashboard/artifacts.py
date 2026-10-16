@@ -108,6 +108,27 @@ class LayerStepRecord(_ReadModel):
   reason: str = ""
 
 
+class AuditBasisRecord(_ReadModel):
+  """What the Corpus covers around a reviewed gap, and the Evidence ids behind it."""
+
+  text: str = ""
+  evidence_ids: list[str] = []
+
+
+class GapReviewRecord(_ReadModel):
+  """The L5 review's verdict on a candidate (ADR 0008 §3), as the dashboard reads it."""
+
+  verdict: str
+  rejection_class: str | None = None
+  claim: str | None = None
+  grounds: list[str] = []
+  warrant: str = ""
+  audit_basis: AuditBasisRecord | None = None
+  minimal_study: str | None = None
+  bucket: str | None = None
+  notes: list[str] = []
+
+
 class CandidateGapRecord(_ReadModel):
   """One Candidate Gap card, projected onto what the Gap Cards view shows."""
 
@@ -118,8 +139,10 @@ class CandidateGapRecord(_ReadModel):
   confidence: str
   confidence_reason: str
   corpus_paper_count: int
-  # Cell gaps: each layer's verdict in order; empty in pre-trail artifacts.
+  # Each layer's verdict in order; empty in pre-trail artifacts.
   trail: list[LayerStepRecord] = []
+  # The L5 review; None when it did not run (Low cells, older artifacts).
+  review: GapReviewRecord | None = None
   # Cell gaps: the L1 ranking score; None in pre-L1 artifacts.
   l1_probability: float | None = None
   cell_count: int | None = None

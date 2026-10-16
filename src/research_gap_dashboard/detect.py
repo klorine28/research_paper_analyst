@@ -41,22 +41,30 @@ ancestor and lowers one where a Paper placed only on a broader category may
 cover it. A rejected candidate stays in the artifact with its reason. With no
 hierarchy recorded, the roll-up adds nothing.
 
+The LLM review (L5, see `review`) comes last. It runs on every cell candidate
+still at Medium or above and not rejected, and on every Unanswered Limitation,
+and keeps, lowers one level, or rejects; it never raises. Low cells make no
+review call, so they carry no Audit Basis or Minimal Study.
+
 When an `Embedder` is injected, cross-Paper limitation pairs whose embeddings
 are close are passed to grouping as merge hints, and the embedding model id,
 revision, threshold, and every hint are recorded in the artifact; without one
 (the `embeddings` extra absent) grouping runs LLM-only.
 
-Matrix detection is deterministic and makes no LLM call; categories, cells,
-and gaps are sorted, so the same NormalizedFacts artifact always yields the
-same cards. Limitation grouping needs the LLM, through the cached client
-(ADR 0001), so a rerun over the same Extractions yields the same groups. Every
-card links to Evidence from Papers in the Corpus manifest only
+Matrix detection before the review is deterministic and makes no LLM call;
+categories, cells, and gaps are sorted, so the same NormalizedFacts artifact
+always yields the same candidates. Limitation grouping and the review need the
+LLM, through the cached client (ADR 0001), so a rerun over the same inputs
+yields the same groups and verdicts at no cost. Every card links to Evidence
+from Papers in the Corpus manifest only
 (CODING_STANDARDS > Research integrity).
 
 A re-run first moves the artifact it replaces to `candidate_gaps.previous.json`,
 keeping its modification time, so the dashboard can say what changed since the
 last run and tell which artifact a researcher's older verdicts were made on.
 """
+
+# pylint: disable=too-many-lines
 
 import logging
 import math
@@ -91,6 +99,14 @@ from research_gap_dashboard.limitations import (
   merge_hints,
 )
 from research_gap_dashboard.llm import LlmClient, ModelTier
+from research_gap_dashboard.review import (
+  REJECTION_CLASS_NAMES,
+  REVIEW_PROMPT_VERSION,
+  GapReview,
+  ReviewEvidence,
+  ReviewRequest,
+  review_gap,
+)
 from research_gap_dashboard.taxonomy import AXES, Axis
 
 logger = logging.getLogger(__name__)
@@ -117,6 +133,17 @@ L1_LAYER = "l1"
 HEURISTIC_LAYER = "heuristic"
 # ADR 0008 L2: rejects or lowers cells that are artifacts of the hierarchy.
 ROLL_UP_LAYER = "taxonomy_roll_up"
+# ADR 0008 L5: the LLM review; it keeps, lowers or rejects, never raises.
+REVIEW_LAYER = "l5_review"
+# The layer that opens an Unanswered Limitation's trail: its follow-up check.
+FOLLOW_UP_LAYER = "limitation_follow_up"
+# Cell candidates below this level skip the review (ADR 0008 §1: Medium+ only).
+REVIEW_MIN_LEVEL: Confidence = "medium"
+# At most this many Evidence items per role go to the reviewer, in artifact
+# order; grounds outside them are dropped like any other unknown id.
+REVIEW_EVIDENCE_PER_ROLE = 8
+# At most this many neighbouring cells describe what surrounds a cell gap.
+REVIEW_NEIGHBOURS = 8
 
 _LEVELS: tuple[Confidence, ...] = ("low", "medium", "high")
 
@@ -197,6 +224,24 @@ _TEXT: dict[str, str] = {
     "combination."
   ),
   "roll_up_broader": "{label} × {other}",
+  "review_keep": "Kept by review: {warrant}",
+  "review_lower": "Lowered one level by review (weakly supported): {warrant}",
+  "review_lower_floor": (
+    "Kept by review as weakly supported; already at the lowest level: {warrant}"
+  ),
+  "review_reject": "Rejected by review as {rejection_class}: {warrant}",
+  "review_reject_unnamed": "Rejected by review: {warrant}",
+  "review_failed": (
+    "Not reviewed: the review returned no usable answer, so the level stands "
+    "as the earlier layers left it."
+  ),
+  "review_neighbour": "{row} × {column}: {count} Paper(s)",
+  "review_later": (
+    "{count} later Paper(s) in the Corpus were checked for a follow-up; none "
+    "addressed it."
+  ),
+  "review_no_later": "No later Paper in the Corpus could be checked for a follow-up.",
+  "review_evidence_cell": "{term} (placed on {category}): {passage}",
   "limitation": (
     "Candidate Unanswered Limitation: {source_count} Paper(s) in the Corpus "
     "({papers}) state this limitation or open question, and none of the "
@@ -256,6 +301,19 @@ class EvidenceLink(BaseModel):
   fact_ref: str
   evidence: Evidence
 
+  @property
+  def evidence_id(self) -> str:
+    """
+    The id the review cites this passage by: '<citation key>:<field>[<index>]'.
+
+    Aggregate writes fact refs bracketed ('[methods[0]]'); the outer pair is
+    dropped so the id reads like a limitation statement id.
+    """
+    ref = self.fact_ref
+    if ref.startswith("[") and ref.endswith("]]"):
+      ref = ref[1:-1]
+    return f"{self.citation_key}:{ref}"
+
 
 class LayerStep(BaseModel):
   """One detection layer's verdict on a cell candidate (ADR 0008 §1, §5)."""
@@ -298,6 +356,9 @@ class CellGap(BaseModel):
   column_paper_count: int
   corpus_paper_count: int = Field(description="The denominator: Papers counted.")
   evidence: list[EvidenceLink] = Field(min_length=1)
+  review: GapReview | None = Field(
+    default=None, description="The L5 verdict; None when the review did not run."
+  )
 
   @property
   def rejected(self) -> bool:
@@ -342,9 +403,20 @@ class StatementEvidence(BaseModel):
   statement: str
   evidence: Evidence
 
+  @property
+  def evidence_id(self) -> str:
+    """The id the review cites this statement by: its statement id."""
+    return self.statement_id
+
 
 class UnansweredLimitationGap(BaseModel):
-  """One Unanswered Limitation card: a limitation group no later Paper addressed."""
+  """
+  One Unanswered Limitation card: a limitation group no later Paper addressed.
+
+  Its trail opens with the follow-up check's level; the review (L5) may add a
+  step. An artifact written before limitation trails reads with that start
+  step rebuilt from its recorded confidence and reason.
+  """
 
   gap_id: str = Field(description="Stable id: 'limitation:<group id>'.")
   gap_type: Literal["unanswered_limitation"]
@@ -357,6 +429,29 @@ class UnansweredLimitationGap(BaseModel):
   later_paper_count: int = Field(description="Later Papers checked for a follow-up.")
   corpus_paper_count: int = Field(description="The denominator: Papers extracted.")
   evidence: list[StatementEvidence] = Field(min_length=1)
+  trail: list[LayerStep] = Field(min_length=1)
+  review: GapReview | None = Field(
+    default=None, description="The L5 verdict; None when the review did not run."
+  )
+
+  @property
+  def rejected(self) -> bool:
+    """Whether the review rejected this candidate; it stays in the artifact."""
+    return any(step.effect == "reject" for step in self.trail)
+
+  @model_validator(mode="before")
+  @classmethod
+  def _fill_trail_of_older_artifacts(cls, data: Any) -> Any:
+    """Give a pre-trail limitation card its single follow-up start step."""
+    if isinstance(data, dict) and "trail" not in data:
+      start = {
+        "layer": FOLLOW_UP_LAYER,
+        "effect": "start",
+        "level_after": data.get("confidence"),
+        "reason": data.get("confidence_reason"),
+      }
+      return {**data, "trail": [start]}
+    return data
 
 
 CandidateGap = Annotated[
@@ -398,6 +493,9 @@ class CandidateGapsReport(BaseModel):
   )
   normalized_prompt_version: str
   limitation_prompt_versions: list[str]
+  review_prompt_version: str | None = Field(
+    default=None, description="The L5 prompt; None in artifacts written before L5."
+  )
   tier: ModelTier
   excluded_citation_keys: list[str] = Field(
     description="Papers in upstream artifacts but absent from the manifest."
@@ -533,6 +631,7 @@ def detect_corpus(  # pylint: disable=too-many-locals
   gaps.extend(
     _limitation_gap(group, len(extractions)) for group in groups if not group.addressed
   )
+  gaps = _Review(matrices, client, tier).apply_all(gaps)
 
   report = CandidateGapsReport(
     corpus_root=root,
@@ -543,6 +642,7 @@ def detect_corpus(  # pylint: disable=too-many-locals
     l1_smallest_margins=l1_smallest_margins(len(papers)),
     normalized_prompt_version=normalized.prompt_version,
     limitation_prompt_versions=[GROUP_PROMPT_VERSION, FOLLOW_UP_PROMPT_VERSION],
+    review_prompt_version=REVIEW_PROMPT_VERSION,
     tier=tier,
     excluded_citation_keys=excluded,
     embedding=(
@@ -890,6 +990,173 @@ def _named(found: dict[str, list[str]]) -> dict[str, str]:
   return {"papers": ", ".join(keys), "broader": "; ".join(sorted(found))}
 
 
+class _Review:  # pylint: disable=too-few-public-methods
+  """
+  The LLM review layer (ADR 0008 L5), run last on the candidates worth paying for.
+
+  It reviews every cell candidate still at Medium or above and not already
+  rejected, and every Unanswered Limitation. A keep leaves the level, a
+  `least_probable` keep lowers it one level, a reject rejects it; the verdict
+  and its Audit Basis and Minimal Study are stored on the candidate. A review
+  that returns no usable answer is recorded as such and changes nothing.
+  """
+
+  def __init__(
+    self, matrices: list[CoverageMatrix], client: LlmClient, tier: ModelTier
+  ) -> None:
+    self._matrices = {(m.row_axis, m.column_axis): m for m in matrices}
+    self._client = client
+    self._tier: ModelTier = tier
+
+  def apply_all(self, gaps: list[CandidateGap]) -> list[CandidateGap]:
+    """Return the gaps with every due review applied, in the same order."""
+    reviewed = sum(1 for gap in gaps if self._due(gap))
+    if reviewed:
+      logger.info("Reviewing %d candidate gaps (%s).", reviewed, REVIEW_PROMPT_VERSION)
+    return [self._apply(gap) if self._due(gap) else gap for gap in gaps]
+
+  @staticmethod
+  def _due(gap: CandidateGap) -> bool:
+    """Whether the review runs: Medium+ live cells, and every limitation card."""
+    if isinstance(gap, UnansweredLimitationGap):
+      return not gap.rejected
+    return not gap.rejected and _LEVELS.index(gap.confidence) >= _LEVELS.index(
+      REVIEW_MIN_LEVEL
+    )
+
+  def _apply(self, gap: CandidateGap) -> CandidateGap:
+    """Review one candidate and append the verdict's step."""
+    review = review_gap(self._request(gap), self._client, tier=self._tier)
+    step = _review_step(review, gap.trail[-1].level_after)
+    return gap.model_copy(
+      update={
+        "trail": [*gap.trail, step],
+        "confidence": step.level_after,
+        "review": review,
+      }
+    )
+
+  def _request(self, gap: CandidateGap) -> ReviewRequest:
+    """Describe one candidate to the reviewer."""
+    if isinstance(gap, UnansweredLimitationGap):
+      evidence = [
+        ReviewEvidence(
+          evidence_id=item.evidence_id,
+          citation_key=item.citation_key,
+          text=f'{item.statement} Passage: "{item.evidence.passage}"',
+        )
+        for item in gap.evidence
+      ]
+      surroundings = [self._later_papers(gap)]
+    else:
+      evidence = _cell_review_evidence(gap)
+      surroundings = self._neighbours(gap)
+    return ReviewRequest(
+      gap_id=gap.gap_id,
+      gap_type_name=_GAP_TYPE_NAMES[gap.gap_type],
+      title=gap.title,
+      explanation=gap.explanation,
+      reasons=[step.reason for step in gap.trail],
+      evidence=evidence,
+      surroundings=surroundings,
+    )
+
+  @staticmethod
+  def _later_papers(gap: UnansweredLimitationGap) -> str:
+    """Say how many later Papers were checked, since none addressed the gap."""
+    if gap.later_paper_count == 0:
+      return _TEXT["review_no_later"]
+    return _TEXT["review_later"].format(count=gap.later_paper_count)
+
+  def _neighbours(self, gap: CellGap) -> list[str]:
+    """List the fullest cells sharing a category with the gap's cell, fullest first."""
+    matrix = self._matrices.get((gap.row_axis, gap.column_axis))
+    if matrix is None:
+      return []
+    labels = {c.category_id: c.label for c in [*matrix.rows, *matrix.columns]}
+    sides = {gap.row_id, gap.column_id}
+    cells = [
+      cell
+      for cell in matrix.cells
+      if (cell.row_id, cell.column_id) != (gap.row_id, gap.column_id)
+      and ({cell.row_id, cell.column_id} & sides)
+      and cell.paper_count > 0
+    ]
+    cells.sort(key=lambda cell: (-cell.paper_count, cell.row_id, cell.column_id))
+    return [
+      _TEXT["review_neighbour"].format(
+        row=labels.get(cell.row_id, cell.row_id),
+        column=labels.get(cell.column_id, cell.column_id),
+        count=cell.paper_count,
+      )
+      for cell in cells[:REVIEW_NEIGHBOURS]
+    ]
+
+
+def _cell_review_evidence(gap: CellGap) -> list[ReviewEvidence]:
+  """Pick a cell gap's Evidence for the reviewer: a few per role, each id once."""
+  labels = {gap.row_id: gap.row_label, gap.column_id: gap.column_label}
+  per_role: dict[EvidenceRole, int] = {}
+  seen: set[str] = set()
+  items: list[ReviewEvidence] = []
+  for link in gap.evidence:
+    if (
+      link.evidence_id in seen or per_role.get(link.role, 0) >= REVIEW_EVIDENCE_PER_ROLE
+    ):
+      continue
+    seen.add(link.evidence_id)
+    per_role[link.role] = per_role.get(link.role, 0) + 1
+    items.append(
+      ReviewEvidence(
+        evidence_id=link.evidence_id,
+        citation_key=link.citation_key,
+        text=_TEXT["review_evidence_cell"].format(
+          term=link.original_term,
+          category=labels.get(link.category_id, link.category_id),
+          passage=f'"{link.evidence.passage}"',
+        ),
+      )
+    )
+  return items
+
+
+def _review_step(review: GapReview | None, level: Confidence) -> LayerStep:
+  """Turn a review verdict into its trail step; nothing here ever raises a level."""
+  if review is None:
+    return LayerStep(
+      layer=REVIEW_LAYER,
+      effect="none",
+      level_after=level,
+      reason=_TEXT["review_failed"],
+    )
+  if review.verdict == "reject":
+    if review.rejection_class is None:
+      reason = _TEXT["review_reject_unnamed"].format(warrant=review.warrant)
+    else:
+      reason = _TEXT["review_reject"].format(
+        rejection_class=REJECTION_CLASS_NAMES[review.rejection_class],
+        warrant=review.warrant,
+      )
+    return LayerStep(
+      layer=REVIEW_LAYER, effect="reject", level_after=level, reason=reason
+    )
+  if review.bucket == "least_probable":
+    lowered = _LEVELS[max(_LEVELS.index(level) - 1, 0)]
+    template = "review_lower" if lowered != level else "review_lower_floor"
+    return LayerStep(
+      layer=REVIEW_LAYER,
+      effect="lower" if lowered != level else "none",
+      level_after=lowered,
+      reason=_TEXT[template].format(warrant=review.warrant),
+    )
+  return LayerStep(
+    layer=REVIEW_LAYER,
+    effect="none",
+    level_after=level,
+    reason=_TEXT["review_keep"].format(warrant=review.warrant),
+  )
+
+
 def _evidence(
   papers: list[NormalizedFacts],
   matrix: CoverageMatrix,
@@ -976,6 +1243,11 @@ def _limitation_gap(group: LimitationGroup, total: int) -> UnansweredLimitationG
     source_citation_keys=sources,
     later_paper_count=later,
     corpus_paper_count=total,
+    trail=[
+      LayerStep(
+        layer=FOLLOW_UP_LAYER, effect="start", level_after=confidence, reason=reason
+      )
+    ],
     evidence=[
       StatementEvidence(
         citation_key=statement.citation_key,

@@ -75,6 +75,19 @@ pipeline changes are checked against what a person confirmed the Paper says.
 Something the tool proposes as a research gap, before a human confirms it.
 Gaps are candidates for human judgment, not verdicts.
 
+### Audit Basis
+
+What the Corpus covers around a Candidate Gap, citing the gap's own Evidence:
+the ground a researcher would argue the gap from in writing. Written by the
+detect stage's LLM review (ADR 0008 §3), so only gaps it reviewed and kept
+carry one.
+
+### Minimal Study
+
+The smallest study that could close a Candidate Gap, written by the same
+review. Always shown as a suggestion: a real gap does not imply a feasible
+study.
+
 ### Gap Type
 
 The kind of gap a Candidate Gap is. v1 detects four Gap Types:

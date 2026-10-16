@@ -30,6 +30,7 @@ from research_gap_dashboard.detect import (
   CellGap,
   Confidence,
   EvidenceLink,
+  LayerStep,
   StatementEvidence,
   UnansweredLimitationGap,
 )
@@ -238,6 +239,14 @@ def _limitation_gap(group_id: str, confidence: Confidence) -> UnansweredLimitati
     source_citation_keys=["hill2019"],
     later_paper_count=1,
     corpus_paper_count=8,
+    trail=[
+      LayerStep(
+        layer="limitation_follow_up",
+        effect="start",
+        level_after=confidence,
+        reason="one later Paper checked",
+      )
+    ],
     evidence=[
       StatementEvidence(
         citation_key="hill2019",

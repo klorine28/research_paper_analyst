@@ -10,6 +10,7 @@ the researcher's saved accept/reject state.
 
 import json
 import re
+import shutil
 from pathlib import Path
 
 import pytest
@@ -42,6 +43,7 @@ from research_gap_dashboard.dashboard.gaps import (
 )
 from research_gap_dashboard.dashboard.judgments import load_judgments, record_judgment
 from research_gap_dashboard.detect import detect_corpus
+from research_gap_dashboard.llm import RecordedLlmClient
 
 
 @pytest.fixture(name="corpus")
@@ -762,3 +764,62 @@ def test_an_artifact_without_trails_still_builds_cards(corpus: Path):
   card = _card(corpus, "topicxmethod:takotsubo:rct")
 
   assert card.data.reasons == [card.confidence_reason]
+
+
+REVIEW_FIXTURE = Path(__file__).parent / "fixtures" / "gap-review"
+
+
+@pytest.fixture(name="reviewed_corpus")
+def reviewed_corpus_fixture(tmp_path: Path) -> Path:
+  """Copy the gap-review fixture Corpus and detect it with its recorded answers."""
+  # Its own parent directory, so the app's corpus picker sees only this Corpus.
+  root = tmp_path / "reviewed" / "corpus"
+  shutil.copytree(REVIEW_FIXTURE / "corpus", root)
+  detect_corpus(
+    root, RecordedLlmClient.from_file(REVIEW_FIXTURE / "llm-responses.json")
+  )
+  return root
+
+
+def test_a_kept_gap_card_carries_audit_basis_and_minimal_study(reviewed_corpus: Path):
+  """Tier 2 fields come from the review that kept the gap, with its Evidence ids."""
+  card = _card(reviewed_corpus, "topicxmethod:takotsubo:rct")
+
+  assert card.audit_basis.startswith("Takotsubo is studied only")
+  assert card.audit_basis_evidence_ids == [
+    "tako1:research_question[0]",
+    "hf1:study_design[0]",
+  ]
+  assert "randomized trial" in card.minimal_study
+  assert card.data.reasons[-1].startswith("Kept by review")
+
+
+def test_a_rejected_or_unreviewed_card_has_no_review_fields(
+  reviewed_corpus: Path, corpus: Path
+):
+  """A reject carries no Audit Basis or Minimal Study, nor does an unreviewed card."""
+  rejected = _card(reviewed_corpus, "topicxtopic:heart-failure:takotsubo")
+  unreviewed = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  for card in (rejected, unreviewed):
+    assert card.audit_basis == ""
+    assert card.minimal_study == ""
+  assert "pseudo-firstness" in rejected.data.reasons[-1]
+
+
+def test_tier_two_shows_the_audit_basis_and_a_labelled_minimal_study(
+  reviewed_corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """The researcher reads the Audit Basis, and the Minimal Study as a suggestion."""
+  app = _run_gap_cards_app(reviewed_corpus, monkeypatch)
+
+  assert not app.exception
+  justification = [
+    e for e in app.expander if e.label == text.GAP_TIER_JUSTIFICATION_LABEL
+  ]
+  markdown = " ".join(block.value for tier in justification for block in tier.markdown)
+  assert text.GAP_AUDIT_BASIS_HEADING in markdown
+  assert text.GAP_MINIMAL_STUDY_HEADING in markdown
+  assert "suggestion" in text.GAP_MINIMAL_STUDY_HEADING
+  captions = " ".join(c.value for tier in justification for c in tier.caption)
+  assert text.GAP_MINIMAL_STUDY_CAVEAT in captions

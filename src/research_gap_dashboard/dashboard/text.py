@@ -544,6 +544,15 @@ GAP_WHY_LIMITATION = (
   "addressed it."
 )
 GAP_TIER_JUSTIFICATION_LABEL = "Why this is a candidate: Evidence"
+# Written by the detect stage's review (ADR 0008 §3), not at view time. The
+# Minimal Study is a suggestion: a real gap does not imply a feasible study.
+GAP_AUDIT_BASIS_HEADING = "Audit Basis"
+GAP_AUDIT_BASIS_EVIDENCE = "Rests on: {ids}"
+GAP_MINIMAL_STUDY_HEADING = "Minimal Study (a suggestion)"
+GAP_MINIMAL_STUDY_CAVEAT = (
+  "A starting design proposed by the review; it is not a claim that the study "
+  "is feasible or would close the gap."
+)
 GAP_TIER_DATA_LABEL = "Show the data"
 GAP_SOURCE_PAPERS_GROUP = "Source Papers"
 GAP_DATA_PAPERS_HEADING = "Papers in each category"

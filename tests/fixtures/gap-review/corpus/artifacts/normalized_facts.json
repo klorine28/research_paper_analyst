@@ -1,0 +1,300 @@
+{
+  "corpus_root": ".",
+  "prompt_version": "aggregate-fixture",
+  "tier": "default",
+  "model": "",
+  "taxonomies": [],
+  "normalized": [
+    {
+      "citation_key": "tako1",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "stress cardiomyopathy",
+          "category_id": "takotsubo",
+          "category_label": "Takotsubo Cardiomyopathy",
+          "fact_ref": "[research_question[0]]",
+          "evidence": {
+            "passage": "This stress cardiomyopathy (tako1) is described in the methods.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "retrospective chart review",
+          "category_id": "retrospective",
+          "category_label": "Retrospective Studies",
+          "fact_ref": "[study_design[0]]",
+          "evidence": {
+            "passage": "This retrospective chart review (tako1) is described in the methods.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "tako2",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "stress cardiomyopathy",
+          "category_id": "takotsubo",
+          "category_label": "Takotsubo Cardiomyopathy",
+          "fact_ref": "[research_question[0]]",
+          "evidence": {
+            "passage": "This stress cardiomyopathy (tako2) is described in the methods.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "retrospective chart review",
+          "category_id": "retrospective",
+          "category_label": "Retrospective Studies",
+          "fact_ref": "[study_design[0]]",
+          "evidence": {
+            "passage": "This retrospective chart review (tako2) is described in the methods.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "tako3",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "stress cardiomyopathy",
+          "category_id": "takotsubo",
+          "category_label": "Takotsubo Cardiomyopathy",
+          "fact_ref": "[research_question[0]]",
+          "evidence": {
+            "passage": "This stress cardiomyopathy (tako3) is described in the methods.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "retrospective chart review",
+          "category_id": "retrospective",
+          "category_label": "Retrospective Studies",
+          "fact_ref": "[study_design[0]]",
+          "evidence": {
+            "passage": "This retrospective chart review (tako3) is described in the methods.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "tako4",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "stress cardiomyopathy",
+          "category_id": "takotsubo",
+          "category_label": "Takotsubo Cardiomyopathy",
+          "fact_ref": "[research_question[0]]",
+          "evidence": {
+            "passage": "This stress cardiomyopathy (tako4) is described in the methods.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "retrospective chart review",
+          "category_id": "retrospective",
+          "category_label": "Retrospective Studies",
+          "fact_ref": "[study_design[0]]",
+          "evidence": {
+            "passage": "This retrospective chart review (tako4) is described in the methods.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "tako5",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "stress cardiomyopathy",
+          "category_id": "takotsubo",
+          "category_label": "Takotsubo Cardiomyopathy",
+          "fact_ref": "[research_question[0]]",
+          "evidence": {
+            "passage": "This stress cardiomyopathy (tako5) is described in the methods.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "retrospective chart review",
+          "category_id": "retrospective",
+          "category_label": "Retrospective Studies",
+          "fact_ref": "[study_design[0]]",
+          "evidence": {
+            "passage": "This retrospective chart review (tako5) is described in the methods.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "hf1",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "chronic heart failure",
+          "category_id": "heart-failure",
+          "category_label": "Heart Failure",
+          "fact_ref": "[research_question[0]]",
+          "evidence": {
+            "passage": "This chronic heart failure (hf1) is described in the methods.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "randomized trial",
+          "category_id": "rct",
+          "category_label": "Randomized Controlled Trial",
+          "fact_ref": "[study_design[0]]",
+          "evidence": {
+            "passage": "This randomized trial (hf1) is described in the methods.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "hf2",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "chronic heart failure",
+          "category_id": "heart-failure",
+          "category_label": "Heart Failure",
+          "fact_ref": "[research_question[0]]",
+          "evidence": {
+            "passage": "This chronic heart failure (hf2) is described in the methods.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "randomized trial",
+          "category_id": "rct",
+          "category_label": "Randomized Controlled Trial",
+          "fact_ref": "[study_design[0]]",
+          "evidence": {
+            "passage": "This randomized trial (hf2) is described in the methods.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "hf3",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "chronic heart failure",
+          "category_id": "heart-failure",
+          "category_label": "Heart Failure",
+          "fact_ref": "[research_question[0]]",
+          "evidence": {
+            "passage": "This chronic heart failure (hf3) is described in the methods.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "randomized trial",
+          "category_id": "rct",
+          "category_label": "Randomized Controlled Trial",
+          "fact_ref": "[study_design[0]]",
+          "evidence": {
+            "passage": "This randomized trial (hf3) is described in the methods.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "hf4",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "chronic heart failure",
+          "category_id": "heart-failure",
+          "category_label": "Heart Failure",
+          "fact_ref": "[research_question[0]]",
+          "evidence": {
+            "passage": "This chronic heart failure (hf4) is described in the methods.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "randomized trial",
+          "category_id": "rct",
+          "category_label": "Randomized Controlled Trial",
+          "fact_ref": "[study_design[0]]",
+          "evidence": {
+            "passage": "This randomized trial (hf4) is described in the methods.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "hf5",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "chronic heart failure",
+          "category_id": "heart-failure",
+          "category_label": "Heart Failure",
+          "fact_ref": "[research_question[0]]",
+          "evidence": {
+            "passage": "This chronic heart failure (hf5) is described in the methods.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "randomized trial",
+          "category_id": "rct",
+          "category_label": "Randomized Controlled Trial",
+          "fact_ref": "[study_design[0]]",
+          "evidence": {
+            "passage": "This randomized trial (hf5) is described in the methods.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    }
+  ],
+  "failures": []
+}
