@@ -59,7 +59,7 @@ A Corpus is one directory (see `docs/corpus-layout.md` and
 | Aggregate | `aggregate <corpus> [--taxonomy FILE ...] [--tier ...]` | extractions + taxonomies | `normalized_facts.json` | yes | yes (uncached) |
 | Detect | `detect <corpus> [--tier ...]` | manifest + extractions + normalized facts | `candidate_gaps.json` | yes (limitations only) | yes (uncached) |
 | Retrieve | `retrieve <corpus> [--limit N] [--min-overlap N] [--mailto EMAIL]` | manifest (needs `ingest --resolve`) | `retrieval_gaps.json` | no | yes (OpenAlex) |
-| Saturate | `saturate <corpus> --gap ID [--taxonomy FILE ...] [--tier cheap\|default]` | candidate gaps + manifest + normalized facts + taxonomies (+ Alias Overlay) | appends to `saturation_checks.json` | optional: query variants only on zero hits (cheap tier), and screening of the top hits (both skipped without a key) | yes (OpenAlex + PubMed, LLM) |
+| Saturate | `saturate <corpus> (--gap ID \| --accepted) [--taxonomy FILE ...] [--tier cheap\|default]` | candidate gaps + manifest + normalized facts + taxonomies (+ Alias Overlay) | appends to `saturation_checks.json` | optional: query variants only on zero hits (cheap tier), and screening of the top hits (both skipped without a key) | yes (OpenAlex + PubMed, LLM) |
 | Taxonomy | `taxonomy [FILE]` | a taxonomy file | — (validation only) | no | no |
 
 Every command exits `0` on success and `1` on a handled error; the CLI only
@@ -88,6 +88,12 @@ a hit the LLM did not screen (past the top 10, or its call failed) still counts.
 The result is `possibly_addressed`,
 `no_closing_work_found` (dated, with sources and queries) or `not_run` (no
 source reachable; exit code 2). Never confirms a gap, never changes confidence.
+`--accepted` ("check all accepted") runs the check on every gap accepted on the
+Gap Cards page, in artifact order: a gap whose latest check ran (not `not_run`)
+within the last 30 days keeps that snapshot and is not searched again; a gap
+that can't be checked (no longer in the artifact) is skipped with the reason.
+Its checks are recorded with `trigger: "accepted"`; exit code 2 if any of them
+did not run. A single `--gap` check always searches live (ADR 0009 §9).
 Each run appends a dated snapshot; earlier snapshots are never rewritten. Hits
 are out-of-Corpus works: never cited, never Evidence. An Unanswered Limitation
 is checked for follow-up from its verbatim source statements: the Topic
@@ -223,7 +229,7 @@ and the gap verdicts.
 | Corpus Overview (1 Scope) | `overview.py` | `corpus-manifest.json` | scope statement, paper/venue/year metrics, papers-per-year bar, venue table, exclusions (unmatched entries, orphan PDFs) |
 | Pipeline (2 Build) | `pipeline_status.py`, `run_cost.py`, `pipeline_runner.py` | `corpus-manifest.json` (+ every stage artifact, `llm-usage.json`) | each stage as done / not run / stale (an input newer than its artifact), with a run or re-run button per stage; a collapsed **Run details** with each LLM stage's estimated cost and its last run's actual cost; a run estimated above `LLM_COST_CONFIRM_ABOVE` asks for confirmation |
 | Field Meta-Analysis (4 Explore) | `meta_analysis.py`, `coverage.py` | `corpus-manifest.json` (+ `normalized_facts.json`, `candidate_gaps.json`) | a gallery of six graphs: citation network, Topic and Method co-occurrence (with ranked missing pairs that jump to Gap Cards), Trends (emerging/abandoned Topics), an author collaboration table, and limitation follow-up status; each carries its question, gap lens, denominator, caveat and a data-table fallback |
-| Gap Cards (5 Judge) | `gaps.py`, `judgments.py` | `candidate_gaps.json` | one card per Candidate Gap with type, confidence + reasoning, denominator, Evidence passages, and **accept/reject/clear** buttons that persist to `judgments/`; Knowledge, Coverage and Unanswered Limitation cards carry a wider-literature badge (from `saturation_checks.json`), the queries/hits drill-down, and a **Check wider literature** button that runs `saturate --gap` |
+| Gap Cards (5 Judge) | `gaps.py`, `judgments.py` | `candidate_gaps.json` | one card per Candidate Gap with type, confidence + reasoning, denominator, Evidence passages, and **accept/reject/clear** buttons that persist to `judgments/`; Knowledge, Coverage and Unanswered Limitation cards carry a wider-literature badge (from `saturation_checks.json`), the queries/hits drill-down, and a **Check wider literature** button that runs `saturate --gap`; above the cards, **Check all accepted gaps** runs `saturate --accepted` (counting only gaps not checked in the last 30 days, with its cost estimate going through the `LLM_COST_CONFIRM_ABOVE` confirmation), and a **Possibly addressed only** toggle beside the confidence filter narrows the list to gaps whose latest check found possibly closing work, saying how many gaps it hides |
 | Unanswered Limitations (4 Explore) | `limitations.py` | `candidate_gaps.json` | every limitation group (addressed or not) with its follow-up count, source Papers, and verbatim source passages; unanswered groups called out from addressed ones |
 | Retrieval Gaps (6 Grow) | `retrieval.py` | `retrieval_gaps.json` | out-of-corpus candidates ranked by citation overlap, kept visually and verbally separate (warning banner) as candidates for improving the search, not evidence-linked gaps |
 | Paper Explainer (5 Judge) | `explainer.py` | `corpus-manifest.json` + per-Paper `*.explanation.json` | a Paper picker, then that Paper's experiment explained in **domain** and **lay** language, next to a link back to the Paper's metadata (title, venue, DOI) |
