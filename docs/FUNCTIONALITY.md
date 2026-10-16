@@ -52,7 +52,7 @@ A Corpus is one directory (see `docs/corpus-layout.md` and
 
 | Stage | Command | Reads | Writes (`artifacts/`) | LLM? | Network? |
 | --- | --- | --- | --- | --- | --- |
-| Ingest | `ingest <corpus> [--resolve] [--source openalex\|pubmed] [--mailto EMAIL]` | paper list + `papers/*.pdf` | `corpus-manifest.json` | no | only with `--resolve` |
+| Ingest | `ingest <corpus> [--check] [--resolve] [--source openalex\|pubmed] [--mailto EMAIL]` | paper list + `papers/*.pdf` | `corpus-manifest.json` | no | only with `--resolve` |
 | Parse | `parse <corpus>` | manifest + PDFs | per-Paper sectioned text in `paper-data/` | no | no |
 | Extract | `extract <corpus> [--tier default\|cheap]` | manifest + parsed text | `extractions.json` | yes | yes (uncached) |
 | Explain | `explain <corpus> [--tier default\|cheap]` | manifest + parsed text | per-Paper `*.explanation.json` in `paper-data/` | yes | yes (uncached) |
@@ -86,7 +86,10 @@ the `CorpusManifest` (`Paper`s, plus `unmatched_entries` and `orphan_pdfs`).
 Enforces the 10–75 Paper envelope. With `--resolve`, enriches each Paper with
 canonical metadata (title, year, venue, authors, `openalex_id`,
 `referenced_works`, `cited_by_count`) via a source adapter. Public reader:
-`read_manifest(root)`.
+`read_manifest(root)`. `check_corpus(root)` (CLI: `ingest --check`) does the same
+pairing and envelope check but writes nothing, printing a `PairingCheck` as JSON
+on stdout (exit 1 outside the envelope); the dashboard's Add Papers panel reads
+it after every upload.
 
 ### Parse — `parsing.py`
 Turns each Paper's PDF into sectioned text under `paper-data/` (docling behind a

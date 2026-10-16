@@ -32,6 +32,10 @@ it knows where everything lives.
   list (ADR 0007), not an artifact.
 - **A Corpus holds 10–75 Papers.** The envelope is enforced by ingest, not by
   the layout check.
+  `ingest --check` reports the pairing and the envelope without writing the
+  manifest, so the dashboard can refuse before ingesting.
+- **The dashboard may place inputs.** Its Add Papers panel writes uploaded PDFs
+  into `papers/` and creates or appends to the paper list (ADR 0007).
 
 ## Artifacts
 

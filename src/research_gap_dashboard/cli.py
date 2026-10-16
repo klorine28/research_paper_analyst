@@ -37,6 +37,7 @@ from research_gap_dashboard.extract import extract_corpus, read_extractions
 from research_gap_dashboard.ingest import (
   CorpusLayoutError,
   CorpusSizeError,
+  check_corpus,
   ingest_corpus,
 )
 from research_gap_dashboard.llm import (
@@ -124,6 +125,14 @@ def build_parser() -> argparse.ArgumentParser:
     "ingest", help="Pair the paper list with the PDFs and write the CorpusManifest."
   )
   ingest.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  ingest.add_argument(
+    "--check",
+    action="store_true",
+    help=(
+      "Only check how the paper list and PDFs pair up and whether the Corpus is "
+      "within the 10-75 Paper envelope; print that as JSON and write nothing."
+    ),
+  )
   ingest.add_argument(
     "--resolve",
     action="store_true",
@@ -347,6 +356,8 @@ def _llm_client(arguments: argparse.Namespace) -> LlmClient:
 
 def _run_ingest(arguments: argparse.Namespace) -> int:
   """Pair the paper list with the PDFs and write the CorpusManifest."""
+  if arguments.check:
+    return _run_ingest_check(arguments)
   adapter = _build_source(arguments) if arguments.resolve else None
   try:
     manifest = ingest_corpus(arguments.corpus, adapter=adapter)
@@ -365,6 +376,25 @@ def _run_ingest(arguments: argparse.Namespace) -> int:
     len(manifest.orphan_pdfs),
     unresolved,
   )
+  return EXIT_OK
+
+
+def _run_ingest_check(arguments: argparse.Namespace) -> int:
+  """
+  Print the pairing check as JSON on stdout; fail when outside the envelope.
+
+  stdout carries only the JSON (logging goes to stderr), so the dashboard can
+  read it back through its subprocess runner without importing ingest.
+  """
+  try:
+    check = check_corpus(arguments.corpus)
+  except CorpusLayoutError as error:
+    logger.error("%s", error)
+    return EXIT_ERROR
+  sys.stdout.write(check.model_dump_json(indent=2) + "\n")
+  if not check.within_envelope:
+    logger.error("%s", check.refusal)
+    return EXIT_ERROR
   return EXIT_OK
 
 
