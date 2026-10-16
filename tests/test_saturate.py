@@ -1,9 +1,11 @@
 """
-Behavior of the saturate stage (ADR 0009): try to disprove one cell gap.
+Behavior of the saturate stage (ADR 0009): try to disprove one Candidate Gap.
 
 The fixture Corpus (`fixtures/saturation-corpus`, built and recorded by
 `scripts/record_saturation_fixture.py`) holds a Knowledge Gap the wider
-literature plainly fills and a control Coverage Gap nothing closes. Searches are
+literature plainly fills and a control Coverage Gap nothing closes, plus an
+Unanswered Limitation later work followed up and a control limitation nobody
+did. Searches are
 answered from responses recorded from the live OpenAlex and PubMed APIs, keyed
 by URL, so the real adapters run and nothing goes to the network. LLM screening
 replays completions recorded live by `scripts/record_saturation_screening.py`.
@@ -20,7 +22,14 @@ import pytest
 
 from conftest import StubLlmClient
 
-from research_gap_dashboard.aggregate import load_pipeline_taxonomies
+from research_gap_dashboard.aggregate import (
+  AggregateReport,
+  CategoryAssignment,
+  NormalizedFacts,
+  load_pipeline_taxonomies,
+)
+from research_gap_dashboard.detect import StatementEvidence, UnansweredLimitationGap
+from research_gap_dashboard.extract import Evidence
 from research_gap_dashboard.cli import EXIT_ERROR, EXIT_INCOMPLETE, EXIT_OK, main
 from research_gap_dashboard import cli
 from research_gap_dashboard.llm import (
@@ -40,6 +49,7 @@ from research_gap_dashboard.saturate import (
   QueryVariantModel,
   SaturationError,
   build_query,
+  limitation_concepts,
   read_saturation_checks,
   saturate_gap,
   screen,
@@ -52,6 +62,8 @@ RECORDED = json.loads((FIXTURE / "source-responses.json").read_text(encoding="ut
 SEARCH_LIMIT = 10  # the limit the responses were recorded with
 FILLED_GAP = "topicxtopic:heart-failure:myocardial-ischemia"
 CONTROL_GAP = "topicxmethod:carcinoid-heart-disease:mendelian-randomization-analysis"
+FILLED_LIMITATION = "limitation:limitation-group-01"
+CONTROL_LIMITATION = "limitation:limitation-group-02"
 TAXONOMIES = load_pipeline_taxonomies(list(SEED_PATHS.values()))
 RECORDED_COMPLETIONS = FIXTURE / "llm-responses.json"
 SCREENING_MODEL = "claude-haiku-4-5"  # the model the completions were recorded on
@@ -330,6 +342,236 @@ def test_a_work_two_sources_return_is_one_hit(corpus: Path):
   assert len(check.hits) == 1
   assert check.hits[0].sources == ["openalex", "pubmed"]
   assert check.hits[0].doi == "10.1/both"
+
+
+# --- Unanswered Limitations (issue #88) -------------------------------------------
+
+
+def test_a_followed_up_limitation_is_possibly_addressed(corpus: Path):
+  """Later work on a limitation's subject and key phrases weakens the card."""
+  check = _check(corpus, FILLED_LIMITATION)
+
+  assert check.status == "possibly_addressed"
+  assert check.gap_type == "unanswered_limitation"
+  assert check.statement_ids == ["sat01:future_work[0]"]
+  assert check.screened_hit_count > 0
+  for search in check.searches:
+    assert "Heart Failure" in search.query
+    assert "preserved ejection fraction" in search.query
+    assert "sglt2 inhibitors" in search.query
+
+
+def test_a_limitation_query_comes_from_its_source_statement(corpus: Path):
+  """The subject Topic and the statement's key phrases, never its boilerplate."""
+  check = _check(corpus, FILLED_LIMITATION)
+
+  subject, phrases = check.concepts
+  assert (subject.axis, subject.category_id) == ("topic", "heart-failure")
+  assert subject.mesh_heading == "Heart Failure"
+  assert phrases.axis == "statement"
+  assert phrases.terms == ["preserved ejection fraction", "sglt2 inhibitors"]
+  for word in ("investigated", "remains", "whether", "patients"):
+    assert all(word not in term.split() for term in phrases.terms)
+
+
+def test_work_published_before_the_statement_is_no_follow_up(corpus: Path):
+  """A hit older than the source Paper is kept and shown, but never counted."""
+  check = _check(corpus, FILLED_LIMITATION)
+
+  older = [hit for hit in check.hits if hit.year is not None and hit.year < 2020]
+  assert older
+  assert all(hit.verdict != "mentions_both" for hit in older)
+  assert any(hit.verdict == "predates_statement" for hit in older)
+  assert all(
+    hit.year is None or hit.year >= 2020
+    for hit in check.hits
+    if hit.verdict == "mentions_both"
+  )
+  assert "no earlier than" in check.screening_method
+
+
+def test_the_control_limitation_records_what_was_searched(corpus: Path):
+  """No follow-up found is a dated record of the queries, not a verdict."""
+  moment = datetime(2026, 10, 4, 9, 30, tzinfo=UTC)
+  check = _check(corpus, CONTROL_LIMITATION, now=lambda: moment)
+
+  assert check.status == "no_closing_work_found"
+  assert check.checked_at == moment
+  assert "does not confirm" in check.status_reason
+  for search in check.searches:
+    assert "Carcinoid Heart Disease" in search.query
+    assert "spaceflight" in search.query
+
+
+def test_a_limitation_check_leaves_the_card_untouched(corpus: Path):
+  """Checking a limitation annotates only; its confidence is unchanged."""
+  gaps_path = corpus / "artifacts" / "candidate_gaps.json"
+  before = gaps_path.read_text(encoding="utf-8")
+
+  _check(corpus, FILLED_LIMITATION)
+
+  assert gaps_path.read_text(encoding="utf-8") == before
+  assert read_saturation_checks(corpus).label == OUT_OF_CORPUS_LABEL
+
+
+def test_a_retrieval_gap_is_never_checked(corpus: Path):
+  """A Retrieval Gap is already out of the Corpus: refused, nothing written."""
+  retrieval = {
+    "corpus_root": str(corpus),
+    "source": "openalex",
+    "corpus_paper_count": 6,
+    "coupled_paper_count": 6,
+    "min_overlap": 2,
+    "limit": 10,
+    "candidates": [
+      {
+        "openalex_id": "https://openalex.org/W123",
+        "doi": "10.1/cited",
+        "citation_overlap": 3,
+        "citing_citation_keys": ["sat01", "sat02", "sat03"],
+      }
+    ],
+  }
+  (corpus / "artifacts" / "retrieval_gaps.json").write_text(
+    json.dumps(retrieval), encoding="utf-8"
+  )
+
+  for gap_id in ("https://openalex.org/W123", "W123", "10.1/cited"):
+    with pytest.raises(SaturationError, match="Retrieval Gap"):
+      _check(corpus, gap_id)
+  assert not read_saturation_checks(corpus).checks
+
+
+def _limitation(statement: str) -> UnansweredLimitationGap:
+  """Build a one-statement Unanswered Limitation card."""
+  return UnansweredLimitationGap(
+    gap_id="limitation:g",
+    gap_type="unanswered_limitation",
+    title=statement,
+    explanation="",
+    confidence="low",
+    confidence_reason="",
+    group_id="g",
+    source_citation_keys=["p1"],
+    later_paper_count=0,
+    corpus_paper_count=2,
+    evidence=[
+      StatementEvidence(
+        citation_key="p1",
+        statement_id="p1:limitations[0]",
+        statement=statement,
+        evidence=Evidence(passage=statement, section="discussion"),
+      )
+    ],
+  )
+
+
+def _normalized(*placements: tuple[str, str, str]) -> AggregateReport:
+  """NormalizedFacts placing one Paper per (key, Topic id, own term)."""
+  return AggregateReport(
+    corpus_root=Path("c"),
+    prompt_version="t",
+    tier="default",
+    taxonomies=[],
+    normalized=[
+      NormalizedFacts(
+        citation_key=key,
+        assignments=[
+          CategoryAssignment(
+            axis="topic",
+            original_term=term,
+            category_id=category,
+            category_label=category,
+            fact_ref="topics[0]",
+            evidence=Evidence(passage=term, section="abstract"),
+          )
+        ],
+        unmapped=[],
+      )
+      for key, category, term in placements
+    ],
+    failures=[],
+  )
+
+
+def test_a_corpus_acronym_finds_the_subject_but_is_never_searched():
+  """'TTS' names Takotsubo through the Corpus's own term; the query spells it out."""
+  normalized = _normalized(("p1", "takotsubo-cardiomyopathy", "TTS"))
+
+  subject, phrases = limitation_concepts(
+    _limitation("The role of estrogen in TTS remains to be elucidated."),
+    TAXONOMIES,
+    normalized,
+  )
+
+  assert subject.category_id == "takotsubo-cardiomyopathy"
+  assert "Takotsubo Cardiomyopathy" in subject.terms
+  assert "TTS" not in subject.terms
+  assert phrases.terms == ["estrogen"]
+
+
+def test_a_parent_alias_inside_a_child_term_is_not_a_second_subject():
+  """'takotsubo cardiomyopathy' is one Topic, not also Cardiomyopathies."""
+  concepts = limitation_concepts(
+    _limitation("Genetic predisposition to takotsubo cardiomyopathy is unclear."),
+    TAXONOMIES,
+    None,
+  )
+
+  assert [c.category_id for c in concepts] == [
+    "takotsubo-cardiomyopathy",
+    "statement-key-phrases",
+  ]
+  assert concepts[-1].terms == ["genetic predisposition"]
+
+
+def test_a_statement_naming_no_topic_searches_the_corpus_dominant_topic():
+  """Without a named Topic, the Corpus's most-placed Topic keeps the search on field."""
+  normalized = _normalized(
+    ("p1", "heart-failure", "heart failure"),
+    ("p2", "heart-failure", "heart failure"),
+    ("p3", "myocarditis", "myocarditis"),
+  )
+
+  concepts = limitation_concepts(
+    _limitation("Biomarker kinetics were not measured."), TAXONOMIES, normalized
+  )
+
+  assert concepts[0].category_id == "heart-failure"
+  assert concepts[-1].terms == ["biomarker kinetics", "measured"]
+
+
+@pytest.mark.parametrize(
+  "statement",
+  [
+    "Further studies of carcinoid heart disease are needed.",
+    "Only female carcinoid heart disease patients were included.",
+  ],
+)
+def test_a_limitation_with_nothing_searchable_is_refused(corpus: Path, statement: str):
+  """All subject, boilerplate and weak lone words: nothing to search for."""
+  path = corpus / "artifacts" / "candidate_gaps.json"
+  report = json.loads(path.read_text(encoding="utf-8"))
+  card = next(g for g in report["gaps"] if g["gap_id"] == CONTROL_LIMITATION)
+  card["evidence"][0]["statement"] = (
+    "Further studies of carcinoid heart disease are needed."
+  )
+  path.write_text(json.dumps(report), encoding="utf-8")
+
+  with pytest.raises(SaturationError, match="no searchable term"):
+    _check(corpus, CONTROL_LIMITATION)
+
+
+def test_cli_saturate_checks_a_limitation(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """`saturate <corpus> --gap limitation:<group>` runs the same check."""
+  monkeypatch.setattr(cli, "_build_search_sources", _recorded_sources)
+  monkeypatch.setattr(cli, "SATURATE_SEARCH_LIMIT", SEARCH_LIMIT)
+
+  assert main(["saturate", str(corpus), "--gap", FILLED_LIMITATION]) == EXIT_OK
+  check = read_saturation_checks(corpus).checks[0]
+  assert (check.gap_id, check.status) == (FILLED_LIMITATION, "possibly_addressed")
 
 
 # --- LLM screening of the top hits ---------------------------------------------
@@ -720,3 +962,23 @@ def test_cli_saturate_without_an_api_key_still_checks(
   assert check.status == "no_closing_work_found"
   assert check.second_attempt is not None
   assert "ANTHROPIC_API_KEY" in check.second_attempt.note
+
+
+def test_a_second_attempt_keeps_every_concept_it_did_not_rephrase():
+  """A limitation's third concept stays in the search, not silently dropped."""
+  from research_gap_dashboard.saturate import (  # pylint: disable=import-outside-toplevel
+    _variant_concepts,  # pylint: disable=protected-access
+  )
+
+  def concept(category_id: str, *terms: str) -> ConceptTerms:
+    return ConceptTerms(
+      axis="topic", category_id=category_id, label=category_id, terms=list(terms)
+    )
+
+  base = [concept("a", "a"), concept("b", "b"), concept("s", "s")]
+  rephrased = [concept("a", "a2"), concept("b")]
+
+  query, screening = _variant_concepts(base, rephrased)
+
+  assert [c.terms for c in query] == [["a2"], ["b"], ["s"]]
+  assert [c.terms for c in screening] == [["a2", "a"], ["b"], ["s"]]
