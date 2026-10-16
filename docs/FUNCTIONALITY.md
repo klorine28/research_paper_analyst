@@ -43,7 +43,7 @@ A Corpus is one directory (see `docs/corpus-layout.md` and
 | `<name>.bib` or `dois.txt` | the paper list (BibTeX or one DOI per line) |
 | `paper-data/` | per-Paper derived data (parsed sections, per-Paper explanations) |
 | `artifacts/` | stage output artifacts (below) |
-| `judgments/` | accept/reject judgments and (future) chat history |
+| `judgments/` | accept/reject judgments, chat history, the journal and the resume point |
 | `.llm-cache/` | on-disk LLM response cache |
 
 ---
@@ -227,11 +227,26 @@ Analyse (Explore, Judge) and Extend (Grow, Write); every page carries a step bar
 buttons naming the adjacent step. Every page stays reachable from the sidebar
 at any time. Step completion and the home screen's recommendation come from
 `guided_flow.py`, read from the scope record, the pipeline status, the fallout
-and the gap verdicts.
+and the gap verdicts. The furthest step reached on each Corpus and when it was
+last opened persist to `judgments/resume_point.json` (`resume.py`, issue #83):
+a reopened dashboard starts on the Corpus opened most recently, and its Home
+screen offers to **resume** at the furthest step.
+
+**Soft Trust gate** (issue #77, `trust_gate.py`). Once `extract` has run, a
+Corpus where Papers fell out or lost facts shows a lock screen instead of the
+Explore, Judge, Grow and Write pages. The screen states the denominator ("these
+gaps come from 10 of 15 Papers") and offers two ways on: fix the fallout on
+Needs Attention, or acknowledge the denominator and continue. The
+acknowledgement is saved to `judgments/trust-acknowledgement.json` with the
+Corpus state it covers (Papers reached, total, Papers missing facts). If that
+state changes, the gate asks again. The incompleteness banner stays on every
+page after acknowledging, and a complete Corpus never sees the gate. An
+acknowledged Corpus moves Home's recommendation past Trust, but Trust is only
+ticked when the Corpus is complete.
 
 | Page (step) | Module | Needs artifact | Shows |
 | --- | --- | --- | --- |
-| Home | `guided_flow.py` | `corpus-manifest.json` (+ stage artifacts, `judgments/gap_judgments.json`) | **Recommended next step** with its reason (no scope → Scope; a core stage not run or stale → Build; Papers fell out → Trust; no verdicts yet → Explore; undecided gaps → Judge; otherwise Write) and a button to it; Corpus health (Papers, Papers reached, pipeline stages done, Candidate Gaps, accepted, undecided); the seven steps with completed ones ticked |
+| Home | `guided_flow.py`, `resume.py` | `corpus-manifest.json` (+ stage artifacts, `judgments/gap_judgments.json`, `judgments/resume_point.json`) | **Resume** at the furthest step reached, stating the saved verdicts and journal entries (once the Corpus was worked on); **Recommended next step** with its reason (no scope → Scope; a core stage not run or stale → Build; Papers fell out → Trust; no verdicts yet → Explore; undecided gaps → Judge; otherwise Write) and a button to it; Corpus health (Papers, Papers reached, pipeline stages done, Candidate Gaps, accepted, undecided); the seven steps with completed ones ticked |
 | Corpus Overview (1 Scope) | `overview.py` | `corpus-manifest.json` | scope statement, paper/venue/year metrics, papers-per-year bar, venue table, exclusions (unmatched entries, orphan PDFs) |
 | Pipeline (2 Build) | `pipeline_status.py`, `run_cost.py`, `pipeline_runner.py` | `corpus-manifest.json` (+ every stage artifact, `llm-usage.json`) | each stage as done / not run / stale (an input newer than its artifact), with a run or re-run button per stage (detect's also runs `saturate --auto` after it); a collapsed **Run details** with each LLM stage's estimated cost and its last run's actual cost; a run estimated above `LLM_COST_CONFIRM_ABOVE` asks for confirmation |
 | Field Meta-Analysis (4 Explore) | `meta_analysis.py`, `coverage.py` | `corpus-manifest.json` (+ `normalized_facts.json`, `candidate_gaps.json`) | a gallery of six graphs: citation network, Topic and Method co-occurrence (with ranked missing pairs that jump to Gap Cards), Trends (emerging/abandoned Topics), an author collaboration table, and limitation follow-up status; each carries its question, gap lens, denominator, caveat and a data-table fallback |

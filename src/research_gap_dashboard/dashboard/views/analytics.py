@@ -28,6 +28,7 @@ from research_gap_dashboard.dashboard.artifacts import (
 from research_gap_dashboard.dashboard.chat_history import ChatTurn
 from research_gap_dashboard.dashboard.conversations import Conversation
 from research_gap_dashboard.dashboard.corpus_scope import load_scope
+from research_gap_dashboard.dashboard.entry_log import reconcile_entry_log
 from research_gap_dashboard.dashboard.export import build_write_up
 from research_gap_dashboard.dashboard.fact_pool import load_fact_pool
 from research_gap_dashboard.dashboard.gaps import (
@@ -343,6 +344,7 @@ def _render_export(
     coverage=scope,
     manifest=manifest,
     scope=load_scope(chosen.root),
+    entry_log=reconcile_entry_log(chosen.root, manifest),
   )
   st.markdown(f"**{text.EXPORT_HEADING}**")
   st.caption(text.EXPORT_INTRO)
