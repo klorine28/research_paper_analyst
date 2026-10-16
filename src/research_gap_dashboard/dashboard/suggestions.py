@@ -7,7 +7,9 @@ same pipeline commands, run by `pipeline_runner` (ADR 0007): `add-suggested`
 fetches the open-access PDF or takes an upload, and `mark-unavailable` records
 why a paper can't be had. The dashboard never calls a scholarly API itself
 (ADR 0009 §5) and never writes the paper list or the record of suggestions;
-it only reads `suggested_papers.json` back.
+it only reads `suggested_papers.json` back. Which suggested papers are
+unavailable is read from the Corpus entry log, the one record of them (ADR
+0010 §4).
 
 A work suggested by both routes is the same suggestion: it is matched by any
 shared DOI, PMID or OpenAlex id, so the double signal is shown in both places
@@ -29,8 +31,15 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from research_gap_dashboard.dashboard import pipeline_runner
 from research_gap_dashboard.dashboard.artifacts import (
+  SUGGESTED_PAPERS_NAME,
   RetrievalGapsArtifact,
   SaturationChecksArtifact,
+)
+from research_gap_dashboard.dashboard.entry_log import (
+  EntryRoute,
+  UnavailablePaper,
+  adopt_legacy_unavailable,
+  load_entry_log,
 )
 from research_gap_dashboard.dashboard.pipeline_runner import RunOutcome, RunResult
 
@@ -38,7 +47,6 @@ logger = logging.getLogger(__name__)
 
 # Restated from the pipeline's Grow path (`grow.py`), which the dashboard does
 # not import (ADR 0002).
-SUGGESTED_PAPERS_NAME = "suggested_papers.json"
 ADD_COMMAND = "add-suggested"
 UNAVAILABLE_COMMAND = "mark-unavailable"
 # The incremental re-run after a Paper is added: every stage the new Paper
@@ -128,7 +136,47 @@ def work_ids(doi: str, pmid: str, openalex_id: str) -> set[str]:
 
 
 def load_suggested_papers(corpus_root: Path) -> SuggestedPapersRecord:
-  """Read the record of suggested Papers, or an empty one."""
+  """
+  Read where each suggested Paper stands: the Grow path's record plus the log.
+
+  Pending and added works come from `suggested_papers.json`; unavailable ones
+  from the entry log, which wins over a pending record of the same work. An
+  older file's own "unavailable" records are carried into the log first.
+  """
+  adopt_legacy_unavailable(corpus_root)
+  unavailable = [
+    _unavailable_record(item) for item in load_entry_log(corpus_root).unavailable
+  ]
+  unavailable_ids = {work_id for item in unavailable for work_id in item.ids()}
+  kept = [
+    paper
+    for paper in _read_ledger(corpus_root).papers
+    if paper.status == "added"
+    or (paper.status != "unavailable" and not paper.ids() & unavailable_ids)
+  ]
+  return SuggestedPapersRecord(papers=[*kept, *unavailable])
+
+
+_GROW_ROUTES = {
+  EntryRoute.RETRIEVAL_SUGGESTION: "retrieval",
+  EntryRoute.SATURATION_HIT: "saturation",
+}
+
+
+def _unavailable_record(item: UnavailablePaper) -> SuggestedPaperRecord:
+  return SuggestedPaperRecord(
+    doi=item.doi,
+    pmid=item.pmid,
+    openalex_id=item.openalex_id,
+    title=item.title,
+    routes=[_GROW_ROUTES[item.route]] if item.route in _GROW_ROUTES else [],
+    status="unavailable",
+    reason=item.reason,
+    updated_at=item.marked_at,
+  )
+
+
+def _read_ledger(corpus_root: Path) -> SuggestedPapersRecord:
   path = corpus_root / SUGGESTED_PAPERS_NAME
   if not path.is_file():
     return SuggestedPapersRecord()
