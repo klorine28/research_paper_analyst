@@ -3,13 +3,14 @@ The Streamlit app shell: corpus selection, navigation, and page dispatch.
 
 This layer is deliberately thin. It picks (or creates) a Corpus, states its
 scope, applies any pending page switch, draws the guided navigation (the
-phase-grouped sidebar, the step bar and Previous/Next, issue #76) and hands the
-chosen page to its renderer in `dashboard.page_registry`; each page lives in its
-own module under `dashboard.views`. It holds no analysis logic and imports no
-pipeline stage (ADR 0002). Run it with `streamlit run` (see the justfile). Point
-it at the folder that holds your corpus directories with the
-RESEARCH_GAP_CORPORA_DIR environment variable; new Corpora created in the app are
-made there.
+phase-grouped sidebar, the step bar and Previous/Next, issue #76), records the
+resume point (issue #83) and hands the chosen page to its renderer in
+`dashboard.page_registry`; each page lives in its own module under
+`dashboard.views`. A new session reopens the Corpus worked on last. It holds no
+analysis logic and imports no pipeline stage (ADR 0002). Run it with
+`streamlit run` (see the justfile). Point it at the folder that holds your
+corpus directories with the RESEARCH_GAP_CORPORA_DIR environment variable; new
+Corpora created in the app are made there.
 """
 
 import os
@@ -25,8 +26,9 @@ from research_gap_dashboard.dashboard.artifacts import (
   has_manifest,
 )
 from research_gap_dashboard.dashboard.attention import build_attention
-from research_gap_dashboard.dashboard.guided_flow import build_flow_progress
+from research_gap_dashboard.dashboard.guided_flow import Step, build_flow_progress
 from research_gap_dashboard.dashboard.page_registry import first_page_title, page_for
+from research_gap_dashboard.dashboard.resume import last_opened_corpus, record_visit
 from research_gap_dashboard.dashboard.views.corpus_setup import (
   render_new_analysis,
   render_scope,
@@ -47,6 +49,7 @@ from research_gap_dashboard.dashboard.views.session_keys import (
   PENDING_CORPUS_KEY,
   PENDING_NAV_KEY,
   PENDING_STEP_KEY,
+  RESUME_RECORDED_KEY,
 )
 from research_gap_dashboard.env import load_env
 
@@ -65,6 +68,13 @@ def _select_corpus(choices: list[CorpusChoice]) -> CorpusChoice:
   pending = st.session_state.pop(PENDING_CORPUS_KEY, None)
   if pending in by_name:
     st.session_state[CORPUS_PICKER_KEY] = pending
+  elif CORPUS_PICKER_KEY not in st.session_state:
+    # A new session (a reopened dashboard) starts on the Corpus last worked on.
+    last = last_opened_corpus([choice.root for choice in choices])
+    if last is not None:
+      st.session_state[CORPUS_PICKER_KEY] = next(
+        choice.name for choice in choices if choice.root == last
+      )
   elif st.session_state.get(CORPUS_PICKER_KEY) not in by_name:
     st.session_state.pop(CORPUS_PICKER_KEY, None)
   name = st.sidebar.selectbox(
@@ -107,17 +117,32 @@ def main() -> None:
   render_new_analysis(st.sidebar, corpora_root, expanded=False)
   render_scope(chosen.root)
   if not has_manifest(chosen.root):
+    _record_visit(chosen.root, None)
     render_unbuilt_corpus(chosen)
     return
   _render_incompleteness_banner(chosen.root)
   _apply_pending_nav()
   page = page_for(st.session_state.get(NAV_PAGE_KEY, ""))
+  _record_visit(chosen.root, page.step)
   progress = build_flow_progress(chosen.root)
   render_sidebar_nav(page.title, progress)
   render_step_bar(page.step, progress)
   page.render(chosen)
   st.divider()
   render_previous_next(page.step)
+
+
+def _record_visit(corpus_root: Path, step: Step | None) -> None:
+  """
+  Persist the resume point when the Corpus or the step shown changes (issue #83).
+
+  Streamlit reruns the script on every interaction; writing only on a change
+  keeps the file still while the researcher works within one step.
+  """
+  visit = (str(corpus_root), step)
+  if st.session_state.get(RESUME_RECORDED_KEY) != visit:
+    record_visit(corpus_root, step)
+    st.session_state[RESUME_RECORDED_KEY] = visit
 
 
 def _render_ingestable_folders(corpora_root: Path) -> None:

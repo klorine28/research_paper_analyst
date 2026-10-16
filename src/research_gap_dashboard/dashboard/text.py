@@ -1134,6 +1134,12 @@ HOME_INTRO = (
   "Judge \u2192 Grow \u2192 Write. Follow the recommended step, or jump to any "
   "page from the sidebar."
 )
+HOME_RESUME_HEADING = "Pick up where you left off"
+HOME_RESUME_REACHED = "The furthest step you reached on this Corpus is **{step}**."
+HOME_RESUME_SAVED = (
+  "Your {verdicts} gap verdicts and {entries} journal entries are saved."
+)
+HOME_RESUME_BUTTON = "Resume at {step} \u2192"
 HOME_RECOMMENDED_HEADING = "Recommended next step"
 HOME_GO_TO_STEP = "Go to {step} \u2192"
 HOME_HEALTH_HEADING = "Corpus health"
