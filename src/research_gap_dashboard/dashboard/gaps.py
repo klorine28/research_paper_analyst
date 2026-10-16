@@ -79,6 +79,13 @@ class NeighbourCell(BaseModel):
   paper_count: int
 
 
+class BridgeView(BaseModel):
+  """One bridging category on a cell gap's Tier 3, in the artifact's order."""
+
+  label: str
+  text: str
+
+
 class GapData(BaseModel):
   """
   Tier 3, "show the data": what a card's confidence was computed from.
@@ -93,6 +100,7 @@ class GapData(BaseModel):
   expected_count: float | None
   observed_count: int | None
   reasons: list[str]
+  bridges: list[BridgeView] = []
 
 
 class SaturationSearchView(BaseModel):
@@ -372,6 +380,18 @@ def _data(record: CandidateGapRecord, matrices: list[CoverageMatrixRecord]) -> G
     expected_count=expected,
     observed_count=record.cell_count,
     reasons=_reasons(record),
+    bridges=[
+      BridgeView(
+        label=bridge.label,
+        text=text.GAP_DATA_BRIDGE.format(
+          label=bridge.label,
+          axis=bridge.axis,
+          row_count=bridge.row_link_count,
+          column_count=bridge.column_link_count,
+        ),
+      )
+      for bridge in record.bridges
+    ],
   )
 
 
