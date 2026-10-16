@@ -100,15 +100,11 @@ ATTENTION_REJECTED_HEADING = "Papers whose extraction was rejected"
 ATTENTION_DROPPED_HEADING = "Papers with dropped facts"
 ATTENTION_CORRECTION_LABEL = "Paste this Paper's correct full text"
 ATTENTION_CORRECTION_HELP = (
-  "Saved to a review overlay under judgments/. Use the apply-parse-corrections "
-  "and extract buttons at the top of this page to fold it into the pipeline."
+  "Saved to a review overlay under judgments/; the pipeline then applies it to "
+  "the Paper's parsed text and re-extracts its facts."
 )
-ATTENTION_SAVE_CORRECTION = "Save correction"
-ATTENTION_CORRECTION_SAVED = (
-  "Saved. Now run apply-parse-corrections, then extract, with the buttons at the "
-  "top of this page."
-)
-ATTENTION_CORRECTION_EMPTY = "Nothing to save: paste the Paper's text first."
+ATTENTION_APPLY_CORRECTION = "\u25b6 Apply correction & re-extract"
+ATTENTION_CORRECTION_EMPTY = "Nothing to apply: paste the Paper's text first."
 
 
 def incompleteness_banner(
@@ -131,7 +127,14 @@ VERIFY_HEADING = "Verify Extractions"
 VERIFY_INTRO = (
   "Check each extracted fact against the Paper's own text. Your verdicts are "
   "saved as a review overlay and never change the pipeline's Extraction; "
-  "promoting them to a Gold Extraction fixture is a separate, deliberate step."
+  "promoting them to a Gold Extraction fixture is a separate pipeline step."
+)
+VERIFY_PROMOTE_BUTTON = "\u25b6 Promote to Gold Extraction"
+VERIFY_PROMOTE_HELP = (
+  "Writes the reviewed Extraction, with your verdicts applied, as a Gold "
+  "Extraction regression fixture in this Corpus's artifacts/. Every kept quote "
+  "is re-checked against the Paper's text; one that doesn't match refuses the "
+  "whole promotion and nothing is written."
 )
 VERIFY_NO_EXTRACTIONS = (
   "No Extractions to review yet: the extract stage hasn't run on this Corpus."
@@ -347,6 +350,9 @@ RUN_INCOMPLETE = (
   "Attention and the run output below."
 )
 RUN_FAILED = "`{stage}` failed. See the run output below for the reason."
+# The CLI's own last word on why it failed, so a refusal (e.g. a gold promotion
+# blocked by an unverifiable passage) is readable without opening the output.
+RUN_FAILED_WITH_REASON = "`{stage}` failed: {reason}"
 RUN_LOCKED = (
   "Another run is already in progress on this Corpus. Wait for it to finish, "
   "then try again."

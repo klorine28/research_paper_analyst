@@ -1,15 +1,17 @@
 """
 Run buttons that launch a pipeline stage through the runner, and their outcome.
 
-The page renders a button; clicking it runs the stage via `pipeline_runner`
-(a blocking subprocess, ADR 0007) and keeps the result in session state across
-the rerun that follows, so the page redraws with the new artifact while the
-outcome and the captured output stay on screen.
+The page renders a button; clicking it runs the stage (or a chain of commands,
+such as a seam command and the stage it feeds) via `pipeline_runner` (a blocking
+subprocess, ADR 0007) and keeps the results in session state across the rerun
+that follows, so the page redraws with the new artifacts while each outcome and
+its captured output stay on screen.
 
 A run whose estimated cost is above `LLM_COST_CONFIRM_ABOVE` is not launched on
 the first click: the button records it as pending and the next rerun asks the
-researcher to confirm or cancel. The prompt names no amount; the estimate itself
-is only in the pipeline panel's collapsed Run details (issue #70).
+researcher to confirm or cancel, under the button that asked. A chain asks when
+any of its stages would. The prompt names no amount; the estimate itself is only
+in the pipeline panel's collapsed Run details (issue #70).
 """
 
 import os
@@ -49,32 +51,52 @@ def render_run_button(
   """
   label = label or text.run_stage_button(stage)
   button_key = key or f"run-{stage}"
-  pending = (str(corpus_root), stage, button_key, tuple(args))
-  if st.session_state.get(PENDING_RUN_KEY) == pending:
-    _render_confirmation(corpus_root, stage, args, button_key)
+  if render_pending_confirmation(corpus_root, button_key):
     return
-  if not st.button(label, key=button_key, type="primary"):
-    return
-  if _must_confirm(corpus_root, stage):
-    st.session_state[PENDING_RUN_KEY] = pending
-    st.rerun()
-  _launch(corpus_root, stage, args)
+  if st.button(label, key=button_key, type="primary"):
+    request_run(corpus_root, [stage], button_key, args)
 
 
-def _render_confirmation(
-  corpus_root: Path, stage: str, args: Sequence[str], button_key: str
+def request_run(
+  corpus_root: Path,
+  stages: Sequence[str],
+  button_key: str,
+  args: Sequence[str] = (),
 ) -> None:
-  """Ask whether to launch a run whose estimate is above the threshold."""
-  st.warning(text.RUN_CONFIRM_PROMPT.format(stage=stage))
+  """
+  Launch a run now, or park it for confirmation if its estimate is too high.
+
+  A parked run is shown by `render_pending_confirmation` under the button
+  `button_key` names, on the next rerun.
+  """
+  if any(_must_confirm(corpus_root, stage) for stage in stages):
+    st.session_state[PENDING_RUN_KEY] = (
+      str(corpus_root),
+      tuple(stages),
+      button_key,
+      tuple(args),
+    )
+    st.rerun()
+  _launch(corpus_root, stages, args)
+
+
+def render_pending_confirmation(corpus_root: Path, button_key: str) -> bool:
+  """Ask to confirm the run parked under this button, if any; True if asked."""
+  pending = st.session_state.get(PENDING_RUN_KEY)
+  if pending is None or pending[0] != str(corpus_root) or pending[2] != button_key:
+    return False
+  _, stages, _, args = pending
+  st.warning(text.RUN_CONFIRM_PROMPT.format(stage=" \u2192 ".join(stages)))
   confirm, cancel = st.columns(2)
   if confirm.button(
     text.RUN_CONFIRM_BUTTON, key=f"confirm-{button_key}", type="primary"
   ):
     st.session_state.pop(PENDING_RUN_KEY, None)
-    _launch(corpus_root, stage, args)
+    _launch(corpus_root, stages, args)
   if cancel.button(text.RUN_CANCEL_BUTTON, key=f"cancel-{button_key}"):
     st.session_state.pop(PENDING_RUN_KEY, None)
     st.rerun()
+  return True
 
 
 def _must_confirm(corpus_root: Path, stage: str) -> bool:
@@ -97,12 +119,12 @@ def _must_confirm(corpus_root: Path, stage: str) -> bool:
   return needs_confirmation(estimate_stage_cost(corpus_root, stage), threshold)
 
 
-def _launch(corpus_root: Path, stage: str, args: Sequence[str] = ()) -> None:
-  """Run the stage now, keep its result for the redraw, and redraw."""
-  with st.spinner(text.RUN_IN_PROGRESS.format(stage=stage)):
+def _launch(corpus_root: Path, stages: Sequence[str], args: Sequence[str] = ()) -> None:
+  """Run the stages now under one lock, keep their results, and redraw."""
+  with st.spinner(text.RUN_IN_PROGRESS.format(stage=" \u2192 ".join(stages))):
     # Looked up on the module at call time so tests can patch the subprocess.
-    result = pipeline_runner.run_stage(corpus_root, stage, args=args)
-  st.session_state[LAST_RUN_KEY] = (str(corpus_root), result)
+    results = pipeline_runner.run_stages(corpus_root, stages, args=args)
+  st.session_state[LAST_RUN_KEY] = (str(corpus_root), results)
   st.rerun()
 
 
@@ -111,7 +133,13 @@ def render_last_run(corpus_root: Path) -> None:
   stored = st.session_state.get(LAST_RUN_KEY)
   if stored is None or stored[0] != str(corpus_root):
     return
-  result: RunResult = stored[1]
+  results: list[RunResult] = stored[1]
+  for result in results:
+    _render_result(result)
+
+
+def _render_result(result: RunResult) -> None:
+  """Show one command's outcome, with its captured output behind an expander."""
   message = _outcome_message(result)
   if result.outcome == RunOutcome.SUCCEEDED:
     st.success(message)
@@ -143,6 +171,10 @@ def _outcome_message(result: RunResult) -> str:
     RunOutcome.LOCKED: text.RUN_LOCKED,
     RunOutcome.MISSING_KEY: text.RUN_MISSING_KEY,
   }
+  # A refusal (e.g. a gold promotion) names its cause; show it, not just "failed".
+  reason = pipeline_runner.failure_reason(result)
+  if result.outcome == RunOutcome.FAILED and reason:
+    return text.RUN_FAILED_WITH_REASON.format(stage=result.stage, reason=reason)
   return templates[result.outcome].format(stage=result.stage)
 
 

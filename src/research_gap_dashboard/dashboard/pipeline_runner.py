@@ -129,29 +129,74 @@ def run_stage(
   the app shell); the subprocess inherits it unchanged. `args` are passed to the
   stage after the Corpus path (e.g. `--resolve` for ingest).
   """
-  env = os.environ if env is None else env
-  command = build_command(corpus_root, stage, args)
-  if needs_api_key(stage) and not env.get(API_KEY_ENV):
-    return RunResult(stage=stage, command=command, outcome=RunOutcome.MISSING_KEY)
+  return run_stages(corpus_root, [stage], env, args=args)[0]
 
+
+def run_stages(
+  corpus_root: Path,
+  stages: Sequence[str],
+  env: Mapping[str, str] | None = None,
+  *,
+  args: Sequence[str] = (),
+) -> list[RunResult]:
+  """
+  Run CLI commands in order on a Corpus under one lock; report each one launched.
+
+  A seam command and the stage it feeds (`apply-parse-corrections` then
+  `extract`, ADR 0006) run as one chain so no other run can slip in between.
+  Every stage's credential is checked before the first launch, and the chain
+  stops at the first failure: a later stage never runs on a broken input.
+  Incomplete (code 2) is not a failure, so the chain carries on past it.
+  `args` go to every stage; a chain of seam command and stage passes none.
+  """
+  env = os.environ if env is None else env
+  for stage in stages:
+    if needs_api_key(stage) and not env.get(API_KEY_ENV):
+      return [
+        RunResult(
+          stage=stage,
+          command=build_command(corpus_root, stage, args),
+          outcome=RunOutcome.MISSING_KEY,
+        )
+      ]
+
+  results: list[RunResult] = []
   try:
     with _corpus_lock(corpus_root):
-      logger.info("Running %s", " ".join(command))
-      try:
-        completed = subprocess.run(
-          command, capture_output=True, text=True, check=False, env=dict(env)
-        )
-      except OSError as error:
-        logger.error("Could not launch %s: %s", command[0], error)
-        return RunResult(
-          stage=stage,
-          command=command,
-          outcome=RunOutcome.FAILED,
-          stderr=f"Could not launch {command[0]}: {error}",
-        )
+      for stage in stages:
+        result = _launch(corpus_root, stage, env, args)
+        results.append(result)
+        if result.outcome == RunOutcome.FAILED:
+          break
   except _CorpusLocked:
-    return RunResult(stage=stage, command=command, outcome=RunOutcome.LOCKED)
+    return [
+      RunResult(
+        stage=stages[0],
+        command=build_command(corpus_root, stages[0], args),
+        outcome=RunOutcome.LOCKED,
+      )
+    ]
+  return results
 
+
+def _launch(
+  corpus_root: Path, stage: str, env: Mapping[str, str], args: Sequence[str]
+) -> RunResult:
+  """Launch one CLI command while the caller holds the Corpus lock."""
+  command = build_command(corpus_root, stage, args)
+  logger.info("Running %s", " ".join(command))
+  try:
+    completed = subprocess.run(
+      command, capture_output=True, text=True, check=False, env=dict(env)
+    )
+  except OSError as error:
+    logger.error("Could not launch %s: %s", command[0], error)
+    return RunResult(
+      stage=stage,
+      command=command,
+      outcome=RunOutcome.FAILED,
+      stderr=f"Could not launch {command[0]}: {error}",
+    )
   return RunResult(
     stage=stage,
     command=command,
@@ -160,3 +205,15 @@ def run_stage(
     stdout=completed.stdout or "",
     stderr=completed.stderr or "",
   )
+
+
+def failure_reason(result: RunResult) -> str | None:
+  """
+  Return the line that says why a run failed, or None when there is none.
+
+  The CLI logs to stderr and reports its reason as the last thing it logs (a
+  refused gold promotion names the Paper and the passage), so that last
+  non-blank line is what the researcher needs to see without opening the output.
+  """
+  lines = [line.strip() for line in result.stderr.splitlines() if line.strip()]
+  return lines[-1] if lines else None
