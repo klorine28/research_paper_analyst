@@ -1,0 +1,42 @@
+{
+ "401862a587b47d05912664eff8115a1bdf21369e2ab3cfbc07dacae415a94c88.saturation-screen-v1": {
+  "verdict": "addresses",
+  "reason": "The work directly studies the combination of myocardial ischemia (ischemic heart disease) and both acute and chronic heart failure, examining how hyperinsulinemia relates to the pathogenesis of heart failure in patients with ischemic heart disease across different disease stages."
+ },
+ "6764a457f9070929970e277c451773dc33653e61a28bcc0079c2f1121eaa9eab.saturation-screen-v1": {
+  "verdict": "addresses",
+  "reason": "The work directly examines the relationship between ischemic heart disease and heart failure, exploring how myocardial ischemia caused by coronary microvascular dysfunction leads to heart failure, with ion channels as a mechanistic link between these two conditions."
+ },
+ "fde70458829f6f58d8e91afbe3a8bf5941c365a87e5c124802ee927d68cec714.saturation-screen-v1": {
+  "verdict": "addresses",
+  "reason": "The work directly studies the combination of heart failure and ischemic heart disease, explicitly focusing on medical therapy for heart failure caused by ischemic heart disease and reviewing the role of ischemic heart disease in the pathogenesis of both HF with reduced and preserved ejection fraction."
+ },
+ "b9cd39f5f94bab237dad53eeb05f49b05e573d35ab567d8c10440f40fc2625c0.saturation-screen-v1": {
+  "verdict": "addresses",
+  "reason": "The study directly investigates the combination of both concepts by examining stem cell transplantation in patients with congestive heart failure explicitly due to ischemic heart disease and myocardial ischemia, as assessed through multiple diagnostic tests."
+ },
+ "61cea4ed181e55c353f40f8144e6208c129ca7c82716ea412e5ce43120dfc562.saturation-screen-v1": {
+  "verdict": "addresses",
+  "reason": "The work explicitly examines the relationship between myocardial ischemia and congestive heart failure, discussing how ischemic heart disease is the principal cause of heart failure, the role of myocardial ischemia in cardiac remodeling that worsens heart failure prognosis, and therapeutic approaches targeting both conditions."
+ },
+ "bd4ae65d6b78f41ff921d4908dba18113897034b5bcd3280b9ed6d9488a59694.saturation-screen-v1": {
+  "verdict": "addresses",
+  "reason": "The work directly studies surgical treatment approaches for congestive heart failure caused by myocardial ischemia and myocardial infarction, explicitly combining both concepts as the primary focus."
+ },
+ "8555dc9b7a3acb129805bb46fe40b7afdbdf4dfc05365c40fb6b62cedc75277c.saturation-screen-v1": {
+  "verdict": "partial",
+  "reason": "The abstract discusses astragaloside IV's protective effects in heart failure and mentions that it \"could protect myocardial ischemia\" as one of several mechanisms, but the primary focus is on heart failure treatment rather than studying the combination of both conditions as co-occurring or interrelated pathologies."
+ },
+ "c6d749818f61a17e5f7b15597eeea9f43f873de77d4a4e02846181582437ad26.saturation-screen-v1": {
+  "verdict": "partial",
+  "reason": "The work discusses how ischemic heart disease can lead to congestive heart failure as one of several possible causes of hemodynamic overloading, but treats myocardial ischemia as a secondary causal factor rather than directly studying the combination of both conditions."
+ },
+ "dbdce83fd1b215dbe9cfc5a53b197c4bd8a9a7fd0b522979eb4c37fc76873380.saturation-screen-v1": {
+  "verdict": "no",
+  "reason": "Although myocardial ischemia is mentioned in the conclusions, it is cited only as one of several treatment advances that did not improve CHF outcomes, not as a direct subject of study in combination with CHF."
+ },
+ "c9781ceec468802466e301ea601b9b8aff77ed0be409527c00c553498f8455ac.saturation-screen-v1": {
+  "verdict": "addresses",
+  "reason": "The work directly studies the combination of chronic heart failure and ischemic heart disease (coronary artery disease), focusing specifically on pharmacological treatment and cardiac rehabilitation for patients presenting with both conditions."
+ }
+}

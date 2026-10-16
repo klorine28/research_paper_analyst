@@ -20,10 +20,12 @@ from test_saturate import (
   CONTROL_GAP,
   FILLED_GAP,
   FIXTURE,
+  SCREENING_MODEL,
   VARIANT_HIT,
   VARIANTS,
   _check,
   _FakeVariantLlm,
+  _recorded_screener,
   _variant_check,
 )
 
@@ -118,6 +120,36 @@ def test_other_cards_are_unaffected_by_a_check(corpus: Path):
   }
 
 
+def test_hits_show_their_llm_verdict_and_the_count_drops_ruled_out_hits(
+  corpus: Path,
+):
+  """LLM-screened hits carry the verdict and reason; a "no" stops counting."""
+  check = _check(corpus, FILLED_GAP, screener=_recorded_screener())
+
+  view = _cards(corpus)[FILLED_GAP].saturation
+
+  assert view.screened_count == check.screened_hit_count
+  assert str(check.screened_hit_count) in view.badge
+  screened = [h for h in view.hits if h.llm_verdict]
+  assert len(screened) == check.llm_screening.screened_count  # type: ignore[union-attr]
+  ruled_out = next(
+    h for h in view.hits if h.llm_verdict == text.GAP_SATURATION_LLM_VERDICTS["no"]
+  )
+  assert not ruled_out.screened
+  assert ruled_out.llm_reason
+  assert SCREENING_MODEL in view.llm_screening
+
+
+def test_a_check_without_llm_screening_says_so(corpus: Path):
+  """No LLM: the drill-down says screening did not run, and why."""
+  _check(corpus, FILLED_GAP)
+
+  view = _cards(corpus)[FILLED_GAP].saturation
+
+  assert "ANTHROPIC_API_KEY" in view.llm_screening
+  assert all(not hit.llm_verdict for hit in view.hits)
+
+
 # --- The page -------------------------------------------------------------------
 
 
@@ -177,6 +209,22 @@ def test_the_page_shows_the_badge_and_out_of_corpus_hits(
   assert all(search.query in codes for search in check.searches)
   markdown = "\n".join(block.value for block in app.markdown)
   assert check.hits[0].reason in markdown
+
+
+def test_the_page_shows_each_hits_llm_verdict(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """The drill-down lists every LLM verdict and reason, and the screening run."""
+  check = _check(corpus, FILLED_GAP, screener=_recorded_screener())
+  app = _open_all_gap_cards(corpus, monkeypatch)
+
+  assert not app.exception
+  markdown = "\n".join(block.value for block in app.markdown)
+  for hit in check.hits:
+    if hit.llm_verdict:
+      assert hit.llm_reason in markdown
+  view = _cards(corpus)[FILLED_GAP].saturation
+  assert view.llm_screening in [caption.value for caption in app.caption]
 
 
 def test_the_second_attempt_is_labelled_with_its_model_and_queries(

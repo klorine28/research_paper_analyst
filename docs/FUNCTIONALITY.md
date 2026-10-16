@@ -59,7 +59,7 @@ A Corpus is one directory (see `docs/corpus-layout.md` and
 | Aggregate | `aggregate <corpus> [--taxonomy FILE ...] [--tier ...]` | extractions + taxonomies | `normalized_facts.json` | yes | yes (uncached) |
 | Detect | `detect <corpus> [--tier ...]` | manifest + extractions + normalized facts | `candidate_gaps.json` | yes (limitations only) | yes (uncached) |
 | Retrieve | `retrieve <corpus> [--limit N] [--min-overlap N] [--mailto EMAIL]` | manifest (needs `ingest --resolve`) | `retrieval_gaps.json` | no | yes (OpenAlex) |
-| Saturate | `saturate <corpus> --gap ID [--taxonomy FILE ...]` | candidate gaps + manifest + taxonomies (+ Alias Overlay) | appends to `saturation_checks.json` | only on zero hits (query variants, cheap tier) | yes (OpenAlex + PubMed) |
+| Saturate | `saturate <corpus> --gap ID [--taxonomy FILE ...] [--tier cheap\|default]` | candidate gaps + manifest + taxonomies (+ Alias Overlay) | appends to `saturation_checks.json` | optional: query variants only on zero hits (cheap tier), and screening of the top hits (both skipped without a key) | yes (OpenAlex + PubMed, LLM) |
 | Taxonomy | `taxonomy [FILE]` | a taxonomy file | — (validation only) | no | no |
 
 Every command exits `0` on success and `1` on a handled error; the CLI only
@@ -79,13 +79,19 @@ and prompt version). Without an API
 key or on an LLM error the check still completes and `second_attempt.note`
 says why. A hit counts only when its title or
 abstract mentions a term of both concepts (deterministic screening); works
-already in the Corpus are dropped. The result is `possibly_addressed`,
+already in the Corpus are dropped. An LLM (cheap tier by default) then screens
+the top 10 matches from title and abstract: `addresses` / `partial` / `no`, with
+a one-line reason; a hit judged `no` stops counting. Every hit keeps both
+verdicts, and the check records the model, tier and prompt version. Without
+`ANTHROPIC_API_KEY` the LLM step is recorded as not run and every match counts;
+a hit the LLM did not screen (past the top 10, or its call failed) still counts.
+The result is `possibly_addressed`,
 `no_closing_work_found` (dated, with sources and queries) or `not_run` (no
 source reachable; exit code 2). Never confirms a gap, never changes confidence.
 Each run appends a dated snapshot; earlier snapshots are never rewritten. Hits
 are out-of-Corpus works: never cited, never Evidence. Public reader:
 `read_saturation_checks(root)`. Not yet: `--auto`, `--accepted`, the search
-cache, LLM screening, Unanswered Limitations.
+cache, Unanswered Limitations.
 
 ### Ingest — `ingest.py`
 Pairs each paper-list entry with its PDF (by DOI, then citation key) and writes

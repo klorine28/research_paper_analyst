@@ -543,10 +543,22 @@ GAP_SATURATION_QUERY_ERROR = "**{source}** was not searched: {error}"
 GAP_SATURATION_IN_CORPUS = (
   "{count} returned work(s) already in the Corpus were left out."
 )
-GAP_SATURATION_HITS_HEADING = "Hits ({screened} of {total} mention both concepts)"
+GAP_SATURATION_HITS_HEADING = "Hits ({screened} of {total} pass screening)"
 GAP_SATURATION_NO_HITS = "The searches returned no works outside the Corpus."
 GAP_SATURATION_HIT = "{marker} {title}{meta} \u2014 {reason}"
 GAP_SATURATION_HIT_META = " ({details})"
+GAP_SATURATION_HIT_LLM = " \u00b7 LLM: **{verdict}** \u2014 {reason}"
+# The LLM's screening verdict on a hit (issue #87), as the card shows it.
+GAP_SATURATION_LLM_VERDICTS: dict[str, str] = {
+  "addresses": "addresses the gap",
+  "partial": "partly addresses the gap",
+  "no": "does not address the gap",
+}
+GAP_SATURATION_LLM_RUN = (
+  "LLM screening: {count} top hit(s) judged by {model} (prompt {version}) from "
+  "title and abstract; a hit judged not to address the gap stops counting."
+)
+GAP_SATURATION_LLM_NOT_RUN = "LLM screening: {reason}"
 GAP_SATURATION_FROM = "from {sources}"
 GAP_SATURATION_SCREENED_MARKER = "\u2714"
 GAP_SATURATION_UNSCREENED_MARKER = "\u2716"

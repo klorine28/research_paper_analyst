@@ -5,7 +5,8 @@ The fixture Corpus (`fixtures/saturation-corpus`, built and recorded by
 `scripts/record_saturation_fixture.py`) holds a Knowledge Gap the wider
 literature plainly fills and a control Coverage Gap nothing closes. Searches are
 answered from responses recorded from the live OpenAlex and PubMed APIs, keyed
-by URL, so the real adapters run and nothing goes to the network.
+by URL, so the real adapters run and nothing goes to the network. LLM screening
+replays completions recorded live by `scripts/record_saturation_screening.py`.
 """
 
 import json
@@ -17,15 +18,25 @@ from typing import Any
 import httpx
 import pytest
 
+from conftest import StubLlmClient
+
 from research_gap_dashboard.aggregate import load_pipeline_taxonomies
 from research_gap_dashboard.cli import EXIT_ERROR, EXIT_INCOMPLETE, EXIT_OK, main
 from research_gap_dashboard import cli
-from research_gap_dashboard.llm import CachingLlmClient, DiskCache, LlmResponseError
+from research_gap_dashboard.llm import (
+  CachingLlmClient,
+  DiskCache,
+  LlmResponseError,
+  RecordedLlmClient,
+)
 from research_gap_dashboard.saturate import (
+  LLM_SCREEN_LIMIT,
   OUT_OF_CORPUS_LABEL,
   QUERY_VARIANT_PROMPT_VERSION,
   SATURATION_CHECKS_NAME,
+  SCREENING_PROMPT_VERSION,
   ConceptTerms,
+  HitScreener,
   QueryVariantModel,
   SaturationError,
   build_query,
@@ -42,6 +53,8 @@ SEARCH_LIMIT = 10  # the limit the responses were recorded with
 FILLED_GAP = "topicxtopic:heart-failure:myocardial-ischemia"
 CONTROL_GAP = "topicxmethod:carcinoid-heart-disease:mendelian-randomization-analysis"
 TAXONOMIES = load_pipeline_taxonomies(list(SEED_PATHS.values()))
+RECORDED_COMPLETIONS = FIXTURE / "llm-responses.json"
+SCREENING_MODEL = "claude-haiku-4-5"  # the model the completions were recorded on
 
 
 def _recorded_json(url: str) -> dict[str, Any] | None:
@@ -261,6 +274,7 @@ def test_screening_needs_both_concepts_in_title_or_abstract(
 
 def test_cli_saturate_checks_one_gap(corpus: Path, monkeypatch: pytest.MonkeyPatch):
   """`saturate <corpus> --gap <id>` runs the check and appends the snapshot."""
+  monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
   monkeypatch.setattr(cli, "_build_search_sources", _recorded_sources)
   monkeypatch.setattr(cli, "SATURATE_SEARCH_LIMIT", SEARCH_LIMIT)
 
@@ -316,6 +330,142 @@ def test_a_work_two_sources_return_is_one_hit(corpus: Path):
   assert len(check.hits) == 1
   assert check.hits[0].sources == ["openalex", "pubmed"]
   assert check.hits[0].doi == "10.1/both"
+
+
+# --- LLM screening of the top hits ---------------------------------------------
+
+
+def _recorded_screener() -> HitScreener:
+  """Screen with the completions recorded live on the fixture's filled gap."""
+  client = RecordedLlmClient.from_file(RECORDED_COMPLETIONS)
+  return HitScreener(client, model=SCREENING_MODEL, tier="cheap")
+
+
+class _FailingLlmClient(StubLlmClient):  # pylint: disable=too-few-public-methods
+  """An LlmClient whose every call fails like a response with no output."""
+
+  def complete(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+    """Count the call, then fail."""
+    super().complete(*args, **kwargs)
+    raise LlmResponseError("no tool_use block")
+
+
+def test_the_top_hits_keep_their_llm_verdict_and_reason(corpus: Path):
+  """The top title/abstract matches are LLM-screened; the snapshot keeps it all."""
+  check = _check(corpus, FILLED_GAP, screener=_recorded_screener())
+
+  saved = read_saturation_checks(corpus).checks[-1]
+  matches = [hit for hit in saved.hits if hit.verdict == "mentions_both"]
+  assert len(matches) > LLM_SCREEN_LIMIT
+  for hit in matches[:LLM_SCREEN_LIMIT]:
+    assert hit.llm_verdict in {"addresses", "partial", "no"}
+    assert hit.llm_reason
+  for hit in saved.hits[LLM_SCREEN_LIMIT:]:
+    assert hit.llm_verdict is None
+    assert hit.reason  # the deterministic verdict and reason are kept too
+  assert saved == check
+
+
+def test_llm_screening_records_its_provenance(corpus: Path):
+  """The model, tier and prompt version behind the verdicts are on the check."""
+  check = _check(corpus, FILLED_GAP, screener=_recorded_screener())
+
+  run = check.llm_screening
+  assert run is not None
+  assert run.status == "screened"
+  assert (run.model, run.tier) == (SCREENING_MODEL, "cheap")
+  assert run.prompt_version == SCREENING_PROMPT_VERSION
+  assert run.screened_count == LLM_SCREEN_LIMIT
+  assert "LLM screening" in check.screening_method
+
+
+def test_a_hit_the_llm_rules_out_stops_counting(corpus: Path):
+  """Only hits the LLM did not judge "no" count towards "possibly addressed"."""
+  check = _check(corpus, FILLED_GAP, screener=_recorded_screener())
+
+  ruled_out = [hit for hit in check.hits if hit.llm_verdict == "no"]
+  matches = [hit for hit in check.hits if hit.verdict == "mentions_both"]
+  assert ruled_out
+  assert check.screened_hit_count == len(matches) - len(ruled_out)
+  assert check.status == "possibly_addressed"
+  assert f"{check.screened_hit_count} screened hit(s)" in check.status_reason
+  assert "LLM screening of the top 10" in check.status_reason
+  assert "not LLM-screened" in check.status_reason
+
+
+def test_when_the_llm_rules_out_every_match_no_closing_work_is_found(corpus: Path):
+  """All matches judged "no": a dated "no closing work found", never "confirmed"."""
+  title = "Heart failure after myocardial ischemia"
+  sources = [_FakeSource("openalex", [WorkRecord(doi="10.1/one", title=title)])]
+  client = StubLlmClient({"verdict": "no", "reason": "Mentions both in passing."})
+
+  check = _check(
+    corpus,
+    FILLED_GAP,
+    sources=sources,
+    screener=HitScreener(client, model="m", tier="cheap"),
+  )
+
+  assert check.status == "no_closing_work_found"
+  assert check.screened_hit_count == 0
+  assert "does not confirm" in check.status_reason
+  assert check.hits[0].llm_reason == "Mentions both in passing."
+
+
+def test_without_an_llm_the_check_rests_on_title_and_abstract(corpus: Path):
+  """No screener: LLM screening is recorded as not run; every match counts."""
+  check = _check(corpus, FILLED_GAP)
+
+  assert check.llm_screening is not None
+  assert check.llm_screening.status == "not_run"
+  assert "ANTHROPIC_API_KEY" in check.llm_screening.reason
+  assert all(hit.llm_verdict is None for hit in check.hits)
+  assert check.screened_hit_count == sum(
+    1 for hit in check.hits if hit.verdict == "mentions_both"
+  )
+
+
+def test_failed_screening_calls_leave_hits_counting(corpus: Path):
+  """A failing LLM never makes a gap look less addressed."""
+  client = _FailingLlmClient({})
+  baseline = _check(corpus, FILLED_GAP)
+
+  check = _check(
+    corpus, FILLED_GAP, screener=HitScreener(client, model="m", tier="cheap")
+  )
+
+  assert check.status == "possibly_addressed"
+  assert check.screened_hit_count == baseline.screened_hit_count
+  assert check.llm_screening is not None
+  assert check.llm_screening.status == "not_run"
+  assert len(check.llm_screening.errors) == LLM_SCREEN_LIMIT
+
+
+def test_cli_saturate_screens_with_the_llm(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """With a key, the CLI screens on the cheap tier and records the usage."""
+  monkeypatch.setattr(cli, "_build_search_sources", _recorded_sources)
+  monkeypatch.setattr(cli, "SATURATE_SEARCH_LIMIT", SEARCH_LIMIT)
+  monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+  monkeypatch.setenv("LLM_CHEAP_MODEL", SCREENING_MODEL)
+  monkeypatch.setattr(
+    cli,
+    "build_llm_client",
+    lambda **_: RecordedLlmClient.from_file(RECORDED_COMPLETIONS),
+  )
+
+  assert main(["saturate", str(corpus), "--gap", FILLED_GAP]) == EXIT_OK
+
+  run = read_saturation_checks(corpus).checks[0].llm_screening
+  assert run is not None
+  assert (run.status, run.model, run.tier) == ("screened", SCREENING_MODEL, "cheap")
+
+
+def test_cli_saturate_without_a_key_still_checks(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """No API key: the check runs on title/abstract screening, not an error."""
 
 
 # --- The adversarial second attempt: LLM query variants on zero hits ------------

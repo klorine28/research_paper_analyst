@@ -323,6 +323,8 @@ def _render_saturation(view: SaturationView) -> None:
       date=view.checked_on, method=view.screening_method
     )
   )
+  if view.llm_screening:
+    st.caption(view.llm_screening)
   st.markdown(f"*{text.GAP_SATURATION_QUERIES_HEADING}*")
   _render_searches([s for s in view.searches if s.attempt == "base"])
   if view.second_attempt_label:
@@ -355,6 +357,13 @@ def _render_saturation(view: SaturationView) -> None:
           meta=text.GAP_SATURATION_HIT_META.format(details=hit.details)
           + (text.GAP_SATURATION_SECOND_ATTEMPT_MARKER if hit.second_attempt else ""),
           reason=hit.reason,
+        )
+        + (
+          text.GAP_SATURATION_HIT_LLM.format(
+            verdict=hit.llm_verdict, reason=hit.llm_reason
+          )
+          if hit.llm_verdict
+          else ""
         )
         for hit in view.hits
       )
