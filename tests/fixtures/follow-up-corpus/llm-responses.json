@@ -29,5 +29,19 @@
     "reason": "This enrolled 612 consecutive patients across 12 centres, providing the multicentre cohort needed to confirm single-centre findings."
    }
   ]
+ },
+ "35517ecf62e821ccdc65ae72a23e83033403e10155292136843a30a8aa8a3aa4.limitations-tag-v1": {
+  "tags": [
+   {
+    "group_id": "[limitation-group-01]",
+    "bucket": "measurement",
+    "category_ids": []
+   },
+   {
+    "group_id": "[limitation-group-02]",
+    "bucket": "study_design",
+    "category_ids": []
+   }
+  ]
  }
 }

@@ -122,13 +122,18 @@ EXTRACTIONS = [
 
 
 class _RecordingClient:  # pylint: disable=too-few-public-methods
-  """Passes each call to the live client and keeps its result by fingerprint."""
+  """
+  Replays answers already recorded; passes new calls to the live client.
+
+  Keeping recorded answers means a new LLM step (e.g. #117's tagging) adds its
+  own completions without re-asking, and so changing, the existing ones.
+  """
 
   name = "recording"
 
-  def __init__(self, inner: AnthropicClient):
+  def __init__(self, inner: AnthropicClient, recorded: dict[str, dict[str, Any]]):
     self._inner = inner
-    self.recorded: dict[str, dict[str, Any]] = {}
+    self.recorded = dict(recorded)
 
   def complete(
     self,
@@ -139,11 +144,15 @@ class _RecordingClient:  # pylint: disable=too-few-public-methods
     tier: ModelTier = "default",
     refresh: bool = False,
   ) -> dict[str, Any]:
-    """Complete live and record the answer under the request fingerprint."""
+    """Return the recorded answer, or complete live and record it."""
+    fingerprint = request_fingerprint(prompt, schema, tier, prompt_version)
+    if fingerprint in self.recorded and not refresh:
+      return self.recorded[fingerprint]
+    logger.info("Recording a live completion for %s", prompt_version)
     result = self._inner.complete(
       prompt, schema, prompt_version=prompt_version, tier=tier, refresh=refresh
     )
-    self.recorded[request_fingerprint(prompt, schema, tier, prompt_version)] = result
+    self.recorded[fingerprint] = result
     return result
 
 
@@ -200,7 +209,11 @@ def main() -> None:
   logging.basicConfig(level=logging.INFO, format="%(message)s")
   load_env()
   write_fixture()
-  client = _RecordingClient(AnthropicClient(LlmConfig.from_env()))
+  responses = ROOT / "llm-responses.json"
+  recorded = (
+    json.loads(responses.read_text(encoding="utf-8")) if responses.exists() else {}
+  )
+  client = _RecordingClient(AnthropicClient(LlmConfig.from_env()), recorded)
   with tempfile.TemporaryDirectory() as scratch:
     corpus = Path(shutil.copytree(ROOT, Path(scratch) / ROOT.name))
     report = detect_corpus(corpus, client)
@@ -208,7 +221,7 @@ def main() -> None:
     logger.info(
       "%s: %s", group.label, [follow_up.fact_id for follow_up in group.follow_ups]
     )
-  (ROOT / "llm-responses.json").write_text(
+  responses.write_text(
     json.dumps(client.recorded, indent=1, ensure_ascii=False) + "\n",
     encoding="utf-8",
   )
