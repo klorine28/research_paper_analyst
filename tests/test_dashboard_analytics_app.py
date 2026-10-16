@@ -233,13 +233,60 @@ def test_narrative_without_accepted_gaps_explains_what_to_do(
   labels = [button.label for button in app.button]
   assert ANALYTICS_GENERATE_SUMMARY_BUTTON not in labels
   infos = [block.value for block in app.info]
+  gaps = load_candidate_gaps(corpus).gaps
+  shown = sum(1 for gap in gaps if gap.confidence in ("high", "medium"))
   assert (
     ANALYTICS_SUMMARY_NEEDS_ACCEPTED.format(
-      undecided=len(load_candidate_gaps(corpus).gaps)
+      levels="High, Medium", undecided=shown, hidden=len(gaps) - shown
     )
     in infos
   )
   assert not prompts
+
+
+def test_general_chat_sees_only_the_gaps_the_confidence_filter_surfaces(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """By default the chat is grounded in High and Medium gaps only (#98)."""
+  gaps = load_candidate_gaps(corpus).gaps
+  recorder = _PromptRecorder({"answer": "Grounded.", "citations": []})
+  app = _run_analytics(corpus, monkeypatch, "", client=recorder)
+
+  app.chat_input[0].set_value("Which gaps matter most?").run()
+
+  assert not app.exception
+  prompt = recorder.prompts[-1]
+  for gap in gaps:
+    if gap.confidence == "low":
+      assert f"] {gap.title} (" not in prompt
+    else:
+      assert f"] {gap.title} (" in prompt
+  assert "High, Medium confidence" in prompt
+
+
+def test_narrative_states_the_surfaced_set_it_covers(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """An accepted Low gap stays out by default, and the denominator says so (#98)."""
+  cards = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus)).cards
+  medium = next(card for card in cards if card.confidence == "medium")
+  low = next(card for card in cards if card.confidence == "low")
+  record_judgment(corpus, medium.gap_id, "accepted")
+  record_judgment(corpus, low.gap_id, "accepted")
+
+  app, prompts = _run_with_narrative(corpus, monkeypatch)
+  generate = next(
+    button for button in app.button if button.label == ANALYTICS_GENERATE_SUMMARY_BUTTON
+  )
+  generate.click().run()
+
+  assert not app.exception
+  assert medium.title in prompts[-1]
+  assert low.title not in prompts[-1]
+  captions = " ".join(block.value for block in app.caption)
+  assert "1 accepted gap(s) at High, Medium confidence" in captions
+  hidden = sum(1 for card in cards if card.confidence == "low")
+  assert f"{hidden} gap(s) hidden by the confidence filter (1 of them" in captions
 
 
 def test_a_generated_narrative_offers_its_write_up_for_export(

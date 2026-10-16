@@ -115,6 +115,9 @@ class GroundingContext(BaseModel):
 
   papers: list[CorpusPaper]
   gaps: list[GapFact] = []
+  # Which gaps `gaps` holds when it is a filtered set (issue #98), told to the
+  # model so it never mistakes the surfaced gaps for every candidate.
+  gap_scope: str = ""
   evidence: list[GapEvidence] = []
   facts: list[ExtractedFact] = []
   fact_pool: list[ExtractedFact] = []
@@ -162,12 +165,14 @@ class GroundingContext(BaseModel):
       year = f" ({paper.year})" if paper.year is not None else ""
       title = paper.title or paper.citation_key
       lines.append(f"- [{paper.citation_key}] {title}{year}")
-    if self.gaps:
+    if self.gaps or self.gap_scope:
       lines.append("")
       lines.append(
         f"CANDIDATE GAPS ({len(self.gaps)}), each a signal for human judgment, "
         "not a proven gap:"
       )
+      if self.gap_scope:
+        lines.append(self.gap_scope)
       for gap in self.gaps:
         sources = ", ".join(gap.source_citation_keys) or "\u2014"
         lines.append(

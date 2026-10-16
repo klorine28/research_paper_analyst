@@ -134,6 +134,7 @@ def test_scope_statement_states_the_denominator_and_what_was_searched():
   assert "2015\u20132021" in statement
   assert "2 rejected" in statement
   assert "3 undecided" in statement
+  assert "at High, Medium, Low confidence" in statement
   assert "1 unmatched" in statement
   assert "1 PDF" in statement
   assert "candidates for human judgment" in statement

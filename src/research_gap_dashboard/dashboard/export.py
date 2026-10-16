@@ -84,6 +84,9 @@ def _scope_statement(
     )
   denominator = text.EXPORT_SCOPE_DENOMINATOR.format(
     accepted=coverage.accepted_count,
+    levels=coverage.levels_label,
+    hidden=coverage.hidden_count,
+    hidden_accepted=coverage.hidden_accepted_count,
     papers=coverage.paper_count,
     years=_year_range(manifest),
     rejected=coverage.rejected_count,
