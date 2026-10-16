@@ -53,7 +53,13 @@ def render_locked_step(corpus_root: Path, step: Step, gate: TrustGate) -> None:
     )
     acknowledge_col.button(
       text.TRUST_GATE_ACKNOWLEDGE_BUTTON.format(
-        reached=gate.reached_papers, total=gate.total_papers
+        reached=gate.reached_papers,
+        total=gate.total_papers,
+        dropped=text.TRUST_GATE_ACKNOWLEDGE_DROPPED.format(
+          dropped=gate.papers_with_dropped_facts
+        )
+        if gate.papers_with_dropped_facts
+        else "",
       ),
       key=ACKNOWLEDGE_BUTTON_KEY,
       type="primary",

@@ -1237,8 +1237,9 @@ TRUST_GATE_OUTRO = (
   "either way, and you will be asked again if the Corpus changes."
 )
 TRUST_GATE_ACKNOWLEDGE_BUTTON = (
-  "I understand: these gaps come from {reached} of {total} Papers. Continue."
+  "I understand: these gaps come from {reached} of {total} Papers{dropped}. Continue."
 )
+TRUST_GATE_ACKNOWLEDGE_DROPPED = ", {dropped} of them missing some facts"
 TRUST_GATE_FIX_BUTTON = "Fix the fallout (Needs Attention)"
 TRUST_GATE_ACKNOWLEDGED_NOTE = (
   "You acknowledged that this analysis rests on {reached} of {total} Papers."
