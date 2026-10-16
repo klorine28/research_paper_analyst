@@ -31,6 +31,15 @@ GAP_CONFIDENCE_WIDGET_KEY = "gap_confidence_filter_widget"
 # The last pipeline run's result survives the rerun that follows it, so the
 # outcome stays on screen after the page redraws with the new artifact (ADR 0007).
 LAST_RUN_KEY = "last_pipeline_run"
+# The corpus picker carries a key so a newly created Corpus can be opened: the New
+# analysis form records its name here and the shell applies it before the picker
+# is built, as with PENDING_NAV_KEY (issue #74).
+CORPUS_PICKER_KEY = "corpus_picker"
+PENDING_CORPUS_KEY = "pending_corpus"
+# A run whose estimated cost is above LLM_COST_CONFIRM_ABOVE waits here, as
+# (corpus root, stages, button key, args), until the researcher confirms or
+# cancels it under the button that asked (issue #70).
+PENDING_RUN_KEY = "pending_pipeline_run"
 # A gap card's "Compare" button records the gap's Papers here so the Comparison
 # page opens with them selected after the nav switch (issue #80). The Explainer
 # link reuses EXPLAINER_PAPER_KEY.

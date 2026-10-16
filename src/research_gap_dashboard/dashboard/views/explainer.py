@@ -20,6 +20,10 @@ from research_gap_dashboard.dashboard.explainer import (
   build_paper_explainer,
   build_paper_menu,
 )
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  render_run_buttons,
+)
 from research_gap_dashboard.dashboard.views.session_keys import (
   EXPLAINER_PAPER_KEY,
   EXPLAINER_PICKER_KEY,
@@ -33,7 +37,9 @@ def render_page(chosen: CorpusChoice) -> None:
   menu = build_paper_menu(manifest, explained_citation_keys(corpus_root))
   if not menu.entries:
     st.header(text.EXPLAINER_HEADING)
+    render_last_run(corpus_root)
     st.warning(text.EXPLAINER_NO_PAPERS)
+    render_run_buttons(corpus_root, ["ingest"], scope="explainer")
     return
 
   # A citation-network node or a gap card asks for a Paper here (#49, #80). The
@@ -54,14 +60,15 @@ def render_page(chosen: CorpusChoice) -> None:
   )
   chosen_paper = by_key.get(chosen_key or "", menu.entries[0])
   view = _load_explainer_view(corpus_root, manifest, chosen_paper)
-  render_paper_explainer(menu, view)
+  render_paper_explainer(menu, view, corpus_root)
 
 
 def render_paper_explainer(
-  menu: PaperMenuData, view: PaperExplainerView | None
+  menu: PaperMenuData, view: PaperExplainerView | None, corpus_root: Path
 ) -> None:
   """Render the Paper Explainer page: pick a Paper, show both registers."""
   st.header(text.EXPLAINER_HEADING)
+  render_last_run(corpus_root)
   st.info(text.EXPLAINER_INTRO)
   st.caption(
     text.EXPLAINER_SUMMARY.format(
@@ -70,6 +77,7 @@ def render_paper_explainer(
   )
   if view is None:
     st.warning(text.NO_EXPLANATION_FOR_PAPER)
+    render_run_buttons(corpus_root, ["explain"], scope="explainer-paper")
     return
 
   st.subheader(view.title or view.citation_key)

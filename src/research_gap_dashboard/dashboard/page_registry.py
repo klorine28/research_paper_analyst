@@ -20,6 +20,7 @@ from research_gap_dashboard.dashboard.views import (
   limitations,
   meta_analysis,
   overview,
+  pipeline,
   retrieval,
   verify,
 )
@@ -35,6 +36,7 @@ class Page:
 
 PAGES: tuple[Page, ...] = (
   Page(text.PAGE_OVERVIEW, overview.render_page),
+  Page(text.PAGE_PIPELINE, pipeline.render_page),
   Page(text.PAGE_META, meta_analysis.render_page),
   Page(text.PAGE_GAP_CARDS, gap_cards.render_page),
   Page(text.PAGE_LIMITATIONS, limitations.render_page),

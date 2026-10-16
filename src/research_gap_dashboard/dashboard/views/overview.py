@@ -1,5 +1,7 @@
 """The Corpus Overview page: counts, completeness gauge, chart gallery, exclusions."""
 
+from pathlib import Path
+
 import streamlit as st
 
 from research_gap_dashboard.dashboard import text
@@ -20,6 +22,10 @@ from research_gap_dashboard.dashboard.overview import (
   FactDensity,
   OverviewData,
   build_overview,
+)
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  render_run_buttons,
 )
 from research_gap_dashboard.dashboard.views.widgets import (
   render_mini_bar,
@@ -53,13 +59,15 @@ def render_page(chosen: CorpusChoice) -> None:
       normalized=normalized,
       extractions=extractions,
       completeness=completeness,
-    )
+    ),
+    root,
   )
 
 
-def render_overview(overview: OverviewData) -> None:
+def render_overview(overview: OverviewData, corpus_root: Path) -> None:
   """Render the Corpus Overview page from already-computed data."""
   st.header(text.OVERVIEW_HEADING)
+  render_last_run(corpus_root)
   st.info(overview.scope_statement)
 
   paper_col, venue_col, year_col = st.columns(3)
@@ -67,8 +75,8 @@ def render_overview(overview: OverviewData) -> None:
   venue_col.metric(text.METRIC_VENUE_COUNT, overview.venue_count)
   year_col.metric(text.METRIC_YEAR_SPAN, overview.year_span)
 
-  _render_completeness(overview.completeness)
-  _render_overview_gallery(overview)
+  _render_completeness(overview.completeness, corpus_root)
+  _render_overview_gallery(overview, corpus_root)
 
   st.subheader(text.EXCLUSIONS_HEADING)
   if not overview.has_exclusions:
@@ -87,12 +95,13 @@ def render_overview(overview: OverviewData) -> None:
     st.table([{text.COLUMN_FILE: name} for name in overview.orphan_pdfs])
 
 
-def _render_completeness(gauge: CompletenessGauge | None) -> None:
+def _render_completeness(gauge: CompletenessGauge | None, corpus_root: Path) -> None:
   """Render the prominent parse/extract completeness gauge: the honesty meter."""
   st.subheader(text.COMPLETENESS_HEADING)
   st.caption(text.COMPLETENESS_QUESTION)
   if gauge is None or gauge.total_papers == 0:
     st.info(text.COMPLETENESS_NO_DATA)
+    render_run_buttons(corpus_root, ["parse", "extract"], scope="completeness")
     return
   st.progress(
     gauge.reached_fraction,
@@ -110,7 +119,7 @@ def _render_completeness(gauge: CompletenessGauge | None) -> None:
     )
 
 
-def _render_overview_gallery(overview: OverviewData) -> None:
+def _render_overview_gallery(overview: OverviewData, corpus_root: Path) -> None:
   """Render the 2x2 grid of coloured preview tiles and the expanded panels."""
   st.subheader(text.OVERVIEW_GALLERY_HEADING)
   st.caption(text.OVERVIEW_GALLERY_HINT)
@@ -119,7 +128,7 @@ def _render_overview_gallery(overview: OverviewData) -> None:
     _OVERVIEW_TILES,
     OVERVIEW_OPEN_KEY,
     lambda chart_id: _render_tile_preview(chart_id, overview),
-    lambda chart_id: _render_overview_panel_body(chart_id, overview),
+    lambda chart_id: _render_overview_panel_body(chart_id, overview, corpus_root),
   )
 
 
@@ -178,16 +187,20 @@ def _render_tile_preview(chart_id: str, overview: OverviewData) -> None:
       st.caption(text.OVERVIEW_TILE_PREVIEW_EMPTY)
 
 
-def _render_overview_panel_body(chart_id: str, overview: OverviewData) -> None:
+def _render_overview_panel_body(
+  chart_id: str, overview: OverviewData, corpus_root: Path
+) -> None:
   """Render one expanded overview chart (the coloured header is drawn generically)."""
   if chart_id == "papers_year":
     _render_papers_per_year(overview)
   elif chart_id == "venues":
     _render_venues(overview)
   elif chart_id == "axes":
-    _render_axis_frequencies(overview.axis_frequencies, overview.paper_count)
+    _render_axis_frequencies(
+      overview.axis_frequencies, overview.paper_count, corpus_root
+    )
   elif chart_id == "facts":
-    _render_fact_density(overview.fact_density)
+    _render_fact_density(overview.fact_density, corpus_root)
 
 
 def _render_papers_per_year(overview: OverviewData) -> None:
@@ -215,12 +228,15 @@ def _render_venues(overview: OverviewData) -> None:
   )
 
 
-def _render_axis_frequencies(axes: list[AxisFrequency], total_papers: int) -> None:
+def _render_axis_frequencies(
+  axes: list[AxisFrequency], total_papers: int, corpus_root: Path
+) -> None:
   """Render one bar chart per axis: papers per Topic, Method, Population, Dataset."""
   with st.expander(text.HOW_TO_READ_LABEL):
     st.markdown(text.AXIS_FREQUENCIES_EXPLAINER)
   if not axes:
     st.info(text.AXIS_FREQUENCIES_NO_DATA)
+    render_run_buttons(corpus_root, ["aggregate"], scope="axes")
     return
   for axis in axes:
     st.caption(
@@ -237,12 +253,13 @@ def _render_axis_frequencies(axes: list[AxisFrequency], total_papers: int) -> No
     )
 
 
-def _render_fact_density(density: FactDensity | None) -> None:
+def _render_fact_density(density: FactDensity | None, corpus_root: Path) -> None:
   """Render the facts-per-paper extraction-density chart and its explainer."""
   with st.expander(text.HOW_TO_READ_LABEL):
     st.markdown(text.FACT_DENSITY_EXPLAINER)
   if density is None or not density.papers:
     st.info(text.FACT_DENSITY_NO_DATA)
+    render_run_buttons(corpus_root, ["extract"], scope="facts")
     return
   st.caption(
     text.FACT_DENSITY_SUMMARY.format(

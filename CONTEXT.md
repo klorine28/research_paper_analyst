@@ -46,7 +46,8 @@ alias.
 ### Alias Overlay
 
 One Corpus's logged alias suggestions for the taxonomies (e.g. MeSH entry
-terms and child descriptors), each with its provenance and a human decision:
+terms and child descriptors, or unmapped terms recurring in the verified
+Evidence of 2+ Papers), each with its provenance and a human decision:
 proposed, approved, rejected, or promoted. Only approved aliases map phrases,
 and only for that Corpus; copying one into the shared taxonomy file
 (**promoting** it) is a separate, deliberate act (ADR 0010).

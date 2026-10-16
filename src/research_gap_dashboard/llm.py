@@ -14,7 +14,9 @@ IDs live in configuration, not in code.
 
 `CachingLlmClient` decorates any client with an on-disk cache keyed by
 (content hash, prompt version) per ADR 0001: identical requests are free on
-rerun, and bumping a prompt's version invalidates its entries. What deliberately
+rerun, and bumping a prompt's version invalidates its entries. Given an
+`LlmUsage`, both tally what a run spent (billed calls and tokens per model, and
+cache hits) so the CLI can record it for the dashboard. What deliberately
 isn't here: prompt templates and their versions (each stage owns its own), and
 JSON-Schema validation of arbitrary schemas (use `complete_model` to get pydantic
 validation for free).
@@ -124,12 +126,56 @@ class LlmClient(Protocol):  # pylint: disable=too-few-public-methods
     raise NotImplementedError
 
 
+class ModelUsage(BaseModel):
+  """Billed calls and tokens on one model."""
+
+  calls: int = 0
+  input_tokens: int = 0
+  output_tokens: int = 0
+
+
+class LlmUsage(BaseModel):
+  """
+  What one stage run spent on the LLM: billed calls and tokens per model.
+
+  Recorded as tokens, not money: prices change and belong to whoever reports
+  the cost (the dashboard's Run details), not to the pipeline's record.
+  """
+
+  calls: int = 0
+  cached_calls: int = 0
+  by_model: dict[str, ModelUsage] = {}
+
+  def record(self, model: str, usage: Mapping[str, Any]) -> None:
+    """Add one billed call's token counts from an Anthropic `usage` block."""
+    tally = self.by_model.setdefault(model, ModelUsage())
+    tally.calls += 1
+    tally.input_tokens += int(usage.get("input_tokens") or 0)
+    tally.output_tokens += int(usage.get("output_tokens") or 0)
+    self.calls += 1
+
+
+def write_usage(path: Path, stage: str, usage: LlmUsage) -> None:
+  """Record a stage run's usage in the Corpus's usage log, replacing its last run."""
+  recorded: dict[str, Any] = {}
+  if path.is_file():
+    recorded = json.loads(path.read_text(encoding="utf-8"))
+  recorded[stage] = usage.model_dump()
+  path.parent.mkdir(parents=True, exist_ok=True)
+  path.write_text(json.dumps(recorded, indent=2), encoding="utf-8")
+
+
 class AnthropicClient:  # pylint: disable=too-few-public-methods
   """Completes prompts with the Anthropic Messages API, the primary client."""
 
   name = "anthropic"
 
-  def __init__(self, config: LlmConfig, post: JsonPost | None = None):
+  def __init__(
+    self,
+    config: LlmConfig,
+    post: JsonPost | None = None,
+    usage: LlmUsage | None = None,
+  ):
     """Wrap Anthropic; a missing API key is a run failure, not silent degradation."""
     if not config.api_key:
       raise LlmConfigError(
@@ -139,6 +185,7 @@ class AnthropicClient:  # pylint: disable=too-few-public-methods
     self._config = config
     self._api_key = config.api_key
     self._post = post or _httpx_post
+    self._usage = usage
 
   def complete(  # pylint: disable=unused-argument
     self,
@@ -174,6 +221,8 @@ class AnthropicClient:  # pylint: disable=too-few-public-methods
       "content-type": "application/json",
     }
     response = self._post(ANTHROPIC_MESSAGES_URL, headers, payload)
+    if self._usage is not None:
+      self._usage.record(model, response.get("usage") or {})
     if response.get("stop_reason") == "max_tokens":
       raise LlmTruncatedError(
         f"model output was cut off at max_tokens={self._config.max_tokens}; "
@@ -252,10 +301,11 @@ class DiskCache:
 class CachingLlmClient:  # pylint: disable=too-few-public-methods
   """Decorates a client with a disk cache keyed by (content hash, prompt version)."""
 
-  def __init__(self, inner: LlmClient, cache: DiskCache):
+  def __init__(self, inner: LlmClient, cache: DiskCache, usage: LlmUsage | None = None):
     """Serve `inner`'s completions from `cache`, populating it on a miss."""
     self._inner = inner
     self._cache = cache
+    self._usage = usage
     self.name = f"cached:{inner.name}"
 
   def complete(
@@ -273,6 +323,8 @@ class CachingLlmClient:  # pylint: disable=too-few-public-methods
       cached = self._cache.get(fingerprint)
       if cached is not None:
         logger.debug("LLM cache hit %s", fingerprint)
+        if self._usage is not None:
+          self._usage.cached_calls += 1
         return cached
     result = self._inner.complete(
       prompt, schema, prompt_version=prompt_version, tier=tier, refresh=refresh
@@ -290,13 +342,19 @@ class CachingLlmClient:  # pylint: disable=too-few-public-methods
 
 
 def build_llm_client(
-  config: LlmConfig | None = None, cache_dir: Path | None = None
+  config: LlmConfig | None = None,
+  cache_dir: Path | None = None,
+  usage: LlmUsage | None = None,
 ) -> LlmClient:
-  """Build the Anthropic client, wrapped in a disk cache when `cache_dir` is given."""
+  """
+  Build the Anthropic client, wrapped in a disk cache when `cache_dir` is given.
+
+  When `usage` is given, billed calls and cache hits are tallied into it.
+  """
   config = config or LlmConfig.from_env()
-  client: LlmClient = AnthropicClient(config)
+  client: LlmClient = AnthropicClient(config, usage=usage)
   if cache_dir is not None:
-    client = CachingLlmClient(client, DiskCache(cache_dir))
+    client = CachingLlmClient(client, DiskCache(cache_dir), usage=usage)
   return client
 
 
