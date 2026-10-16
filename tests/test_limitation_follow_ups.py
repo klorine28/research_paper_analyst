@@ -18,6 +18,7 @@ from research_gap_dashboard.detect import (
   UnansweredLimitationGap,
   detect_corpus,
 )
+from research_gap_dashboard.limitations import LimitationGroup
 from research_gap_dashboard.llm import RecordedLlmClient
 
 FIXTURE = Path(__file__).parent / "fixtures" / "follow-up-corpus"
@@ -31,7 +32,7 @@ def report_fixture(tmp_path: Path) -> CandidateGapsReport:
   return detect_corpus(root, client)
 
 
-def _group_of(report: CandidateGapsReport, citation_key: str):
+def _group_of(report: CandidateGapsReport, citation_key: str) -> LimitationGroup:
   """Return the limitation group holding `citation_key`'s statement."""
   return next(
     group
