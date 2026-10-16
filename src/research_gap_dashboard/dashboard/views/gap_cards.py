@@ -9,6 +9,7 @@ from research_gap_dashboard.dashboard.artifacts import (
   CorpusChoice,
   has_candidate_gaps,
   load_candidate_gaps,
+  load_saturation_checks,
 )
 from research_gap_dashboard.dashboard.comparison import MAX_SELECTION, MIN_SELECTION
 from research_gap_dashboard.dashboard.gaps import (
@@ -18,6 +19,7 @@ from research_gap_dashboard.dashboard.gaps import (
   FilteredGapCards,
   GapCard,
   GapCardsData,
+  SaturationView,
   StatusFilter,
   build_gap_cards,
   filter_gap_cards,
@@ -63,7 +65,10 @@ def render_page(chosen: CorpusChoice) -> None:
     render_run_button(chosen.root, "detect", text.RUN_DETECT_BUTTON)
     return
   data = build_gap_cards(
-    load_candidate_gaps(chosen.root), load_judgments(chosen.root), chosen.root
+    load_candidate_gaps(chosen.root),
+    load_judgments(chosen.root),
+    chosen.root,
+    load_saturation_checks(chosen.root),
   )
   render_gap_cards(data, chosen.root)
 
@@ -220,11 +225,15 @@ def _render_headline(card: GapCard) -> None:
         count=card.cell_count, total=card.corpus_paper_count
       )
     )
+  if card.saturation.checkable:
+    st.caption(card.saturation.badge)
 
 
 def _render_justification(card: GapCard) -> None:
-  """Tier 2: the explanation and the verbatim Evidence behind the gap."""
+  """Tier 2: the explanation, any wider-literature result, and the Evidence."""
   st.write(card.explanation)
+  if card.saturation.summary:
+    st.write(card.saturation.summary)
   st.markdown(f"**{text.GAP_EVIDENCE_HEADING}**")
   for index, passage in enumerate(card.evidence):
     st.markdown(
@@ -284,6 +293,65 @@ def _render_data(card: GapCard) -> None:
     )
   for reason in data.reasons:
     st.caption(reason)
+  if card.saturation.checkable:
+    _render_saturation(card.saturation)
+
+
+def _render_saturation(view: SaturationView) -> None:
+  """Tier 3 drill-down: the verbatim queries, every hit with its verdict, history."""
+  st.markdown(f"**{text.GAP_SATURATION_HEADING}**")
+  if view.status == "not_checked":
+    st.caption(text.GAP_SATURATION_NOT_CHECKED)
+    return
+  st.info(text.GAP_SATURATION_OUT_OF_CORPUS)
+  st.caption(
+    text.GAP_SATURATION_CHECKED_AT.format(
+      date=view.checked_on, method=view.screening_method
+    )
+  )
+  st.markdown(f"*{text.GAP_SATURATION_QUERIES_HEADING}*")
+  for search in view.searches:
+    if search.error:
+      st.markdown(
+        text.GAP_SATURATION_QUERY_ERROR.format(source=search.source, error=search.error)
+      )
+    else:
+      st.markdown(
+        text.GAP_SATURATION_QUERY.format(
+          source=search.source, count=search.returned_count
+        )
+      )
+    st.code(search.query, language=None)
+    if search.in_corpus_count:
+      st.caption(text.GAP_SATURATION_IN_CORPUS.format(count=search.in_corpus_count))
+  st.markdown(
+    "*"
+    + text.GAP_SATURATION_HITS_HEADING.format(
+      screened=view.screened_count, total=len(view.hits)
+    )
+    + "*"
+  )
+  if not view.hits:
+    st.caption(text.GAP_SATURATION_NO_HITS)
+  if view.hits:
+    st.markdown(
+      "\n".join(
+        "- "
+        + text.GAP_SATURATION_HIT.format(
+          marker=(
+            text.GAP_SATURATION_SCREENED_MARKER
+            if hit.screened
+            else text.GAP_SATURATION_UNSCREENED_MARKER
+          ),
+          title=hit.title,
+          meta=text.GAP_SATURATION_HIT_META.format(details=hit.details),
+          reason=hit.reason,
+        )
+        for hit in view.hits
+      )
+    )
+  st.markdown(f"*{text.GAP_SATURATION_HISTORY_HEADING}*")
+  st.markdown("\n".join(view.history))
 
 
 def _render_controls(card: GapCard, corpus_root: Path) -> None:
@@ -310,6 +378,15 @@ def _render_controls(card: GapCard, corpus_root: Path) -> None:
     st.session_state[DISCUSS_GAP_KEY] = card.gap_id
     st.session_state[PENDING_NAV_KEY] = text.PAGE_ANALYTICS
     st.rerun()
+  if card.saturation.checkable:
+    render_run_button(
+      corpus_root,
+      "saturate",
+      text.GAP_SATURATION_BUTTON,
+      args=["--gap", card.gap_id],
+      key=f"saturate-{card.gap_id}",
+      primary=False,
+    )
 
 
 def _render_paper_links(card: GapCard) -> None:

@@ -41,19 +41,21 @@ def render_run_button(
   *,
   args: Sequence[str] = (),
   key: str | None = None,
+  primary: bool = True,
 ) -> None:
   """
   Render a button that runs `stage` on the Corpus, then redraws the page.
 
   `key` tells apart two buttons for the same stage on one page (e.g. one per
   Corpus, or one per empty chart); it defaults to the stage name. Every button
-  goes through the cost confirmation, wherever it sits.
+  goes through the cost confirmation, wherever it sits. `primary=False` draws
+  a quieter button, for one repeated on every card.
   """
   label = label or text.run_stage_button(stage)
   button_key = key or f"run-{stage}"
   if render_pending_confirmation(corpus_root, button_key):
     return
-  if st.button(label, key=button_key, type="primary"):
+  if st.button(label, key=button_key, type="primary" if primary else "secondary"):
     request_run(corpus_root, [stage], button_key, args)
 
 
@@ -175,7 +177,10 @@ def _outcome_message(result: RunResult) -> str:
   reason = pipeline_runner.failure_reason(result)
   if result.outcome == RunOutcome.FAILED and reason:
     return text.RUN_FAILED_WITH_REASON.format(stage=result.stage, reason=reason)
-  return templates[result.outcome].format(stage=result.stage)
+  template = templates[result.outcome]
+  if result.outcome == RunOutcome.INCOMPLETE:
+    template = text.RUN_INCOMPLETE_BY_STAGE.get(result.stage, template)
+  return template.format(stage=result.stage)
 
 
 def render_run_buttons(corpus_root: Path, stages: Sequence[str], *, scope: str) -> None:

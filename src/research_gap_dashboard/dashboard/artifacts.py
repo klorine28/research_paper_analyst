@@ -8,6 +8,7 @@ does not break the front end.
 """
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
@@ -20,6 +21,7 @@ MANIFEST_NAME = "corpus-manifest.json"
 CANDIDATE_GAPS_NAME = "candidate_gaps.json"
 NORMALIZED_FACTS_NAME = "normalized_facts.json"
 RETRIEVAL_GAPS_NAME = "retrieval_gaps.json"
+SATURATION_CHECKS_NAME = "saturation_checks.json"
 EXTRACTIONS_NAME = "extractions.json"
 PARSE_REPORT_NAME = "parse-report.json"
 # The Corpus's scope statement: an input at its root, written by `corpus_scope`.
@@ -319,6 +321,67 @@ def load_retrieval_gaps(corpus_root: Path) -> RetrievalGapsArtifact:
     )
   raw = json.loads(path.read_text(encoding="utf-8"))
   return RetrievalGapsArtifact.model_validate(raw)
+
+
+class SaturationConceptRecord(_ReadModel):
+  """One concept of a checked cell gap and the terms it was searched by."""
+
+  label: str = ""
+  terms: list[str] = []
+
+
+class SaturationSearchRecord(_ReadModel):
+  """One search a saturation check ran: source, verbatim query, any error."""
+
+  source: str
+  query: str = ""
+  returned_work_ids: list[str] = []
+  in_corpus_work_ids: list[str] = []
+  error: str = ""
+
+
+class SaturationHitRecord(_ReadModel):
+  """One out-of-Corpus work a saturation check returned, with its verdict."""
+
+  work_id: str
+  sources: list[str] = []
+  title: str = ""
+  year: int | None = None
+  venue: str = ""
+  doi: str = ""
+  pmid: str = ""
+  verdict: str = ""
+  reason: str = ""
+
+
+class SaturationCheckRecord(_ReadModel):
+  """One dated saturation-check snapshot, as the Gap Cards view reads it."""
+
+  check_id: str
+  gap_id: str
+  checked_at: datetime
+  status: str
+  status_reason: str = ""
+  screening_method: str = ""
+  concepts: list[SaturationConceptRecord] = []
+  searches: list[SaturationSearchRecord] = []
+  hits: list[SaturationHitRecord] = []
+
+
+class SaturationChecksArtifact(_ReadModel):
+  """The append-only saturation-check log of one Corpus."""
+
+  label: str = ""
+  checks: list[SaturationCheckRecord] = []
+
+
+def load_saturation_checks(corpus_root: Path) -> SaturationChecksArtifact:
+  """Read the saturation-check log, or an empty one when no check has run."""
+  path = corpus_root / ARTIFACTS_DIR / SATURATION_CHECKS_NAME
+  if not path.is_file():
+    return SaturationChecksArtifact()
+  raw = json.loads(path.read_text(encoding="utf-8"))
+  return SaturationChecksArtifact.model_validate(raw)
 
 
 def _normalized_facts_path(corpus_root: Path) -> Path:

@@ -1,0 +1,807 @@
+{
+  "corpus_root": "tests/fixtures/saturation-corpus",
+  "corpus_paper_count": 6,
+  "extracted_paper_count": 0,
+  "sparse_max_count": 0,
+  "normalized_prompt_version": "fixture",
+  "limitation_prompt_versions": [
+    "limitations-group-v2",
+    "limitations-follow-up-v1"
+  ],
+  "tier": "default",
+  "excluded_citation_keys": [],
+  "embedding": null,
+  "limitation_merge_threshold": null,
+  "limitation_merge_hints": [],
+  "matrices": [
+    {
+      "row_axis": "topic",
+      "column_axis": "topic",
+      "corpus_paper_count": 6,
+      "rows": [
+        {
+          "category_id": "carcinoid-heart-disease",
+          "label": "Carcinoid Heart Disease",
+          "paper_count": 2
+        },
+        {
+          "category_id": "heart-failure",
+          "label": "Heart Failure",
+          "paper_count": 2
+        },
+        {
+          "category_id": "myocardial-ischemia",
+          "label": "Myocardial Ischemia",
+          "paper_count": 2
+        }
+      ],
+      "columns": [
+        {
+          "category_id": "carcinoid-heart-disease",
+          "label": "Carcinoid Heart Disease",
+          "paper_count": 2
+        },
+        {
+          "category_id": "heart-failure",
+          "label": "Heart Failure",
+          "paper_count": 2
+        },
+        {
+          "category_id": "myocardial-ischemia",
+          "label": "Myocardial Ischemia",
+          "paper_count": 2
+        }
+      ],
+      "cells": [
+        {
+          "row_id": "carcinoid-heart-disease",
+          "column_id": "heart-failure",
+          "paper_count": 0,
+          "citation_keys": []
+        },
+        {
+          "row_id": "carcinoid-heart-disease",
+          "column_id": "myocardial-ischemia",
+          "paper_count": 0,
+          "citation_keys": []
+        },
+        {
+          "row_id": "heart-failure",
+          "column_id": "myocardial-ischemia",
+          "paper_count": 0,
+          "citation_keys": []
+        }
+      ]
+    },
+    {
+      "row_axis": "topic",
+      "column_axis": "method",
+      "corpus_paper_count": 6,
+      "rows": [
+        {
+          "category_id": "carcinoid-heart-disease",
+          "label": "Carcinoid Heart Disease",
+          "paper_count": 2
+        },
+        {
+          "category_id": "heart-failure",
+          "label": "Heart Failure",
+          "paper_count": 2
+        },
+        {
+          "category_id": "myocardial-ischemia",
+          "label": "Myocardial Ischemia",
+          "paper_count": 2
+        }
+      ],
+      "columns": [
+        {
+          "category_id": "case-reports",
+          "label": "Case Reports",
+          "paper_count": 1
+        },
+        {
+          "category_id": "cohort-studies",
+          "label": "Cohort Studies",
+          "paper_count": 3
+        },
+        {
+          "category_id": "mendelian-randomization-analysis",
+          "label": "Mendelian Randomization Analysis",
+          "paper_count": 1
+        },
+        {
+          "category_id": "randomized-controlled-trial",
+          "label": "Randomized Controlled Trial",
+          "paper_count": 1
+        }
+      ],
+      "cells": [
+        {
+          "row_id": "carcinoid-heart-disease",
+          "column_id": "case-reports",
+          "paper_count": 1,
+          "citation_keys": [
+            "sat06"
+          ]
+        },
+        {
+          "row_id": "carcinoid-heart-disease",
+          "column_id": "cohort-studies",
+          "paper_count": 1,
+          "citation_keys": [
+            "sat05"
+          ]
+        },
+        {
+          "row_id": "carcinoid-heart-disease",
+          "column_id": "mendelian-randomization-analysis",
+          "paper_count": 0,
+          "citation_keys": []
+        },
+        {
+          "row_id": "carcinoid-heart-disease",
+          "column_id": "randomized-controlled-trial",
+          "paper_count": 0,
+          "citation_keys": []
+        },
+        {
+          "row_id": "heart-failure",
+          "column_id": "case-reports",
+          "paper_count": 0,
+          "citation_keys": []
+        },
+        {
+          "row_id": "heart-failure",
+          "column_id": "cohort-studies",
+          "paper_count": 1,
+          "citation_keys": [
+            "sat01"
+          ]
+        },
+        {
+          "row_id": "heart-failure",
+          "column_id": "mendelian-randomization-analysis",
+          "paper_count": 1,
+          "citation_keys": [
+            "sat02"
+          ]
+        },
+        {
+          "row_id": "heart-failure",
+          "column_id": "randomized-controlled-trial",
+          "paper_count": 0,
+          "citation_keys": []
+        },
+        {
+          "row_id": "myocardial-ischemia",
+          "column_id": "case-reports",
+          "paper_count": 0,
+          "citation_keys": []
+        },
+        {
+          "row_id": "myocardial-ischemia",
+          "column_id": "cohort-studies",
+          "paper_count": 1,
+          "citation_keys": [
+            "sat03"
+          ]
+        },
+        {
+          "row_id": "myocardial-ischemia",
+          "column_id": "mendelian-randomization-analysis",
+          "paper_count": 0,
+          "citation_keys": []
+        },
+        {
+          "row_id": "myocardial-ischemia",
+          "column_id": "randomized-controlled-trial",
+          "paper_count": 1,
+          "citation_keys": [
+            "sat04"
+          ]
+        }
+      ]
+    },
+    {
+      "row_axis": "topic",
+      "column_axis": "population",
+      "corpus_paper_count": 6,
+      "rows": [
+        {
+          "category_id": "carcinoid-heart-disease",
+          "label": "Carcinoid Heart Disease",
+          "paper_count": 2
+        },
+        {
+          "category_id": "heart-failure",
+          "label": "Heart Failure",
+          "paper_count": 2
+        },
+        {
+          "category_id": "myocardial-ischemia",
+          "label": "Myocardial Ischemia",
+          "paper_count": 2
+        }
+      ],
+      "columns": [],
+      "cells": []
+    },
+    {
+      "row_axis": "topic",
+      "column_axis": "dataset",
+      "corpus_paper_count": 6,
+      "rows": [
+        {
+          "category_id": "carcinoid-heart-disease",
+          "label": "Carcinoid Heart Disease",
+          "paper_count": 2
+        },
+        {
+          "category_id": "heart-failure",
+          "label": "Heart Failure",
+          "paper_count": 2
+        },
+        {
+          "category_id": "myocardial-ischemia",
+          "label": "Myocardial Ischemia",
+          "paper_count": 2
+        }
+      ],
+      "columns": [],
+      "cells": []
+    }
+  ],
+  "limitation_groups": [],
+  "gaps": [
+    {
+      "gap_id": "topicxtopic:carcinoid-heart-disease:heart-failure",
+      "gap_type": "knowledge_gap",
+      "title": "Carcinoid Heart Disease × Heart Failure",
+      "explanation": "Candidate Knowledge Gap: no Paper in the Corpus combines Carcinoid Heart Disease (topic) with Heart Failure (topic), although 2 of 6 Papers cover Carcinoid Heart Disease and 2 of 6 cover Heart Failure. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
+      "confidence": "low",
+      "confidence_reason": "If Carcinoid Heart Disease and Heart Failure were independent across the 6 Papers, about 0.7 Papers would combine them; 0 do.",
+      "row_axis": "topic",
+      "row_id": "carcinoid-heart-disease",
+      "row_label": "Carcinoid Heart Disease",
+      "column_axis": "topic",
+      "column_id": "heart-failure",
+      "column_label": "Heart Failure",
+      "cell_count": 0,
+      "cell_citation_keys": [],
+      "row_paper_count": 2,
+      "column_paper_count": 2,
+      "corpus_paper_count": 6,
+      "evidence": [
+        {
+          "citation_key": "sat01",
+          "role": "column",
+          "axis": "topic",
+          "category_id": "heart-failure",
+          "original_term": "chronic heart failure",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a chronic heart failure.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat02",
+          "role": "column",
+          "axis": "topic",
+          "category_id": "heart-failure",
+          "original_term": "heart failure",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a heart failure.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat05",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "carcinoid-heart-disease",
+          "original_term": "carcinoid heart",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a carcinoid heart.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat06",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "carcinoid-heart-disease",
+          "original_term": "carcinoid heart",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a carcinoid heart.",
+            "section": "methods"
+          }
+        }
+      ]
+    },
+    {
+      "gap_id": "topicxtopic:carcinoid-heart-disease:myocardial-ischemia",
+      "gap_type": "knowledge_gap",
+      "title": "Carcinoid Heart Disease × Myocardial Ischemia",
+      "explanation": "Candidate Knowledge Gap: no Paper in the Corpus combines Carcinoid Heart Disease (topic) with Myocardial Ischemia (topic), although 2 of 6 Papers cover Carcinoid Heart Disease and 2 of 6 cover Myocardial Ischemia. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
+      "confidence": "low",
+      "confidence_reason": "If Carcinoid Heart Disease and Myocardial Ischemia were independent across the 6 Papers, about 0.7 Papers would combine them; 0 do.",
+      "row_axis": "topic",
+      "row_id": "carcinoid-heart-disease",
+      "row_label": "Carcinoid Heart Disease",
+      "column_axis": "topic",
+      "column_id": "myocardial-ischemia",
+      "column_label": "Myocardial Ischemia",
+      "cell_count": 0,
+      "cell_citation_keys": [],
+      "row_paper_count": 2,
+      "column_paper_count": 2,
+      "corpus_paper_count": 6,
+      "evidence": [
+        {
+          "citation_key": "sat03",
+          "role": "column",
+          "axis": "topic",
+          "category_id": "myocardial-ischemia",
+          "original_term": "myocardial ischaemia",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a myocardial ischaemia.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat04",
+          "role": "column",
+          "axis": "topic",
+          "category_id": "myocardial-ischemia",
+          "original_term": "myocardial ischemia",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a myocardial ischemia.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat05",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "carcinoid-heart-disease",
+          "original_term": "carcinoid heart",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a carcinoid heart.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat06",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "carcinoid-heart-disease",
+          "original_term": "carcinoid heart",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a carcinoid heart.",
+            "section": "methods"
+          }
+        }
+      ]
+    },
+    {
+      "gap_id": "topicxtopic:heart-failure:myocardial-ischemia",
+      "gap_type": "knowledge_gap",
+      "title": "Heart Failure × Myocardial Ischemia",
+      "explanation": "Candidate Knowledge Gap: no Paper in the Corpus combines Heart Failure (topic) with Myocardial Ischemia (topic), although 2 of 6 Papers cover Heart Failure and 2 of 6 cover Myocardial Ischemia. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
+      "confidence": "low",
+      "confidence_reason": "If Heart Failure and Myocardial Ischemia were independent across the 6 Papers, about 0.7 Papers would combine them; 0 do.",
+      "row_axis": "topic",
+      "row_id": "heart-failure",
+      "row_label": "Heart Failure",
+      "column_axis": "topic",
+      "column_id": "myocardial-ischemia",
+      "column_label": "Myocardial Ischemia",
+      "cell_count": 0,
+      "cell_citation_keys": [],
+      "row_paper_count": 2,
+      "column_paper_count": 2,
+      "corpus_paper_count": 6,
+      "evidence": [
+        {
+          "citation_key": "sat01",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "heart-failure",
+          "original_term": "chronic heart failure",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a chronic heart failure.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat02",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "heart-failure",
+          "original_term": "heart failure",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a heart failure.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat03",
+          "role": "column",
+          "axis": "topic",
+          "category_id": "myocardial-ischemia",
+          "original_term": "myocardial ischaemia",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a myocardial ischaemia.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat04",
+          "role": "column",
+          "axis": "topic",
+          "category_id": "myocardial-ischemia",
+          "original_term": "myocardial ischemia",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a myocardial ischemia.",
+            "section": "methods"
+          }
+        }
+      ]
+    },
+    {
+      "gap_id": "topicxmethod:carcinoid-heart-disease:mendelian-randomization-analysis",
+      "gap_type": "coverage_gap",
+      "title": "Carcinoid Heart Disease × Mendelian Randomization Analysis",
+      "explanation": "Candidate Coverage Gap: no Paper in the Corpus combines Carcinoid Heart Disease (topic) with Mendelian Randomization Analysis (method), although 2 of 6 Papers cover Carcinoid Heart Disease and 1 of 6 cover Mendelian Randomization Analysis. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
+      "confidence": "low",
+      "confidence_reason": "If Carcinoid Heart Disease and Mendelian Randomization Analysis were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do.",
+      "row_axis": "topic",
+      "row_id": "carcinoid-heart-disease",
+      "row_label": "Carcinoid Heart Disease",
+      "column_axis": "method",
+      "column_id": "mendelian-randomization-analysis",
+      "column_label": "Mendelian Randomization Analysis",
+      "cell_count": 0,
+      "cell_citation_keys": [],
+      "row_paper_count": 2,
+      "column_paper_count": 1,
+      "corpus_paper_count": 6,
+      "evidence": [
+        {
+          "citation_key": "sat02",
+          "role": "column",
+          "axis": "method",
+          "category_id": "mendelian-randomization-analysis",
+          "original_term": "mendelian randomization",
+          "fact_ref": "methods[0]",
+          "evidence": {
+            "passage": "We report a mendelian randomization.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat05",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "carcinoid-heart-disease",
+          "original_term": "carcinoid heart",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a carcinoid heart.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat06",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "carcinoid-heart-disease",
+          "original_term": "carcinoid heart",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a carcinoid heart.",
+            "section": "methods"
+          }
+        }
+      ]
+    },
+    {
+      "gap_id": "topicxmethod:carcinoid-heart-disease:randomized-controlled-trial",
+      "gap_type": "coverage_gap",
+      "title": "Carcinoid Heart Disease × Randomized Controlled Trial",
+      "explanation": "Candidate Coverage Gap: no Paper in the Corpus combines Carcinoid Heart Disease (topic) with Randomized Controlled Trial (method), although 2 of 6 Papers cover Carcinoid Heart Disease and 1 of 6 cover Randomized Controlled Trial. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
+      "confidence": "low",
+      "confidence_reason": "If Carcinoid Heart Disease and Randomized Controlled Trial were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do.",
+      "row_axis": "topic",
+      "row_id": "carcinoid-heart-disease",
+      "row_label": "Carcinoid Heart Disease",
+      "column_axis": "method",
+      "column_id": "randomized-controlled-trial",
+      "column_label": "Randomized Controlled Trial",
+      "cell_count": 0,
+      "cell_citation_keys": [],
+      "row_paper_count": 2,
+      "column_paper_count": 1,
+      "corpus_paper_count": 6,
+      "evidence": [
+        {
+          "citation_key": "sat04",
+          "role": "column",
+          "axis": "method",
+          "category_id": "randomized-controlled-trial",
+          "original_term": "randomised trial",
+          "fact_ref": "methods[0]",
+          "evidence": {
+            "passage": "We report a randomised trial.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat05",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "carcinoid-heart-disease",
+          "original_term": "carcinoid heart",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a carcinoid heart.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat06",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "carcinoid-heart-disease",
+          "original_term": "carcinoid heart",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a carcinoid heart.",
+            "section": "methods"
+          }
+        }
+      ]
+    },
+    {
+      "gap_id": "topicxmethod:heart-failure:case-reports",
+      "gap_type": "coverage_gap",
+      "title": "Heart Failure × Case Reports",
+      "explanation": "Candidate Coverage Gap: no Paper in the Corpus combines Heart Failure (topic) with Case Reports (method), although 2 of 6 Papers cover Heart Failure and 1 of 6 cover Case Reports. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
+      "confidence": "low",
+      "confidence_reason": "If Heart Failure and Case Reports were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do.",
+      "row_axis": "topic",
+      "row_id": "heart-failure",
+      "row_label": "Heart Failure",
+      "column_axis": "method",
+      "column_id": "case-reports",
+      "column_label": "Case Reports",
+      "cell_count": 0,
+      "cell_citation_keys": [],
+      "row_paper_count": 2,
+      "column_paper_count": 1,
+      "corpus_paper_count": 6,
+      "evidence": [
+        {
+          "citation_key": "sat01",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "heart-failure",
+          "original_term": "chronic heart failure",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a chronic heart failure.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat02",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "heart-failure",
+          "original_term": "heart failure",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a heart failure.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat06",
+          "role": "column",
+          "axis": "method",
+          "category_id": "case-reports",
+          "original_term": "case report",
+          "fact_ref": "methods[0]",
+          "evidence": {
+            "passage": "We report a case report.",
+            "section": "methods"
+          }
+        }
+      ]
+    },
+    {
+      "gap_id": "topicxmethod:heart-failure:randomized-controlled-trial",
+      "gap_type": "coverage_gap",
+      "title": "Heart Failure × Randomized Controlled Trial",
+      "explanation": "Candidate Coverage Gap: no Paper in the Corpus combines Heart Failure (topic) with Randomized Controlled Trial (method), although 2 of 6 Papers cover Heart Failure and 1 of 6 cover Randomized Controlled Trial. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
+      "confidence": "low",
+      "confidence_reason": "If Heart Failure and Randomized Controlled Trial were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do.",
+      "row_axis": "topic",
+      "row_id": "heart-failure",
+      "row_label": "Heart Failure",
+      "column_axis": "method",
+      "column_id": "randomized-controlled-trial",
+      "column_label": "Randomized Controlled Trial",
+      "cell_count": 0,
+      "cell_citation_keys": [],
+      "row_paper_count": 2,
+      "column_paper_count": 1,
+      "corpus_paper_count": 6,
+      "evidence": [
+        {
+          "citation_key": "sat01",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "heart-failure",
+          "original_term": "chronic heart failure",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a chronic heart failure.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat02",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "heart-failure",
+          "original_term": "heart failure",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a heart failure.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat04",
+          "role": "column",
+          "axis": "method",
+          "category_id": "randomized-controlled-trial",
+          "original_term": "randomised trial",
+          "fact_ref": "methods[0]",
+          "evidence": {
+            "passage": "We report a randomised trial.",
+            "section": "methods"
+          }
+        }
+      ]
+    },
+    {
+      "gap_id": "topicxmethod:myocardial-ischemia:case-reports",
+      "gap_type": "coverage_gap",
+      "title": "Myocardial Ischemia × Case Reports",
+      "explanation": "Candidate Coverage Gap: no Paper in the Corpus combines Myocardial Ischemia (topic) with Case Reports (method), although 2 of 6 Papers cover Myocardial Ischemia and 1 of 6 cover Case Reports. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
+      "confidence": "low",
+      "confidence_reason": "If Myocardial Ischemia and Case Reports were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do.",
+      "row_axis": "topic",
+      "row_id": "myocardial-ischemia",
+      "row_label": "Myocardial Ischemia",
+      "column_axis": "method",
+      "column_id": "case-reports",
+      "column_label": "Case Reports",
+      "cell_count": 0,
+      "cell_citation_keys": [],
+      "row_paper_count": 2,
+      "column_paper_count": 1,
+      "corpus_paper_count": 6,
+      "evidence": [
+        {
+          "citation_key": "sat03",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "myocardial-ischemia",
+          "original_term": "myocardial ischaemia",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a myocardial ischaemia.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat04",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "myocardial-ischemia",
+          "original_term": "myocardial ischemia",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a myocardial ischemia.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat06",
+          "role": "column",
+          "axis": "method",
+          "category_id": "case-reports",
+          "original_term": "case report",
+          "fact_ref": "methods[0]",
+          "evidence": {
+            "passage": "We report a case report.",
+            "section": "methods"
+          }
+        }
+      ]
+    },
+    {
+      "gap_id": "topicxmethod:myocardial-ischemia:mendelian-randomization-analysis",
+      "gap_type": "coverage_gap",
+      "title": "Myocardial Ischemia × Mendelian Randomization Analysis",
+      "explanation": "Candidate Coverage Gap: no Paper in the Corpus combines Myocardial Ischemia (topic) with Mendelian Randomization Analysis (method), although 2 of 6 Papers cover Myocardial Ischemia and 1 of 6 cover Mendelian Randomization Analysis. This is a signal for human judgment, not a verdict: the combination may be studied outside the Corpus or unrecorded by the extraction.",
+      "confidence": "low",
+      "confidence_reason": "If Myocardial Ischemia and Mendelian Randomization Analysis were independent across the 6 Papers, about 0.3 Papers would combine them; 0 do.",
+      "row_axis": "topic",
+      "row_id": "myocardial-ischemia",
+      "row_label": "Myocardial Ischemia",
+      "column_axis": "method",
+      "column_id": "mendelian-randomization-analysis",
+      "column_label": "Mendelian Randomization Analysis",
+      "cell_count": 0,
+      "cell_citation_keys": [],
+      "row_paper_count": 2,
+      "column_paper_count": 1,
+      "corpus_paper_count": 6,
+      "evidence": [
+        {
+          "citation_key": "sat02",
+          "role": "column",
+          "axis": "method",
+          "category_id": "mendelian-randomization-analysis",
+          "original_term": "mendelian randomization",
+          "fact_ref": "methods[0]",
+          "evidence": {
+            "passage": "We report a mendelian randomization.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat03",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "myocardial-ischemia",
+          "original_term": "myocardial ischaemia",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a myocardial ischaemia.",
+            "section": "methods"
+          }
+        },
+        {
+          "citation_key": "sat04",
+          "role": "row",
+          "axis": "topic",
+          "category_id": "myocardial-ischemia",
+          "original_term": "myocardial ischemia",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a myocardial ischemia.",
+            "section": "methods"
+          }
+        }
+      ]
+    }
+  ]
+}

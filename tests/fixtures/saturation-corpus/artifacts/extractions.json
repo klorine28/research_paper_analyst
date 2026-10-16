@@ -1,0 +1,8 @@
+{
+  "corpus_root": "tests/fixtures/saturation-corpus",
+  "prompt_version": "fixture",
+  "tier": "default",
+  "extractions": [],
+  "failures": [],
+  "unverified": []
+}

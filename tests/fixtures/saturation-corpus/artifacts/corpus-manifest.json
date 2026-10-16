@@ -1,0 +1,85 @@
+{
+  "corpus_root": "tests/fixtures/saturation-corpus",
+  "papers": [
+    {
+      "citation_key": "sat01",
+      "doi": "10.5555/sat01",
+      "title": "Synthetic fixture Paper sat01",
+      "authors": [],
+      "year": 2020,
+      "journal": "",
+      "pdf_path": "papers/sat01.pdf",
+      "openalex_id": "",
+      "referenced_works": [],
+      "cited_by_count": 0,
+      "resolution_error": null
+    },
+    {
+      "citation_key": "sat02",
+      "doi": "10.5555/sat02",
+      "title": "Synthetic fixture Paper sat02",
+      "authors": [],
+      "year": 2020,
+      "journal": "",
+      "pdf_path": "papers/sat02.pdf",
+      "openalex_id": "",
+      "referenced_works": [],
+      "cited_by_count": 0,
+      "resolution_error": null
+    },
+    {
+      "citation_key": "sat03",
+      "doi": "10.5555/sat03",
+      "title": "Synthetic fixture Paper sat03",
+      "authors": [],
+      "year": 2020,
+      "journal": "",
+      "pdf_path": "papers/sat03.pdf",
+      "openalex_id": "",
+      "referenced_works": [],
+      "cited_by_count": 0,
+      "resolution_error": null
+    },
+    {
+      "citation_key": "sat04",
+      "doi": "10.5555/sat04",
+      "title": "Synthetic fixture Paper sat04",
+      "authors": [],
+      "year": 2020,
+      "journal": "",
+      "pdf_path": "papers/sat04.pdf",
+      "openalex_id": "",
+      "referenced_works": [],
+      "cited_by_count": 0,
+      "resolution_error": null
+    },
+    {
+      "citation_key": "sat05",
+      "doi": "10.5555/sat05",
+      "title": "Synthetic fixture Paper sat05",
+      "authors": [],
+      "year": 2020,
+      "journal": "",
+      "pdf_path": "papers/sat05.pdf",
+      "openalex_id": "",
+      "referenced_works": [],
+      "cited_by_count": 0,
+      "resolution_error": null
+    },
+    {
+      "citation_key": "sat06",
+      "doi": "10.5555/sat06",
+      "title": "Synthetic fixture Paper sat06",
+      "authors": [],
+      "year": 2020,
+      "journal": "",
+      "pdf_path": "papers/sat06.pdf",
+      "openalex_id": "",
+      "referenced_works": [],
+      "cited_by_count": 0,
+      "resolution_error": null
+    }
+  ],
+  "unmatched_entries": [],
+  "orphan_pdfs": []
+}

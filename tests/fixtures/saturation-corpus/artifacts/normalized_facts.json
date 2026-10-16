@@ -1,0 +1,183 @@
+{
+  "corpus_root": "tests/fixtures/saturation-corpus",
+  "prompt_version": "fixture",
+  "tier": "default",
+  "taxonomies": [],
+  "normalized": [
+    {
+      "citation_key": "sat01",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "chronic heart failure",
+          "category_id": "heart-failure",
+          "category_label": "Heart Failure",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a chronic heart failure.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "cohort study",
+          "category_id": "cohort-studies",
+          "category_label": "Cohort Studies",
+          "fact_ref": "methods[0]",
+          "evidence": {
+            "passage": "We report a cohort study.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "sat02",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "heart failure",
+          "category_id": "heart-failure",
+          "category_label": "Heart Failure",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a heart failure.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "mendelian randomization",
+          "category_id": "mendelian-randomization-analysis",
+          "category_label": "Mendelian Randomization Analysis",
+          "fact_ref": "methods[0]",
+          "evidence": {
+            "passage": "We report a mendelian randomization.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "sat03",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "myocardial ischaemia",
+          "category_id": "myocardial-ischemia",
+          "category_label": "Myocardial Ischemia",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a myocardial ischaemia.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "cohort study",
+          "category_id": "cohort-studies",
+          "category_label": "Cohort Studies",
+          "fact_ref": "methods[0]",
+          "evidence": {
+            "passage": "We report a cohort study.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "sat04",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "myocardial ischemia",
+          "category_id": "myocardial-ischemia",
+          "category_label": "Myocardial Ischemia",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a myocardial ischemia.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "randomised trial",
+          "category_id": "randomized-controlled-trial",
+          "category_label": "Randomized Controlled Trial",
+          "fact_ref": "methods[0]",
+          "evidence": {
+            "passage": "We report a randomised trial.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "sat05",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "carcinoid heart",
+          "category_id": "carcinoid-heart-disease",
+          "category_label": "Carcinoid Heart Disease",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a carcinoid heart.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "cohort study",
+          "category_id": "cohort-studies",
+          "category_label": "Cohort Studies",
+          "fact_ref": "methods[0]",
+          "evidence": {
+            "passage": "We report a cohort study.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    },
+    {
+      "citation_key": "sat06",
+      "assignments": [
+        {
+          "axis": "topic",
+          "original_term": "carcinoid heart",
+          "category_id": "carcinoid-heart-disease",
+          "category_label": "Carcinoid Heart Disease",
+          "fact_ref": "topics[0]",
+          "evidence": {
+            "passage": "We report a carcinoid heart.",
+            "section": "methods"
+          }
+        },
+        {
+          "axis": "method",
+          "original_term": "case report",
+          "category_id": "case-reports",
+          "category_label": "Case Reports",
+          "fact_ref": "methods[0]",
+          "evidence": {
+            "passage": "We report a case report.",
+            "section": "methods"
+          }
+        }
+      ],
+      "unmapped": [],
+      "not_study_design": []
+    }
+  ],
+  "failures": []
+}
