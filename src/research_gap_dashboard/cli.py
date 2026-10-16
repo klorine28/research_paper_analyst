@@ -37,12 +37,15 @@ from research_gap_dashboard.extract import extract_corpus, read_extractions
 from research_gap_dashboard.ingest import (
   CorpusLayoutError,
   CorpusSizeError,
+  check_corpus,
   ingest_corpus,
 )
 from research_gap_dashboard.llm import (
   LlmClient,
+  LlmConfig,
   LlmConfigError,
   LlmUsage,
+  ModelTier,
   build_llm_client,
   write_usage,
 )
@@ -58,7 +61,12 @@ from research_gap_dashboard.retrieval import (
   DEFAULT_MIN_OVERLAP,
   detect_retrieval_gaps,
 )
-from research_gap_dashboard.saturate import SaturationError, saturate_gap
+from research_gap_dashboard.saturate import (
+  HitScreener,
+  QueryVariantModel,
+  SaturationError,
+  saturate_gap,
+)
 from research_gap_dashboard.sources import (
   DEFAULT_SEARCH_LIMIT,
   OpenAlexAdapter,
@@ -98,7 +106,7 @@ LLM_CACHE_DIR = ".llm-cache"
 # details to report what a run actually cost (issue #70).
 LLM_USAGE_PATH = Path("artifacts") / "llm-usage.json"
 # The commands whose LLM usage is recorded.
-_LLM_COMMANDS = frozenset({"extract", "explain", "aggregate", "detect"})
+_LLM_COMMANDS = frozenset({"extract", "explain", "aggregate", "detect", "saturate"})
 
 # Works fetched per source per saturation-check query.
 SATURATE_SEARCH_LIMIT = DEFAULT_SEARCH_LIMIT
@@ -124,6 +132,14 @@ def build_parser() -> argparse.ArgumentParser:
     "ingest", help="Pair the paper list with the PDFs and write the CorpusManifest."
   )
   ingest.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  ingest.add_argument(
+    "--check",
+    action="store_true",
+    help=(
+      "Only check how the paper list and PDFs pair up and whether the Corpus is "
+      "within the 10-75 Paper envelope; print that as JSON and write nothing."
+    ),
+  )
   ingest.add_argument(
     "--resolve",
     action="store_true",
@@ -276,6 +292,15 @@ def build_parser() -> argparse.ArgumentParser:
       "limitation:limitation-group-01."
     ),
   )
+  saturate.add_argument(
+    "--tier",
+    choices=["default", "cheap"],
+    default="cheap",
+    help=(
+      "Model tier to screen the top hits with (default: the cheap model). "
+      "Without ANTHROPIC_API_KEY, hits are screened by title/abstract only."
+    ),
+  )
   _add_taxonomy_option(saturate)
   promote = subcommands.add_parser(
     "promote-gold",
@@ -350,6 +375,8 @@ def _llm_client(arguments: argparse.Namespace) -> LlmClient:
 
 def _run_ingest(arguments: argparse.Namespace) -> int:
   """Pair the paper list with the PDFs and write the CorpusManifest."""
+  if arguments.check:
+    return _run_ingest_check(arguments)
   adapter = _build_source(arguments) if arguments.resolve else None
   try:
     manifest = ingest_corpus(arguments.corpus, adapter=adapter)
@@ -368,6 +395,25 @@ def _run_ingest(arguments: argparse.Namespace) -> int:
     len(manifest.orphan_pdfs),
     unresolved,
   )
+  return EXIT_OK
+
+
+def _run_ingest_check(arguments: argparse.Namespace) -> int:
+  """
+  Print the pairing check as JSON on stdout; fail when outside the envelope.
+
+  stdout carries only the JSON (logging goes to stderr), so the dashboard can
+  read it back through its subprocess runner without importing ingest.
+  """
+  try:
+    check = check_corpus(arguments.corpus)
+  except CorpusLayoutError as error:
+    logger.error("%s", error)
+    return EXIT_ERROR
+  sys.stdout.write(check.model_dump_json(indent=2) + "\n")
+  if not check.within_envelope:
+    logger.error("%s", check.refusal)
+    return EXIT_ERROR
   return EXIT_OK
 
 
@@ -415,6 +461,25 @@ def _build_search_sources() -> list[TopicSearchSource]:
   ]
 
 
+def _query_variant_model(arguments: argparse.Namespace) -> QueryVariantModel:
+  """
+  Build the LLM the second attempt rephrases queries with, on the cheap tier.
+
+  A missing API key is not a failure here: the check runs without the second
+  attempt, which records why (ADR 0009: surface, don't block).
+  """
+  tier: ModelTier = "cheap"
+  try:
+    return QueryVariantModel(
+      client=_llm_client(arguments),
+      model=LlmConfig.from_env().model_for(tier),
+      tier=tier,
+    )
+  except LlmConfigError as error:
+    logger.warning("No LLM second attempt: %s", error)
+    return QueryVariantModel(client=None, tier=tier, unavailable_reason=str(error))
+
+
 def _run_saturate(arguments: argparse.Namespace) -> int:
   """Check one gap against the wider literature and append the dated snapshot."""
   paths = arguments.taxonomy or list(SEED_PATHS.values())
@@ -433,6 +498,8 @@ def _run_saturate(arguments: argparse.Namespace) -> int:
       _build_search_sources(),
       taxonomies,
       limit=SATURATE_SEARCH_LIMIT,
+      screener=_hit_screener(arguments),
+      query_variants=_query_variant_model(arguments),
     )
   except SaturationError as error:
     logger.error("%s", error)
@@ -442,13 +509,34 @@ def _run_saturate(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   for search in check.searches:
-    logger.info("  %s: %s", search.source, search.query)
+    logger.info("  %s (%s): %s", search.source, search.attempt, search.query)
     if search.error:
       logger.warning("    not searched: %s", search.error)
+  if check.llm_screening and check.llm_screening.status == "not_run":
+    logger.warning("LLM screening: %s", check.llm_screening.reason)
+  if check.second_attempt is not None and check.second_attempt.note:
+    logger.info("Second attempt: %s", check.second_attempt.note)
   logger.info("%s", check.status_reason)
   # Offline or rate-limited: the run completes, but the check did not happen
   # (ADR 0009: surface, don't block).
   return EXIT_INCOMPLETE if check.status == "not_run" else EXIT_OK
+
+
+def _hit_screener(arguments: argparse.Namespace) -> HitScreener | None:
+  """
+  Build the LLM screener for a saturation check, or None without a key.
+
+  A missing key degrades the check to title/abstract screening, recorded as
+  such on the snapshot, rather than failing it: the searches are worth keeping
+  (ADR 0006, surface, don't block).
+  """
+  try:
+    client = _llm_client(arguments)
+  except LlmConfigError as error:
+    logger.warning("%s", error)
+    return None
+  model = LlmConfig.from_env().model_for(arguments.tier)
+  return HitScreener(client, model=model, tier=arguments.tier)
 
 
 def _run_parse(arguments: argparse.Namespace) -> int:
@@ -638,10 +726,10 @@ def _run_detect(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   logger.info(
-    "Found %d candidate gaps over %d Papers (cells with at most %d Papers).",
+    "Found %d candidate gaps over %d Papers. %s",
     len(report.gaps),
     report.corpus_paper_count,
-    report.sparse_max_count,
+    report.candidate_rule,
   )
   return EXIT_OK
 

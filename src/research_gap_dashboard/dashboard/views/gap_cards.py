@@ -19,6 +19,7 @@ from research_gap_dashboard.dashboard.gaps import (
   FilteredGapCards,
   GapCard,
   GapCardsData,
+  SaturationSearchView,
   SaturationView,
   StatusFilter,
   build_gap_cards,
@@ -89,6 +90,7 @@ def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
       undecided=data.undecided_count,
     )
   )
+  _render_l1_margins(data)
   shown = _render_filters(data)
   if not shown.cards:
     st.info(text.GAP_FILTER_NO_MATCH)
@@ -103,6 +105,18 @@ def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
       st.subheader(text.GAP_OTHERS_HEADING)
   for card in others:
     _render_gap_card(card, corpus_root)
+
+
+def _render_l1_margins(data: GapCardsData) -> None:
+  """State the smallest category sizes that can rank High at this Corpus size."""
+  if data.l1_smallest_margins is None:
+    return
+  high, medium = data.l1_smallest_margins
+  if high is None or medium is None:
+    return
+  st.caption(
+    text.GAP_L1_MARGINS.format(total=data.corpus_paper_count, high=high, medium=medium)
+  )
 
 
 def _render_filters(data: GapCardsData) -> FilteredGapCards:
@@ -309,21 +323,17 @@ def _render_saturation(view: SaturationView) -> None:
       date=view.checked_on, method=view.screening_method
     )
   )
+  if view.llm_screening:
+    st.caption(view.llm_screening)
   st.markdown(f"*{text.GAP_SATURATION_QUERIES_HEADING}*")
-  for search in view.searches:
-    if search.error:
-      st.markdown(
-        text.GAP_SATURATION_QUERY_ERROR.format(source=search.source, error=search.error)
-      )
-    else:
-      st.markdown(
-        text.GAP_SATURATION_QUERY.format(
-          source=search.source, count=search.returned_count
-        )
-      )
-    st.code(search.query, language=None)
-    if search.in_corpus_count:
-      st.caption(text.GAP_SATURATION_IN_CORPUS.format(count=search.in_corpus_count))
+  _render_searches([s for s in view.searches if s.attempt == "base"])
+  if view.second_attempt_label:
+    st.markdown(f"*{view.second_attempt_label}*")
+    if view.second_attempt_provenance:
+      st.caption(view.second_attempt_provenance)
+    if view.second_attempt_note:
+      st.caption(view.second_attempt_note)
+    _render_searches([s for s in view.searches if s.attempt != "base"])
   st.markdown(
     "*"
     + text.GAP_SATURATION_HITS_HEADING.format(
@@ -344,14 +354,40 @@ def _render_saturation(view: SaturationView) -> None:
             else text.GAP_SATURATION_UNSCREENED_MARKER
           ),
           title=hit.title,
-          meta=text.GAP_SATURATION_HIT_META.format(details=hit.details),
+          meta=text.GAP_SATURATION_HIT_META.format(details=hit.details)
+          + (text.GAP_SATURATION_SECOND_ATTEMPT_MARKER if hit.second_attempt else ""),
           reason=hit.reason,
+        )
+        + (
+          text.GAP_SATURATION_HIT_LLM.format(
+            verdict=hit.llm_verdict, reason=hit.llm_reason
+          )
+          if hit.llm_verdict
+          else ""
         )
         for hit in view.hits
       )
     )
   st.markdown(f"*{text.GAP_SATURATION_HISTORY_HEADING}*")
   st.markdown("\n".join(view.history))
+
+
+def _render_searches(searches: list[SaturationSearchView]) -> None:
+  """Each search's source, what it returned, and its query verbatim."""
+  for search in searches:
+    if search.error:
+      st.markdown(
+        text.GAP_SATURATION_QUERY_ERROR.format(source=search.source, error=search.error)
+      )
+    else:
+      st.markdown(
+        text.GAP_SATURATION_QUERY.format(
+          source=search.source, count=search.returned_count
+        )
+      )
+    st.code(search.query, language=None)
+    if search.in_corpus_count:
+      st.caption(text.GAP_SATURATION_IN_CORPUS.format(count=search.in_corpus_count))
 
 
 def _render_controls(card: GapCard, corpus_root: Path) -> None:

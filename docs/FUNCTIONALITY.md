@@ -52,14 +52,14 @@ A Corpus is one directory (see `docs/corpus-layout.md` and
 
 | Stage | Command | Reads | Writes (`artifacts/`) | LLM? | Network? |
 | --- | --- | --- | --- | --- | --- |
-| Ingest | `ingest <corpus> [--resolve] [--source openalex\|pubmed] [--mailto EMAIL]` | paper list + `papers/*.pdf` | `corpus-manifest.json` | no | only with `--resolve` |
+| Ingest | `ingest <corpus> [--check] [--resolve] [--source openalex\|pubmed] [--mailto EMAIL]` | paper list + `papers/*.pdf` | `corpus-manifest.json` | no | only with `--resolve` |
 | Parse | `parse <corpus>` | manifest + PDFs | per-Paper sectioned text in `paper-data/` | no | no |
 | Extract | `extract <corpus> [--tier default\|cheap]` | manifest + parsed text | `extractions.json` | yes | yes (uncached) |
 | Explain | `explain <corpus> [--tier default\|cheap]` | manifest + parsed text | per-Paper `*.explanation.json` in `paper-data/` | yes | yes (uncached) |
 | Aggregate | `aggregate <corpus> [--taxonomy FILE ...] [--tier ...]` | extractions + taxonomies | `normalized_facts.json` | yes | yes (uncached) |
 | Detect | `detect <corpus> [--tier ...]` | manifest + extractions + normalized facts | `candidate_gaps.json` | yes (limitations only) | yes (uncached) |
 | Retrieve | `retrieve <corpus> [--limit N] [--min-overlap N] [--mailto EMAIL]` | manifest (needs `ingest --resolve`) | `retrieval_gaps.json` | no | yes (OpenAlex) |
-| Saturate | `saturate <corpus> --gap ID [--taxonomy FILE ...]` | candidate gaps + manifest + normalized facts + taxonomies (+ Alias Overlay) | appends to `saturation_checks.json` | no | yes (OpenAlex + PubMed) |
+| Saturate | `saturate <corpus> --gap ID [--taxonomy FILE ...] [--tier cheap\|default]` | candidate gaps + manifest + normalized facts + taxonomies (+ Alias Overlay) | appends to `saturation_checks.json` | optional: query variants only on zero hits (cheap tier), and screening of the top hits (both skipped without a key) | yes (OpenAlex + PubMed, LLM) |
 | Taxonomy | `taxonomy [FILE]` | a taxonomy file | — (validation only) | no | no |
 
 Every command exits `0` on success and `1` on a handled error; the CLI only
@@ -70,9 +70,22 @@ Tries to disprove one Knowledge or Coverage Gap against the wider literature
 (ADR 0009). Each concept of the cell is searched by its taxonomy label and
 aliases (MeSH inversions turned back, Corpus-approved aliases included) plus
 the Corpus's own mapped terms; PubMed also gets the MeSH heading. One boolean
-query per source, recorded verbatim. A hit counts only when its title or
+query per source, recorded verbatim; each term records its origin (label,
+alias, Corpus term). Only when the base queries find no closing work, the
+cheap-tier LLM proposes rephrased terms and a labelled adversarial second
+attempt runs (`attempt: "llm_variant"` on its searches and hits; model and
+prompt version on `second_attempt`; cached in `.llm-cache/` by inputs, model
+and prompt version). Without an API
+key or on an LLM error the check still completes and `second_attempt.note`
+says why. A hit counts only when its title or
 abstract mentions a term of both concepts (deterministic screening); works
-already in the Corpus are dropped. The result is `possibly_addressed`,
+already in the Corpus are dropped. An LLM (cheap tier by default) then screens
+the top 10 matches from title and abstract: `addresses` / `partial` / `no`, with
+a one-line reason; a hit judged `no` stops counting. Every hit keeps both
+verdicts, and the check records the model, tier and prompt version. Without
+`ANTHROPIC_API_KEY` the LLM step is recorded as not run and every match counts;
+a hit the LLM did not screen (past the top 10, or its call failed) still counts.
+The result is `possibly_addressed`,
 `no_closing_work_found` (dated, with sources and queries) or `not_run` (no
 source reachable; exit code 2). Never confirms a gap, never changes confidence.
 Each run appends a dated snapshot; earlier snapshots are never rewritten. Hits
@@ -85,7 +98,7 @@ also not predate the earliest source Paper; older ones are kept as
 `predates_statement`. The snapshot records the `statement_ids` it was built
 from. Retrieval Gaps are refused: they are out-of-Corpus works already. Public
 reader: `read_saturation_checks(root)`. Not yet: `--auto`, `--accepted`, the
-cache, LLM query variants and screening.
+search cache.
 
 ### Ingest — `ingest.py`
 Pairs each paper-list entry with its PDF (by DOI, then citation key) and writes
@@ -93,7 +106,10 @@ the `CorpusManifest` (`Paper`s, plus `unmatched_entries` and `orphan_pdfs`).
 Enforces the 10–75 Paper envelope. With `--resolve`, enriches each Paper with
 canonical metadata (title, year, venue, authors, `openalex_id`,
 `referenced_works`, `cited_by_count`) via a source adapter. Public reader:
-`read_manifest(root)`.
+`read_manifest(root)`. `check_corpus(root)` (CLI: `ingest --check`) does the same
+pairing and envelope check but writes nothing, printing a `PairingCheck` as JSON
+on stdout (exit 1 outside the envelope); the dashboard's Add Papers panel reads
+it after every upload.
 
 ### Parse — `parsing.py`
 Turns each Paper's PDF into sectioned text under `paper-data/` (docling behind a
@@ -135,8 +151,13 @@ Builds Coverage Matrices and cards the four in-Corpus gap signals into
   addressed (LLM-grouped).
 
 Matrix detection is deterministic; only cells whose two categories both occur
-in the Corpus count. Sparse threshold is provisional: empty cells only under 25
-Papers, empty-or-single at 25+. Every card carries confidence, reasoning,
+in the Corpus count. One candidate rule at every Corpus size: a cell is a
+candidate if it is empty, or holds one Paper where more than one was expected.
+Confidence starts from L1, the hypergeometric lower tail `P(X ≤ observed)`
+(≤ 0.05 High, ≤ 0.20 Medium, else Low), a ranking score that cards explain in
+counts and never call significant. The artifact records the rule, each cell's
+`l1_probability`, and the smallest equal category sizes that can rank High or
+Medium at this Corpus size. Every card carries confidence, reasoning,
 denominator, and in-Corpus Evidence.
 
 ### Retrieve — `retrieval.py`
@@ -186,21 +207,30 @@ just dashboard            # uv run streamlit run src/research_gap_dashboard/dash
 
 Point it at the folder holding your corpus directories with
 `RESEARCH_GAP_CORPORA_DIR` (default `./corpora`). The sidebar picks a Corpus and
-a page.
+a page. Navigation follows the guided path **1 Scope → 2 Build → 3 Trust → 4
+Explore → 5 Judge → 6 Grow → 7 Write** (issue #76): the sidebar groups the pages
+under their numbered steps and the phases Set up (Scope, Build), Check (Trust),
+Analyse (Explore, Judge) and Extend (Grow, Write); every page carries a step bar
+(completed steps ticked, the current step highlighted) and **← Previous / Next →**
+buttons naming the adjacent step. Every page stays reachable from the sidebar
+at any time. Step completion and the home screen's recommendation come from
+`guided_flow.py`, read from the scope record, the pipeline status, the fallout
+and the gap verdicts.
 
-| Page | Module | Needs artifact | Shows |
+| Page (step) | Module | Needs artifact | Shows |
 | --- | --- | --- | --- |
-| Corpus Overview | `overview.py` | `corpus-manifest.json` | scope statement, paper/venue/year metrics, papers-per-year bar, venue table, exclusions (unmatched entries, orphan PDFs) |
-| Pipeline | `pipeline_status.py`, `run_cost.py`, `pipeline_runner.py` | `corpus-manifest.json` (+ every stage artifact, `llm-usage.json`) | each stage as done / not run / stale (an input newer than its artifact), with a run or re-run button per stage; a collapsed **Run details** with each LLM stage's estimated cost and its last run's actual cost; a run estimated above `LLM_COST_CONFIRM_ABOVE` asks for confirmation |
-| Field Meta-Analysis | `meta_analysis.py`, `coverage.py` | `corpus-manifest.json` (+ `normalized_facts.json`, `candidate_gaps.json`) | a gallery of six graphs: citation network, Topic and Method co-occurrence (with ranked missing pairs that jump to Gap Cards), Trends (emerging/abandoned Topics), an author collaboration table, and limitation follow-up status; each carries its question, gap lens, denominator, caveat and a data-table fallback |
-| Gap Cards | `gaps.py`, `judgments.py` | `candidate_gaps.json` | one card per Candidate Gap with type, confidence + reasoning, denominator, Evidence passages, and **accept/reject/clear** buttons that persist to `judgments/`; Knowledge, Coverage and Unanswered Limitation cards carry a wider-literature badge (from `saturation_checks.json`), the queries/hits drill-down, and a **Check wider literature** button that runs `saturate --gap` |
-| Unanswered Limitations | `limitations.py` | `candidate_gaps.json` | every limitation group (addressed or not) with its follow-up count, source Papers, and verbatim source passages; unanswered groups called out from addressed ones |
-| Retrieval Gaps | `retrieval.py` | `retrieval_gaps.json` | out-of-corpus candidates ranked by citation overlap, kept visually and verbally separate (warning banner) as candidates for improving the search, not evidence-linked gaps |
-| Paper Explainer | `explainer.py` | `corpus-manifest.json` + per-Paper `*.explanation.json` | a Paper picker, then that Paper's experiment explained in **domain** and **lay** language, next to a link back to the Paper's metadata (title, venue, DOI) |
-| Paper Comparison | `comparison.py` | `corpus-manifest.json` + `extractions.json` + `normalized_facts.json` | pick 2–15 Papers; compares them field by field (research question, methods, population, datasets, findings, limitations), highlights **agreements/differences** and a **mini coverage matrix** of blind spots (grounded in shared normalized categories), and splits 6–15 Papers into summarized sets of ≤5 before comparing |
-| Conversational Analytics | `analytics.py`, `fact_retrieval.py`, `fact_pool.py`, `chat_history.py` | `corpus-manifest.json`, `extractions.json` + `normalized_facts.json` (per-question facts), `candidate_gaps.json` and `judgments/gap_judgments.json` (summary) | a chat grounded in the Corpus, each question pulling in its relevant extracted facts and Evidence, and a **narrative summary** for a "gaps in the literature" section, built **only from accepted gaps** and stating its denominator (N accepted gaps over M Papers, with rejected and undecided counts excluded); both cite **only Corpus Papers** (every generated citation checked against the Corpus, ungrounded ones dropped and flagged), and the conversation persists to `judgments/chat_history.json` |
-| Verify Extractions | `verify.py`, `extraction_review.py` | `extractions.json` + parsed text | per-Paper review of each extracted fact against its Evidence: approve, edit, flag, remove, or add a fact; edits must quote the parsed text verbatim; saved as a `judgments/` overlay (ADR 0003) |
-| Needs Attention | `attention.py`, `parse_corrections.py` | manifest + `parse-report.json` + `extractions.json` | the Papers that fell out (unparsed, extraction rejected, facts dropped) with reasons, and a paste-corrected-text box that writes a `judgments/` overlay (ADR 0006); the same read model drives the incompleteness banner on every page |
+| Home | `guided_flow.py` | `corpus-manifest.json` (+ stage artifacts, `judgments/gap_judgments.json`) | **Recommended next step** with its reason (no scope → Scope; a core stage not run or stale → Build; Papers fell out → Trust; no verdicts yet → Explore; undecided gaps → Judge; otherwise Write) and a button to it; Corpus health (Papers, Papers reached, pipeline stages done, Candidate Gaps, accepted, undecided); the seven steps with completed ones ticked |
+| Corpus Overview (1 Scope) | `overview.py` | `corpus-manifest.json` | scope statement, paper/venue/year metrics, papers-per-year bar, venue table, exclusions (unmatched entries, orphan PDFs) |
+| Pipeline (2 Build) | `pipeline_status.py`, `run_cost.py`, `pipeline_runner.py` | `corpus-manifest.json` (+ every stage artifact, `llm-usage.json`) | each stage as done / not run / stale (an input newer than its artifact), with a run or re-run button per stage; a collapsed **Run details** with each LLM stage's estimated cost and its last run's actual cost; a run estimated above `LLM_COST_CONFIRM_ABOVE` asks for confirmation |
+| Field Meta-Analysis (4 Explore) | `meta_analysis.py`, `coverage.py` | `corpus-manifest.json` (+ `normalized_facts.json`, `candidate_gaps.json`) | a gallery of six graphs: citation network, Topic and Method co-occurrence (with ranked missing pairs that jump to Gap Cards), Trends (emerging/abandoned Topics), an author collaboration table, and limitation follow-up status; each carries its question, gap lens, denominator, caveat and a data-table fallback |
+| Gap Cards (5 Judge) | `gaps.py`, `judgments.py` | `candidate_gaps.json` | one card per Candidate Gap with type, confidence + reasoning, denominator, Evidence passages, and **accept/reject/clear** buttons that persist to `judgments/`; Knowledge, Coverage and Unanswered Limitation cards carry a wider-literature badge (from `saturation_checks.json`), the queries/hits drill-down, and a **Check wider literature** button that runs `saturate --gap` |
+| Unanswered Limitations (4 Explore) | `limitations.py` | `candidate_gaps.json` | every limitation group (addressed or not) with its follow-up count, source Papers, and verbatim source passages; unanswered groups called out from addressed ones |
+| Retrieval Gaps (6 Grow) | `retrieval.py` | `retrieval_gaps.json` | out-of-corpus candidates ranked by citation overlap, kept visually and verbally separate (warning banner) as candidates for improving the search, not evidence-linked gaps |
+| Paper Explainer (5 Judge) | `explainer.py` | `corpus-manifest.json` + per-Paper `*.explanation.json` | a Paper picker, then that Paper's experiment explained in **domain** and **lay** language, next to a link back to the Paper's metadata (title, venue, DOI) |
+| Paper Comparison (5 Judge) | `comparison.py` | `corpus-manifest.json` + `extractions.json` + `normalized_facts.json` | pick 2–15 Papers; compares them field by field (research question, methods, population, datasets, findings, limitations), highlights **agreements/differences** and a **mini coverage matrix** of blind spots (grounded in shared normalized categories), and splits 6–15 Papers into summarized sets of ≤5 before comparing |
+| Conversational Analytics (7 Write) | `analytics.py`, `fact_retrieval.py`, `fact_pool.py`, `chat_history.py`, `export.py` | `corpus-manifest.json`, `extractions.json` + `normalized_facts.json` (per-question facts), `candidate_gaps.json` and `judgments/gap_judgments.json` (summary) | a chat grounded in the Corpus, each question pulling in its relevant extracted facts and Evidence, and a **narrative summary** for a "gaps in the literature" section, built **only from accepted gaps** and stating its denominator (N accepted gaps over M Papers, with rejected and undecided counts excluded), which can be **exported** as Markdown, a BibTeX file of only the Corpus Papers it cites, and the scope-and-limits statement (question, field, what was searched, denominator, year span, unplaced entries); both cite **only Corpus Papers** (every generated citation checked against the Corpus, ungrounded ones dropped and flagged), and the conversation persists to `judgments/chat_history.json` |
+| Verify Extractions (3 Trust) | `verify.py`, `extraction_review.py` | `extractions.json` + parsed text | per-Paper review of each extracted fact against its Evidence: approve, edit, flag, remove, or add a fact; edits must quote the parsed text verbatim; saved as a `judgments/` overlay (ADR 0003) |
+| Needs Attention (3 Trust) | `attention.py`, `parse_corrections.py` | manifest + `parse-report.json` + `extractions.json` | the Papers that fell out (unparsed, extraction rejected, facts dropped) with reasons, and a paste-corrected-text box that writes a `judgments/` overlay (ADR 0006); the same read model drives the incompleteness banner on every page |
 
 Supporting modules: `artifacts.py` (discover corpora, load/guard each
 artifact), `text.py` (all user-facing strings, kept in one place for future

@@ -58,10 +58,62 @@ SCOPE_MISSING_PROMPT = (
 SCOPE_ADD_EXPANDER = "Add a scope statement"
 SCOPE_SAVE_BUTTON = "Save scope"
 CORPUS_HAS_NO_PAPERS = (
-  "This Corpus has no ingested Papers yet. Put its PDFs in `{papers_dir}` and "
-  "its paper list (a `.bib` file or `dois.txt`) in `{root}`, then run ingest."
+  "This Corpus has no ingested Papers yet. Upload its PDFs and its paper list "
+  "below, fix any pairing problems, then ingest."
 )
-RUN_INGEST_BUTTON = "Run ingest"
+
+# Uploading Papers and checking how they pair up before ingest (issue #75).
+UPLOAD_HEADING = "Add Papers"
+UPLOAD_INTRO = (
+  "Upload the Papers' PDFs and a paper list: a BibTeX file (`.bib`) or a DOI "
+  "list (`.txt`, one DOI per line). A Paper without a DOI (a preprint, a thesis) "
+  "needs a BibTeX entry whose citation key appears in its PDF's file name. A "
+  "paper list is added to the Corpus's own, skipping entries already listed; a "
+  "PDF with the same name as one already uploaded replaces it."
+)
+UPLOAD_PDFS_LABEL = "PDFs"
+UPLOAD_PAPER_LIST_LABEL = "Paper list (.bib or DOI list)"
+UPLOAD_SUBMIT = "Upload"
+UPLOAD_NOTHING = "Choose at least one PDF or a paper list to upload."
+UPLOAD_PDFS_ADDED = "Added {count} PDF(s) to `papers/`."
+UPLOAD_PDFS_REPLACED = "Replaced {count} PDF(s) already in `papers/`: {names}."
+UPLOAD_PDF_REFUSED = "Not uploaded: `{name}`, because {reason}."
+UPLOAD_LIST_ADDED = "Added {count} entr(ies) to the paper list `{name}`."
+UPLOAD_LIST_ALREADY = "Already in the paper list, so skipped: {keys}."
+PAIRING_HEADING = "Pairing check"
+PAIRING_INTRO = (
+  "How the paper list and the PDFs pair up. Only a paper-list entry with a PDF "
+  "becomes a Paper; nothing has been ingested yet."
+)
+PAIRING_PAIRED = "**{count} Paper(s)** have both a paper-list entry and a PDF."
+PAIRING_UNMATCHED = (
+  "**{count} paper-list entr(ies) have no PDF.** Upload a PDF whose file name "
+  "contains the entry's DOI or citation key:"
+)
+PAIRING_UNMATCHED_ROW = "- `{key}`{doi}{title}"
+PAIRING_ORPHANS = (
+  "**{count} PDF(s) have no paper-list entry.** Upload a paper list with an "
+  "entry for each, or re-upload the PDF under a name that contains its DOI or "
+  "citation key:"
+)
+PAIRING_ORPHAN_ROW = "- `{name}`"
+PAIRING_READY = (
+  "Within the {low}\u2013{high} Paper range v1 supports: ready to ingest {count} "
+  "Paper(s)."
+)
+PAIRING_REFUSED = (
+  "**Not ready to ingest.** This Corpus would have {count} Paper(s), and v1 "
+  "supports {low}\u2013{high}. {advice} Ingest is refused until it is in range."
+)
+PAIRING_TOO_FEW = (
+  "Add Papers (PDF and paper-list entry), or fix the pairing problems above."
+)
+PAIRING_TOO_MANY = "Split the search into narrower Corpora."
+PAIRING_FAILED = "The pairing check could not run: {reason}"
+PAIRING_LOCKED = "Another run is in progress on this Corpus; check again when it ends."
+PAIRING_NOT_CHECKED = "Upload Papers, or check the files already in this Corpus."
+PAIRING_CHECK_BUTTON = "Check pairing"
+INGEST_UPLOADED_BUTTON = "\u25b6 Ingest the Corpus"
 NAV_LABEL = "Page"
 PAGE_OVERVIEW = "Corpus Overview"
 PAGE_GAP_CARDS = "Gap Cards"
@@ -419,8 +471,14 @@ GAP_DATA_NEIGHBOURS_MORE = "…and {count} more neighbouring cells."
 GAP_DATA_SCORE_HEADING = "Score and reasons"
 GAP_DATA_SCORE = (
   "Expected about {expected:.1f} Papers in this cell if its categories were "
-  "independent across the {total} Papers; {observed} observed. This is a ranking "
-  "score, not a significance test."
+  "independent across the {total} Papers; {observed} observed. The level ranks "
+  "candidates against each other; it does not prove a gap."
+)
+# What L1 can rank at this Corpus size (ADR 0008 §4), for two equal-sized
+# categories with no Paper combining them.
+GAP_L1_MARGINS = (
+  "At {total} Papers, an empty cell ranks High only when both of its categories "
+  "cover at least {high} Papers each, and Medium from {medium} each."
 )
 # Evidence-window expansion (issue #47): the anchor quote shown in its paragraph.
 EVIDENCE_POINTERS_LABEL = "Points to: {pointers}"
@@ -485,16 +543,31 @@ GAP_SATURATION_QUERY_ERROR = "**{source}** was not searched: {error}"
 GAP_SATURATION_IN_CORPUS = (
   "{count} returned work(s) already in the Corpus were left out."
 )
-GAP_SATURATION_HITS_HEADING = (
-  "Hits ({screened} of {total} mention every searched concept)"
-)
+GAP_SATURATION_HITS_HEADING = "Hits ({screened} of {total} pass screening)"
 GAP_SATURATION_NO_HITS = "The searches returned no works outside the Corpus."
 GAP_SATURATION_HIT = "{marker} {title}{meta} \u2014 {reason}"
 GAP_SATURATION_HIT_META = " ({details})"
+GAP_SATURATION_HIT_LLM = " \u00b7 LLM: **{verdict}** \u2014 {reason}"
+# The LLM's screening verdict on a hit (issue #87), as the card shows it.
+GAP_SATURATION_LLM_VERDICTS: dict[str, str] = {
+  "addresses": "addresses the gap",
+  "partial": "partly addresses the gap",
+  "no": "does not address the gap",
+}
+GAP_SATURATION_LLM_RUN = (
+  "LLM screening: {count} top hit(s) judged by {model} (prompt {version}) from "
+  "title and abstract; a hit judged not to address the gap stops counting."
+)
+GAP_SATURATION_LLM_NOT_RUN = "LLM screening: {reason}"
 GAP_SATURATION_FROM = "from {sources}"
 GAP_SATURATION_SCREENED_MARKER = "\u2714"
 GAP_SATURATION_UNSCREENED_MARKER = "\u2716"
 GAP_SATURATION_HISTORY_HEADING = "Check history"
+GAP_SATURATION_SECOND_ATTEMPT_PROVENANCE = (
+  "Terms proposed by {model} (prompt {prompt_version}); queries below, verbatim."
+)
+GAP_SATURATION_UNKNOWN_MODEL = "an unrecorded model"
+GAP_SATURATION_SECOND_ATTEMPT_MARKER = " [second attempt]"
 GAP_SATURATION_HISTORY_ENTRY = "- {date}: {badge}"
 
 # How each Candidate Gap's kind and confidence read to the researcher; kept here
@@ -1017,3 +1090,130 @@ RUN_CONFIRM_PROMPT = (
 )
 RUN_CONFIRM_BUTTON = "Run anyway"
 RUN_CANCEL_BUTTON = "Cancel"
+
+# Guided navigation (issue #76): the home screen, the phase-grouped numbered
+# sidebar, the step bar on every page, and Previous/Next. The step order and
+# phases follow the navigation prototype verdict (prototypes/VERDICT.md on the
+# prototype/guided-flow branch).
+PAGE_HOME = "Home"
+STEP_NAMES = {
+  "scope": "Scope",
+  "build": "Build",
+  "trust": "Trust",
+  "explore": "Explore",
+  "judge": "Judge",
+  "grow": "Grow",
+  "write": "Write",
+}
+STEP_BLURBS = {
+  "scope": "State the question and record what was searched.",
+  "build": "Run the pipeline; each stage shows done, not run or stale.",
+  "trust": "Face the denominator: fix the Papers that fell out, verify facts.",
+  "explore": "The map: coverage and meta-analysis, sparse cells first.",
+  "judge": "Accept or reject each Candidate Gap with its Evidence.",
+  "grow": "Optional: Papers likely missing from the Corpus.",
+  "write": "Discuss the Corpus and build the narrative from accepted gaps.",
+}
+PHASE_NAMES = {
+  "set_up": "Set up",
+  "check": "Check",
+  "analyse": "Analyse",
+  "extend": "Extend",
+}
+STEP_LABEL = "{number} \u00b7 {name}"
+STEP_DONE_MARK = "\u2713 "
+STEP_BAR_HELP_DONE = "Completed"
+STEP_BAR_HELP_TODO = "Not completed yet"
+NAV_PREVIOUS = "\u2190 Previous: {step}"
+NAV_NEXT = "Next: {step} \u2192"
+NAV_HOME_LINK = "\U0001f3e0 Home"
+
+HOME_HEADING = "Home"
+HOME_INTRO = (
+  "The guided path runs Scope \u2192 Build \u2192 Trust \u2192 Explore \u2192 "
+  "Judge \u2192 Grow \u2192 Write. Follow the recommended step, or jump to any "
+  "page from the sidebar."
+)
+HOME_RECOMMENDED_HEADING = "Recommended next step"
+HOME_GO_TO_STEP = "Go to {step} \u2192"
+HOME_HEALTH_HEADING = "Corpus health"
+HOME_METRIC_PAPERS = "Papers"
+HOME_METRIC_REACHED = "Reached the artifact"
+HOME_METRIC_STAGES = "Pipeline stages done"
+HOME_METRIC_GAPS = "Candidate Gaps"
+HOME_METRIC_ACCEPTED = "Accepted"
+HOME_METRIC_UNDECIDED = "Undecided"
+HOME_HEALTH_CAPTION = (
+  "Papers reached = Papers in the artifact with at least one verified fact, out "
+  "of the {total} in the manifest. Gap counts are over the Candidate Gaps the "
+  "last detect run wrote."
+)
+HOME_STEPS_HEADING = "The steps"
+HOME_STEP_LINE = "{mark}**{label}**: {blurb}"
+
+# Why the home screen recommends a step, derived from pipeline status and fallout.
+RECOMMEND_SCOPE = (
+  "This Corpus has no scope statement. Record its question, field and what was "
+  "searched so every page can state it."
+)
+RECOMMEND_BUILD_NOT_RUN = (
+  "The `{stage}` stage has not run yet. Run it from the Pipeline."
+)
+RECOMMEND_BUILD_STALE = (
+  "The `{stage}` stage is out of date: one of its inputs changed since it ran. "
+  "Re-run it from the Pipeline."
+)
+RECOMMEND_TRUST = (
+  "{reached} of {total} Papers reached the artifact, and {attention} need manual "
+  "attention. Fix what fell out before reading the gaps, or keep the "
+  "denominator in mind."
+)
+RECOMMEND_EXPLORE = (
+  "The Corpus is built and nothing fell out. Look at the map before judging the "
+  "{gaps} Candidate Gaps."
+)
+RECOMMEND_JUDGE = "{undecided} of {gaps} Candidate Gaps are still undecided."
+RECOMMEND_WRITE = (
+  "Every Candidate Gap has a verdict ({accepted} accepted). Build the write-up "
+  "from the accepted ones."
+)
+# Exporting the write-up (issue #82): the narrative as Markdown, a BibTeX file of
+# the Corpus Papers it cites, and the scope-and-limits statement. The exported
+# text states no export time, so the same judgments export byte-identical files.
+EXPORT_HEADING = "Export the write-up"
+EXPORT_INTRO = (
+  "Download the narrative as Markdown, a BibTeX file of the Corpus Papers it "
+  "cites, and the scope-and-limits statement, for your thesis or grant."
+)
+EXPORT_MARKDOWN_BUTTON = "Download narrative (Markdown)"
+EXPORT_BIBTEX_BUTTON = "Download cited Papers (BibTeX)"
+EXPORT_SCOPE_BUTTON = "Download scope statement"
+EXPORT_TITLE = "Gaps in the literature: {corpus}"
+EXPORT_REFERENCES_HEADING = "Cited Corpus Papers"
+EXPORT_NO_REFERENCES = "This narrative cites no Corpus Paper."
+EXPORT_DROPPED_NOTE = (
+  "Note: {count} citation(s) in the generated text did not resolve to a Corpus "
+  "Paper and were dropped: {papers}."
+)
+EXPORT_SCOPE_HEADING = "Scope and limits"
+EXPORT_SCOPE_RECORDED = (
+  "Research question: {question}\n\nField: {field}\n\nWhat was searched: {searched}"
+)
+EXPORT_SCOPE_NOT_RECORDED = (
+  "Research question, field and what was searched: not recorded for this Corpus."
+)
+EXPORT_SCOPE_DENOMINATOR = (
+  "This write-up covers {accepted} accepted Candidate Gap(s) over {papers} "
+  "Papers in the Corpus ({years}). Excluded: {rejected} rejected and "
+  "{undecided} undecided gap(s)."
+)
+EXPORT_SCOPE_YEARS_UNKNOWN = "publication years unknown"
+EXPORT_SCOPE_LIMITS = (
+  "The Corpus could not place {unmatched} unmatched paper-list entry(ies) and "
+  "{orphans} PDF(s) without a paper-list entry; they are not part of this "
+  "analysis."
+)
+EXPORT_SCOPE_CAVEAT = (
+  "Every gap here was computed only over the Papers in this Corpus, not the "
+  "whole literature. The gaps are candidates for human judgment, not verdicts."
+)

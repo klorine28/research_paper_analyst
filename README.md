@@ -144,7 +144,11 @@ just dashboard
 
 Set `RESEARCH_GAP_CORPORA_DIR` to the folder that holds your corpus directories
 (defaults to `./corpora`); the sidebar lists every corpus under it that has a
-manifest. The Corpus Overview page shows the paper count, papers per year,
+manifest. The dashboard opens on a Home screen with the Corpus's health and a
+recommended next step; the sidebar groups the pages under the numbered steps of
+the guided path (1 Scope → 2 Build → 3 Trust → 4 Explore → 5 Judge → 6 Grow → 7
+Write), and every page has a step bar and Previous/Next buttons, while any page
+stays one click away. The Corpus Overview page shows the paper count, papers per year,
 venues, and what was left out, alongside a prominent reminder that detected
 gaps are candidates for human judgment, not verdicts.
 
@@ -185,6 +189,18 @@ extract** on Verify Extractions, **Run retrieve** on Retrieval Gaps, **Run
 ingest with DOI resolution** on the citation and author graphs). With no
 ingested corpus at all, the app offers **Run ingest** for each folder under
 `RESEARCH_GAP_CORPORA_DIR` that holds a `papers/` directory.
+
+Papers are added in the app too. A Corpus created with **New analysis** opens
+on an **Add Papers** panel (also on the Pipeline page, collapsed, for adding to
+an ingested Corpus): upload the PDFs and a paper list (`.bib` or a `.txt` DOI
+list). PDFs land in `papers/`; the paper list becomes `corpus.bib`/`dois.txt` or
+is appended to the existing one, skipping entries already listed. Straight
+after an upload the app runs `ingest --check`, which pairs the paper list with
+the PDFs exactly as ingest would but writes nothing, and shows the unmatched
+entries and orphan PDFs to fix. **Ingest the Corpus** checks again and runs
+`ingest` only when the Corpus is inside the 10–75 Paper envelope; outside it,
+ingest is refused with the count. The manifest is still written only by
+`ingest`.
 
 The Verify Extractions page (available once `extract` and `parse` have run) lets
 a researcher check each Paper's Extraction against its own text, one field at a

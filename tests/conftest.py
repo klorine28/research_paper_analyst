@@ -86,3 +86,10 @@ def cardiology_corpus_fixture() -> Path:
 def cardiology_provenance_fixture(cardiology_corpus: Path) -> list[dict[str, Any]]:
   """Return the recorded licence and source of every fixture Paper."""
   return json.loads((cardiology_corpus / "provenance.json").read_text(encoding="utf-8"))
+
+
+def open_page(app: Any, title: str) -> Any:
+  """Click a page's sidebar button in a running AppTest and rerun the app."""
+  from research_gap_dashboard.dashboard.views.navigation import nav_button_key
+
+  return app.button(key=nav_button_key(title)).click().run()

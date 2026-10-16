@@ -284,3 +284,78 @@ def test_alias_source_for_an_alias_loads(tmp_path: Path):
   topic = taxonomy.topic_by_id("cardiomyopathies")
   assert topic is not None
   assert topic.alias_sources == {"myocardial diseases": "MeSH entry term of D009202"}
+
+
+_TREE_ONLY_TAXONOMY = """
+[meta]
+domain = "cardiology"
+source = "MeSH 2025"
+
+[[topics]]
+id = "heart-diseases"
+label = "Heart Diseases"
+mesh_id = "D006331"
+mesh_tree = "C14.280"
+
+[[topics]]
+id = "cardiomyopathies"
+label = "Cardiomyopathies"
+mesh_id = "D009202"
+mesh_tree = "C14.280.238"
+
+[[topics]]
+id = "takotsubo-cardiomyopathy"
+label = "Takotsubo Cardiomyopathy"
+mesh_id = "D054549"
+mesh_tree = "C14.280.238.906"
+
+[[topics]]
+id = "heart-arrest"
+label = "Heart Arrest"
+mesh_id = "D006323"
+mesh_tree = "C14.280.383"
+parent = "cardiomyopathies"
+
+[[topics]]
+id = "hand-added"
+label = "Hand Added"
+mesh_id = ""
+
+[[topics]]
+id = "c14-2800"
+label = "Prefix lookalike"
+mesh_id = "D000001"
+mesh_tree = "C14.2800"
+"""
+
+
+def test_parents_are_derived_from_the_longest_prefixing_tree_number(tmp_path: Path):
+  """A missing parent comes from the deepest tree number that prefixes its own."""
+  taxonomy = load_taxonomy(write_taxonomy(tmp_path, _TREE_ONLY_TAXONOMY))
+
+  assert taxonomy.parent_map() == {
+    "cardiomyopathies": "heart-diseases",
+    "takotsubo-cardiomyopathy": "cardiomyopathies",
+    # An explicit parent wins over the one its tree number implies.
+    "heart-arrest": "cardiomyopathies",
+  }
+
+
+def test_a_taxonomy_without_parents_or_trees_has_no_hierarchy(tmp_path: Path):
+  """No parent and no tree number anywhere means an empty hierarchy."""
+  flat = """
+[meta]
+domain = "cardiology"
+source = "hand"
+
+[[topics]]
+id = "a"
+label = "A"
+mesh_id = ""
+
+[[topics]]
+id = "b"
+label = "B"
+mesh_id = ""
+"""
+  assert load_taxonomy(write_taxonomy(tmp_path, flat)).parent_map() == {}

@@ -27,9 +27,12 @@ from research_gap_dashboard.dashboard.artifacts import (
 )
 from research_gap_dashboard.dashboard.chat_history import ChatTurn
 from research_gap_dashboard.dashboard.conversations import Conversation
+from research_gap_dashboard.dashboard.corpus_scope import load_scope
+from research_gap_dashboard.dashboard.export import build_write_up
 from research_gap_dashboard.dashboard.fact_pool import load_fact_pool
 from research_gap_dashboard.dashboard.gaps import (
   GapCard,
+  NarrativeScope,
   build_gap_cards,
   narrative_scope,
   scope_context_to_gap,
@@ -49,6 +52,7 @@ from research_gap_dashboard.dashboard.views.run_controls import (
 )
 from research_gap_dashboard.dashboard.views.session_keys import (
   DISCUSS_GAP_KEY,
+  NARRATIVE_KEY,
 )
 
 # The dashboard caches Conversational Analytics answers alongside the pipeline's
@@ -90,7 +94,11 @@ def render_page(chosen: CorpusChoice) -> None:
 
   st.divider()
   _render_narrative_summary(
-    corpus_root, _grounding_context(corpus_root, manifest, has_gaps), client, has_gaps
+    chosen,
+    manifest,
+    _grounding_context(corpus_root, manifest, has_gaps),
+    client,
+    has_gaps,
   )
   st.divider()
   _render_journal(corpus_root)
@@ -255,12 +263,14 @@ def _grounding_context(
 
 
 def _render_narrative_summary(
-  corpus_root: Path,
+  chosen: CorpusChoice,
+  manifest: ManifestArtifact,
   context: GroundingContext,
   client: LlmClient,
   has_gaps: bool,
 ) -> None:
   """Render the narrative summary over accepted gaps only, stating its denominator."""
+  corpus_root = chosen.root
   st.subheader(text.ANALYTICS_SUMMARY_HEADING)
   st.caption(text.ANALYTICS_SUMMARY_INTRO)
   if not has_gaps:
@@ -284,10 +294,17 @@ def _render_narrative_summary(
       undecided=scope.undecided_count,
     )
   )
+  signature = (str(corpus_root), _narrative_signature(scope))
   if st.button(text.ANALYTICS_GENERATE_SUMMARY_BUTTON):
     with st.spinner(text.ANALYTICS_THINKING):
       narrative = summarize_gaps(scope.context, client)
-    _render_narrative(narrative)
+    st.session_state[NARRATIVE_KEY] = (signature, narrative)
+  stored = st.session_state.get(NARRATIVE_KEY)
+  if stored is None or stored[0] != signature:
+    return
+  narrative = stored[1]
+  _render_narrative(narrative)
+  _render_export(chosen, manifest, scope, narrative)
 
 
 def _render_narrative(narrative: GroundedNarrative) -> None:
@@ -301,6 +318,56 @@ def _render_narrative(narrative: GroundedNarrative) -> None:
   else:
     st.caption(text.ANALYTICS_NO_CITATIONS)
   _render_grounding_flags(narrative.dropped_citations)
+
+
+def _narrative_signature(scope: NarrativeScope) -> str:
+  """
+  Fingerprint what a narrative was generated over: accepted gaps, counts, Papers.
+
+  A stored narrative is shown and exported only while this still matches, so a
+  changed verdict never exports a write-up built from the old judgments.
+  """
+  return scope.model_dump_json(exclude={"context": {"fact_pool", "facts"}})
+
+
+def _render_export(
+  chosen: CorpusChoice,
+  manifest: ManifestArtifact,
+  scope: NarrativeScope,
+  narrative: GroundedNarrative,
+) -> None:
+  """Offer the narrative, its cited Papers and the scope statement as files (#82)."""
+  write_up = build_write_up(
+    corpus_name=chosen.name,
+    narrative=narrative,
+    coverage=scope,
+    manifest=manifest,
+    scope=load_scope(chosen.root),
+  )
+  st.markdown(f"**{text.EXPORT_HEADING}**")
+  st.caption(text.EXPORT_INTRO)
+  markdown_col, bibtex_col, scope_col = st.columns(3)
+  markdown_col.download_button(
+    text.EXPORT_MARKDOWN_BUTTON,
+    write_up.markdown,
+    file_name=f"{chosen.name}-gaps.md",
+    mime="text/markdown",
+    on_click="ignore",
+  )
+  bibtex_col.download_button(
+    text.EXPORT_BIBTEX_BUTTON,
+    write_up.bibtex,
+    file_name=f"{chosen.name}-cited.bib",
+    mime="application/x-bibtex",
+    on_click="ignore",
+  )
+  scope_col.download_button(
+    text.EXPORT_SCOPE_BUTTON,
+    write_up.scope_statement,
+    file_name=f"{chosen.name}-scope.md",
+    mime="text/markdown",
+    on_click="ignore",
+  )
 
 
 def _render_conversation(

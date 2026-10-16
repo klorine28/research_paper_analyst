@@ -12,6 +12,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from conftest import open_page
 
 import research_gap_dashboard.dashboard as dashboard_pkg
 
@@ -332,9 +333,12 @@ def _run_app(corpora_dir: Path):
       os.environ["RESEARCH_GAP_CORPORA_DIR"] = os_environ_backup
 
 
-def test_app_runs_against_a_fixture_corpus(corpus: Path):
+def test_app_runs_against_a_fixture_corpus(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
   """The Streamlit shell executes end to end and shows the overview."""
-  app = _run_app(corpus.parent)
+  monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
+  app = open_page(_run_app(corpus.parent), "Corpus Overview")
 
   assert not app.exception
   headers = [element.value for element in app.header]

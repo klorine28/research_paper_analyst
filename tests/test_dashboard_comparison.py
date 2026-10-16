@@ -10,6 +10,7 @@ categories, never guessed from free text, and every count states the Corpus it
 was computed against.
 """
 
+from conftest import open_page
 from pathlib import Path
 
 import pytest
@@ -363,7 +364,7 @@ def test_comparison_page_renders_a_selection(
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
 
-  app.sidebar.radio[0].set_value("Paper Comparison").run()
+  open_page(app, "Paper Comparison")
   assert not app.exception
 
   app.multiselect[0].set_value(["p01", "p02"]).run()

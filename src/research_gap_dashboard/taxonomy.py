@@ -126,6 +126,33 @@ class Taxonomy(BaseModel):
         return topic
     return None
 
+  def parent_map(self) -> dict[str, str]:
+    """
+    Map each category id to its broader category's id, for those that have one.
+
+    An explicit `parent` wins. Otherwise the parent is the category in this file
+    whose MeSH tree number is the longest proper prefix of this one's, on whole
+    dotted segments (C14.280 is a prefix of C14.280.238, not of C14.2800), so a
+    MeSH-seeded file needs no hand-written hierarchy.
+    """
+    trees = {t.id: t.mesh_tree for t in self.topics if t.mesh_tree}
+    parents: dict[str, str] = {}
+    for topic in self.topics:
+      if topic.parent is not None:
+        parents[topic.id] = topic.parent
+        continue
+      own = trees.get(topic.id)
+      if own is None:
+        continue
+      prefixes = [
+        (len(tree), other_id)
+        for other_id, tree in trees.items()
+        if other_id != topic.id and own.startswith(tree + ".")
+      ]
+      if prefixes:
+        parents[topic.id] = max(prefixes)[1]
+    return parents
+
 
 def normalize_phrase(value: str) -> str:
   """Fold case and collapse internal whitespace for tolerant matching."""

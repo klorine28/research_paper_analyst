@@ -83,6 +83,7 @@ class SaturationSearchView(BaseModel):
 
   source: str
   query: str
+  attempt: str = Field(default="base", description='"base" or "llm_variant".')
   returned_count: int
   in_corpus_count: int
   error: str
@@ -93,8 +94,13 @@ class SaturationHitView(BaseModel):
 
   title: str
   details: str = Field(description="Year, venue, DOI or PMID and sources.")
-  screened: bool = Field(description="Its title/abstract mention every concept.")
+  screened: bool = Field(description="It passed every screening step that ran.")
   reason: str
+  llm_verdict: str = Field(default="", description="The LLM verdict, as shown.")
+  llm_reason: str = ""
+  second_attempt: bool = Field(
+    default=False, description="Found only by the LLM-rephrased second attempt."
+  )
 
 
 class SaturationView(BaseModel):
@@ -116,7 +122,15 @@ class SaturationView(BaseModel):
   searches: list[SaturationSearchView] = []
   hits: list[SaturationHitView] = []
   screened_count: int = 0
+  llm_screening: str = Field(
+    default="", description="How the LLM screening ran, with model and prompt."
+  )
   history: list[str] = []
+  second_attempt_label: str = Field(
+    default="", description="Set when the base queries found nothing."
+  )
+  second_attempt_provenance: str = ""
+  second_attempt_note: str = ""
 
 
 class GapCard(BaseModel):
@@ -154,6 +168,9 @@ class GapCardsData(BaseModel):
 
   cards: list[GapCard]
   corpus_paper_count: int
+  # (High, Medium): the smallest equal category sizes at which an empty cell
+  # ranks each level at this Corpus size; None for an artifact written before L1.
+  l1_smallest_margins: tuple[int | None, int | None] | None = None
 
   @property
   def gap_count(self) -> int:
@@ -342,8 +359,20 @@ def _badge(check: SaturationCheckRecord) -> str:
     check.status, text.GAP_SATURATION_BADGES["not_run"]
   )
   return template.format(
-    count=sum(1 for hit in check.hits if hit.verdict == "mentions_both"),
+    count=sum(1 for hit in check.hits if hit.counts),
     date=check.checked_at.date().isoformat(),
+  )
+
+
+def _llm_screening(check: SaturationCheckRecord) -> str:
+  """Say how a check's LLM screening ran; empty on snapshots that predate it."""
+  run = check.llm_screening
+  if run is None:
+    return ""
+  if run.status != "screened":
+    return text.GAP_SATURATION_LLM_NOT_RUN.format(reason=run.reason)
+  return text.GAP_SATURATION_LLM_RUN.format(
+    count=run.screened_count, model=run.model, version=run.prompt_version
   )
 
 
@@ -375,6 +404,7 @@ def _saturation(
       SaturationSearchView(
         source=search.source,
         query=search.query,
+        attempt=search.attempt,
         returned_count=len(search.returned_work_ids),
         in_corpus_count=len(search.in_corpus_work_ids),
         error=search.error,
@@ -390,19 +420,46 @@ def _saturation(
           hit.venue,
           f"DOI {hit.doi}" if hit.doi else f"PMID {hit.pmid}" if hit.pmid else "",
         ),
-        screened=hit.verdict == "mentions_both",
+        screened=hit.counts,
         reason=hit.reason,
+        llm_verdict=(
+          text.GAP_SATURATION_LLM_VERDICTS.get(hit.llm_verdict, hit.llm_verdict)
+          if hit.llm_verdict
+          else ""
+        ),
+        llm_reason=hit.llm_reason,
+        second_attempt=hit.attempt == "llm_variant",
       )
       for hit in latest.hits
     ],
-    screened_count=sum(1 for hit in latest.hits if hit.verdict == "mentions_both"),
+    screened_count=sum(1 for hit in latest.hits if hit.counts),
+    llm_screening=_llm_screening(latest),
     history=[
       text.GAP_SATURATION_HISTORY_ENTRY.format(
         date=check.checked_at.strftime("%Y-%m-%d %H:%M"), badge=_badge(check)
       )
       for check in reversed(checks)
     ],
+    **_second_attempt(latest),
   )
+
+
+def _second_attempt(check: SaturationCheckRecord) -> dict[str, str]:
+  """Return the label, model/prompt provenance and note of the second attempt."""
+  attempt = check.second_attempt
+  if attempt is None:
+    return {}
+  provenance = ""
+  if attempt.concepts:
+    provenance = text.GAP_SATURATION_SECOND_ATTEMPT_PROVENANCE.format(
+      model=attempt.model or text.GAP_SATURATION_UNKNOWN_MODEL,
+      prompt_version=attempt.prompt_version,
+    )
+  return {
+    "second_attempt_label": attempt.label,
+    "second_attempt_provenance": provenance,
+    "second_attempt_note": attempt.note,
+  }
 
 
 def _reasons(record: CandidateGapRecord) -> list[str]:
@@ -569,7 +626,12 @@ def build_gap_cards(
     )
     for record in artifact.gaps
   ]
-  return GapCardsData(cards=cards, corpus_paper_count=artifact.corpus_paper_count)
+  margins = artifact.l1_smallest_margins
+  return GapCardsData(
+    cards=cards,
+    corpus_paper_count=artifact.corpus_paper_count,
+    l1_smallest_margins=(margins.high, margins.medium) if margins else None,
+  )
 
 
 # The triage filter's names for a card's judgment state; "undecided" stands for a

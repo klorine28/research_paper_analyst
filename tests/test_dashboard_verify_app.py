@@ -7,6 +7,7 @@ readers and the page would surface here. It builds a minimal Corpus with a
 manifest, an Extraction, and parsed text, then drives the page's navigation.
 """
 
+from conftest import open_page
 import json
 import subprocess
 from pathlib import Path
@@ -107,7 +108,7 @@ def _run_verify_page(corpora_dir: Path, monkeypatch: pytest.MonkeyPatch) -> AppT
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30)
   app.run()
-  app.radio[0].set_value(PAGE_VERIFY).run()
+  open_page(app, PAGE_VERIFY)
   return app
 
 
