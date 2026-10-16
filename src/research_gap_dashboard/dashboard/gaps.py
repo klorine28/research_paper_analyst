@@ -139,6 +139,9 @@ class GapCard(BaseModel):
   cell_count: int | None
   corpus_paper_count: int
   source_citation_keys: list[str]
+  # Every Paper the gap rests on, once each: its source Papers, then any other
+  # Paper its Evidence cites. The card's Explainer and Comparison links use it.
+  paper_keys: list[str]
   evidence: list[EvidencePassage]
   data: GapData
   status: Status
@@ -420,6 +423,14 @@ def _card(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     cell_count=record.cell_count,
     corpus_paper_count=record.corpus_paper_count,
     source_citation_keys=record.source_citation_keys,
+    paper_keys=list(
+      dict.fromkeys(
+        [
+          *record.source_citation_keys,
+          *(link.citation_key for link in record.evidence),
+        ]
+      )
+    ),
     evidence=[
       EvidencePassage(
         citation_key=link.citation_key,

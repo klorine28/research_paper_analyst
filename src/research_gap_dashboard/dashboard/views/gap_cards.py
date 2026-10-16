@@ -11,6 +11,7 @@ from research_gap_dashboard.dashboard.artifacts import (
   load_candidate_gaps,
   load_saturation_checks,
 )
+from research_gap_dashboard.dashboard.comparison import MAX_SELECTION, MIN_SELECTION
 from research_gap_dashboard.dashboard.gaps import (
   CONFIDENCE_LEVELS,
   DEFAULT_CONFIDENCE_FILTER,
@@ -34,7 +35,9 @@ from research_gap_dashboard.dashboard.views.run_controls import (
   render_run_button,
 )
 from research_gap_dashboard.dashboard.views.session_keys import (
+  COMPARISON_PAPERS_KEY,
   DISCUSS_GAP_KEY,
+  EXPLAINER_PAPER_KEY,
   GAP_FILTER_STATUS_KEY,
   GAP_FILTER_TYPE_KEY,
   GAP_FOCUS_KEY,
@@ -352,7 +355,7 @@ def _render_saturation(view: SaturationView) -> None:
 
 
 def _render_controls(card: GapCard, corpus_root: Path) -> None:
-  """Accept, reject, reset, and the scoped "Discuss" chat, on every card."""
+  """Accept, reject, reset, the Paper links, and the "Discuss" chat, on every card."""
   accept_col, reject_col, clear_col = st.columns(3)
   if accept_col.button(
     text.GAP_ACCEPT_BUTTON, key=f"accept-{card.gap_id}", width="stretch"
@@ -370,6 +373,7 @@ def _render_controls(card: GapCard, corpus_root: Path) -> None:
     clear_judgment(corpus_root, card.gap_id)
     st.rerun()
 
+  _render_paper_links(card)
   if st.button(text.GAP_DISCUSS_BUTTON, key=f"discuss-{card.gap_id}", width="stretch"):
     st.session_state[DISCUSS_GAP_KEY] = card.gap_id
     st.session_state[PENDING_NAV_KEY] = text.PAGE_ANALYTICS
@@ -383,6 +387,39 @@ def _render_controls(card: GapCard, corpus_root: Path) -> None:
       key=f"saturate-{card.gap_id}",
       primary=False,
     )
+
+
+def _render_paper_links(card: GapCard) -> None:
+  """Open the Explainer for one of the gap's Papers, or compare them all (#80)."""
+  if not card.paper_keys:
+    return
+  explain_col, compare_col = st.columns(2)
+  chosen = explain_col.selectbox(
+    text.GAP_EXPLAIN_PICKER_LABEL,
+    card.paper_keys,
+    key=f"explain-pick-{card.gap_id}",
+  )
+  if explain_col.button(
+    text.GAP_EXPLAIN_BUTTON, key=f"explain-{card.gap_id}", width="stretch"
+  ):
+    st.session_state[EXPLAINER_PAPER_KEY] = chosen
+    st.session_state[PENDING_NAV_KEY] = text.PAGE_EXPLAINER
+    st.rerun()
+
+  count = len(card.paper_keys)
+  if count < MIN_SELECTION:
+    compare_col.caption(text.GAP_COMPARE_TOO_FEW)
+    return
+  if count > MAX_SELECTION:
+    compare_col.caption(text.GAP_COMPARE_LIMIT.format(shown=MAX_SELECTION, total=count))
+  if compare_col.button(
+    text.GAP_COMPARE_BUTTON.format(count=count),
+    key=f"compare-{card.gap_id}",
+    width="stretch",
+  ):
+    st.session_state[COMPARISON_PAPERS_KEY] = list(card.paper_keys)
+    st.session_state[PENDING_NAV_KEY] = text.PAGE_COMPARISON
+    st.rerun()
 
 
 def _confidence_option_label(level: str) -> str:

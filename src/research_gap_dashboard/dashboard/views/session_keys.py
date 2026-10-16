@@ -37,5 +37,15 @@ LAST_RUN_KEY = "last_pipeline_run"
 CORPUS_PICKER_KEY = "corpus_picker"
 PENDING_CORPUS_KEY = "pending_corpus"
 # A run whose estimated cost is above LLM_COST_CONFIRM_ABOVE waits here, as
-# (corpus root, stage), until the researcher confirms or cancels it (issue #70).
+# (corpus root, stages, button key, args), until the researcher confirms or
+# cancels it under the button that asked (issue #70).
 PENDING_RUN_KEY = "pending_pipeline_run"
+# A gap card's "Compare" button records the gap's Papers here so the Comparison
+# page opens with them selected after the nav switch (issue #80). The Explainer
+# link reuses EXPLAINER_PAPER_KEY.
+COMPARISON_PAPERS_KEY = "comparison_paper_keys"
+# The Explainer and Comparison pickers carry keys so a preselection is written into
+# their state rather than passed as a default: a default that changes between runs
+# gives the widget a new identity and throws the researcher's later choice away.
+EXPLAINER_PICKER_KEY = "explainer_paper_picker"
+COMPARISON_PICKER_KEY = "comparison_paper_picker"
