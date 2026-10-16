@@ -13,13 +13,19 @@ from research_gap_dashboard.dashboard.limitations import (
   LimitationsData,
   build_limitations,
 )
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  render_run_buttons,
+)
 
 
 def render_page(chosen: CorpusChoice) -> None:
   """Render the Unanswered Limitations page for the chosen Corpus."""
   if not has_candidate_gaps(chosen.root):
     st.header(text.LIMITATIONS_HEADING)
+    render_last_run(chosen.root)
     st.warning(text.NO_CANDIDATE_GAPS_ARTIFACT_LIMITATIONS)
+    render_run_buttons(chosen.root, ["detect"], scope="limitations")
     return
   render_limitations(build_limitations(load_candidate_gaps(chosen.root)))
 

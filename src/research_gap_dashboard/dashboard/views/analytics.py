@@ -43,6 +43,10 @@ from research_gap_dashboard.dashboard.journal import (
 from research_gap_dashboard.dashboard.judgments import (
   load_judgments,
 )
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  render_run_buttons,
+)
 from research_gap_dashboard.dashboard.views.session_keys import (
   DISCUSS_GAP_KEY,
 )
@@ -61,9 +65,11 @@ def render_page(chosen: CorpusChoice) -> None:
   """Render Conversational Analytics: named threads, a journal, a narrative summary."""
   corpus_root = chosen.root
   st.header(text.ANALYTICS_HEADING)
+  render_last_run(corpus_root)
   st.info(text.ANALYTICS_INTRO)
   if not has_manifest(corpus_root):
     st.warning(text.ANALYTICS_NO_MANIFEST)
+    render_run_buttons(corpus_root, ["ingest"], scope="analytics")
     return
 
   # Looked up on the module at call time, not bound at import: this page module
@@ -259,6 +265,7 @@ def _render_narrative_summary(
   st.caption(text.ANALYTICS_SUMMARY_INTRO)
   if not has_gaps:
     st.info(text.ANALYTICS_SUMMARY_NEEDS_GAPS)
+    render_run_buttons(corpus_root, ["detect"], scope="analytics-summary")
     return
   scope = narrative_scope(
     build_gap_cards(load_candidate_gaps(corpus_root), load_judgments(corpus_root)),

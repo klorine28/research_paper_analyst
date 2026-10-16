@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict
 
 ARTIFACTS_DIR = "artifacts"
 PAPER_DATA_DIR = "paper-data"
+PAPERS_DIR = "papers"
 EXPLANATION_SUFFIX = ".explanation.json"
 MANIFEST_NAME = "corpus-manifest.json"
 CANDIDATE_GAPS_NAME = "candidate_gaps.json"
@@ -519,6 +520,22 @@ def discover_corpora(corpora_root: Path) -> list[CorpusChoice]:
     if child.is_dir() and _is_corpus(child):
       choices.append(CorpusChoice(name=child.name, root=child))
   return choices
+
+
+def discover_uningested_corpora(corpora_root: Path) -> list[CorpusChoice]:
+  """
+  List the corpus folders under a directory that have Papers but no manifest yet.
+
+  These are the folders a researcher can ingest from the dashboard; any immediate
+  subdirectory holding a papers/ folder counts, sorted by name.
+  """
+  if not corpora_root.is_dir():
+    return []
+  return [
+    CorpusChoice(name=child.name, root=child)
+    for child in sorted(corpora_root.iterdir())
+    if child.is_dir() and (child / PAPERS_DIR).is_dir() and not has_manifest(child)
+  ]
 
 
 def _is_corpus(directory: Path) -> bool:

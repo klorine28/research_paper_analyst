@@ -14,6 +14,10 @@ from research_gap_dashboard.dashboard.parse_corrections import (
   EmptyCorrectionError,
   record_parse_correction,
 )
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  render_run_buttons,
+)
 
 
 def render_page(chosen: CorpusChoice) -> None:
@@ -25,9 +29,11 @@ def render_page(chosen: CorpusChoice) -> None:
 def render_attention(report: AttentionReport, corpus_root: Path) -> None:
   """Render the needs-manual-attention queue and per-Paper correction boxes."""
   st.header(text.ATTENTION_HEADING)
+  render_last_run(corpus_root)
   banner = report.banner
   if banner.total_papers == 0:
     st.info(text.ATTENTION_NO_PIPELINE)
+    render_run_buttons(corpus_root, ["parse", "extract"], scope="attention")
     return
   if banner.is_complete:
     st.success(text.ATTENTION_ALL_CLEAR)
@@ -41,6 +47,12 @@ def render_attention(report: AttentionReport, corpus_root: Path) -> None:
       banner.reached_artifact,
     )
   )
+  if any(item.kind in ("unparsed", "extraction_failed") for item in report.items):
+    st.subheader(text.ATTENTION_RERUN_HEADING)
+    st.caption(text.ATTENTION_RERUN_HINT)
+    render_run_buttons(
+      corpus_root, ["apply-parse-corrections", "extract"], scope="attention-fix"
+    )
 
   _render_attention_section(
     report, corpus_root, "unparsed", text.ATTENTION_UNPARSED_HEADING, correct=True

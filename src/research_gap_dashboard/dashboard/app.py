@@ -19,6 +19,7 @@ from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard.artifacts import (
   CorpusChoice,
   discover_corpora,
+  discover_uningested_corpora,
   has_manifest,
 )
 from research_gap_dashboard.dashboard.attention import build_attention
@@ -27,6 +28,10 @@ from research_gap_dashboard.dashboard.views.corpus_setup import (
   render_new_analysis,
   render_scope,
   render_unbuilt_corpus,
+)
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  render_run_button,
 )
 from research_gap_dashboard.dashboard.views.session_keys import (
   CORPUS_PICKER_KEY,
@@ -93,6 +98,7 @@ def main() -> None:
   if not choices:
     st.info(text.NO_CORPORA)
     render_new_analysis(st.container(), corpora_root, expanded=True)
+    _render_ingestable_folders(corpora_root)
     return
 
   chosen = _select_corpus(choices)
@@ -105,6 +111,22 @@ def main() -> None:
   _apply_pending_nav()
   page = _select_page()
   page_for(page).render(chosen)
+
+
+def _render_ingestable_folders(corpora_root: Path) -> None:
+  """Offer to ingest each corpus folder that already holds Papers but no manifest."""
+  folders = discover_uningested_corpora(corpora_root)
+  if not folders:
+    return
+  st.markdown(text.INGESTABLE_FOLDERS_INTRO)
+  for folder in folders:
+    render_last_run(folder.root)
+    render_run_button(
+      folder.root,
+      "ingest",
+      text.RUN_INGEST_CORPUS_BUTTON.format(name=folder.name),
+      key=f"run-ingest-{folder.name}",
+    )
 
 
 def _render_incompleteness_banner(corpus_root: Path) -> None:

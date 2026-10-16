@@ -179,6 +179,13 @@ no known price always asks.
 | --- | --- | --- |
 | `LLM_COST_CONFIRM_ABOVE` | `1.00` | US dollars. A dashboard run estimated above this asks "Run anyway?" first, so an expensive run never surprises you. `0` confirms every LLM run; a value that isn't a non-negative number is reported in the app and treated as `0`. |
 
+Every other page's empty or guard state works the same way: instead of naming
+a command, it offers the button that runs the missing stage (e.g. **Run
+extract** on Verify Extractions, **Run retrieve** on Retrieval Gaps, **Run
+ingest with DOI resolution** on the citation and author graphs). With no
+ingested corpus at all, the app offers **Run ingest** for each folder under
+`RESEARCH_GAP_CORPORA_DIR` that holds a `papers/` directory.
+
 The Verify Extractions page (available once `extract` and `parse` have run) lets
 a researcher check each Paper's Extraction against its own text, one field at a
 time, and leave per-field verdicts: approve, edit, flag wrong, remove a

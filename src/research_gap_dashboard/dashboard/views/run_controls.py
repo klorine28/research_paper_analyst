@@ -13,6 +13,7 @@ is only in the pipeline panel's collapsed Run details (issue #70).
 """
 
 import os
+from collections.abc import Sequence
 from pathlib import Path
 
 import streamlit as st
@@ -31,30 +32,47 @@ from research_gap_dashboard.dashboard.views.session_keys import (
 )
 
 
-def render_run_button(corpus_root: Path, stage: str, label: str) -> None:
-  """Render a button that runs `stage` on the Corpus, then redraws the page."""
-  pending = (str(corpus_root), stage)
+def render_run_button(
+  corpus_root: Path,
+  stage: str,
+  label: str | None = None,
+  *,
+  args: Sequence[str] = (),
+  key: str | None = None,
+) -> None:
+  """
+  Render a button that runs `stage` on the Corpus, then redraws the page.
+
+  `key` tells apart two buttons for the same stage on one page (e.g. one per
+  Corpus, or one per empty chart); it defaults to the stage name. Every button
+  goes through the cost confirmation, wherever it sits.
+  """
+  label = label or text.run_stage_button(stage)
+  button_key = key or f"run-{stage}"
+  pending = (str(corpus_root), stage, button_key, tuple(args))
   if st.session_state.get(PENDING_RUN_KEY) == pending:
-    _render_confirmation(corpus_root, stage)
+    _render_confirmation(corpus_root, stage, args, button_key)
     return
-  if not st.button(label, key=f"run-{stage}", type="primary"):
+  if not st.button(label, key=button_key, type="primary"):
     return
   if _must_confirm(corpus_root, stage):
     st.session_state[PENDING_RUN_KEY] = pending
     st.rerun()
-  _launch(corpus_root, stage)
+  _launch(corpus_root, stage, args)
 
 
-def _render_confirmation(corpus_root: Path, stage: str) -> None:
+def _render_confirmation(
+  corpus_root: Path, stage: str, args: Sequence[str], button_key: str
+) -> None:
   """Ask whether to launch a run whose estimate is above the threshold."""
   st.warning(text.RUN_CONFIRM_PROMPT.format(stage=stage))
   confirm, cancel = st.columns(2)
   if confirm.button(
-    text.RUN_CONFIRM_BUTTON, key=f"confirm-run-{stage}", type="primary"
+    text.RUN_CONFIRM_BUTTON, key=f"confirm-{button_key}", type="primary"
   ):
     st.session_state.pop(PENDING_RUN_KEY, None)
-    _launch(corpus_root, stage)
-  if cancel.button(text.RUN_CANCEL_BUTTON, key=f"cancel-run-{stage}"):
+    _launch(corpus_root, stage, args)
+  if cancel.button(text.RUN_CANCEL_BUTTON, key=f"cancel-{button_key}"):
     st.session_state.pop(PENDING_RUN_KEY, None)
     st.rerun()
 
@@ -79,11 +97,11 @@ def _must_confirm(corpus_root: Path, stage: str) -> bool:
   return needs_confirmation(estimate_stage_cost(corpus_root, stage), threshold)
 
 
-def _launch(corpus_root: Path, stage: str) -> None:
+def _launch(corpus_root: Path, stage: str, args: Sequence[str] = ()) -> None:
   """Run the stage now, keep its result for the redraw, and redraw."""
   with st.spinner(text.RUN_IN_PROGRESS.format(stage=stage)):
     # Looked up on the module at call time so tests can patch the subprocess.
-    result = pipeline_runner.run_stage(corpus_root, stage)
+    result = pipeline_runner.run_stage(corpus_root, stage, args=args)
   st.session_state[LAST_RUN_KEY] = (str(corpus_root), result)
   st.rerun()
 
@@ -126,3 +144,15 @@ def _outcome_message(result: RunResult) -> str:
     RunOutcome.MISSING_KEY: text.RUN_MISSING_KEY,
   }
   return templates[result.outcome].format(stage=result.stage)
+
+
+def render_run_buttons(corpus_root: Path, stages: Sequence[str], *, scope: str) -> None:
+  """
+  Render one run button per missing stage, in pipeline order, side by side.
+
+  This is what every empty or guard state offers in place of a CLI command
+  (ADR 0007). `scope` keeps the keys unique when one page shows several guards.
+  """
+  for column, stage in zip(st.columns(len(stages)), stages):
+    with column:
+      render_run_button(corpus_root, stage, key=f"run-{scope}-{stage}")
