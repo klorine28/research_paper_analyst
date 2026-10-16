@@ -1,6 +1,7 @@
 """Behavior of the detect stage: artifacts in, Candidate Gap cards out."""
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -18,10 +19,11 @@ from research_gap_dashboard.cli import EXIT_ERROR, EXIT_OK, main
 from research_gap_dashboard.detect import (
   CandidateGapsReport,
   CellGap,
+  L1Margins,
   UnansweredLimitationGap,
   detect_corpus,
   read_candidate_gaps,
-  sparse_max_count,
+  l1_probability,
 )
 from research_gap_dashboard.extract import (
   Evidence,
@@ -178,19 +180,132 @@ def test_matrices_cover_all_three_axis_pairs_and_topic_pairs(tmp_path: Path) -> 
   assert by_pair[("topic", "dataset")].columns == []
 
 
-def test_small_corpus_counts_only_empty_cells_as_gaps(tmp_path: Path) -> None:
-  """Under 25 Papers, an empty cell is a gap and a single-Paper cell is not."""
+def test_every_empty_cell_is_a_candidate(tmp_path: Path) -> None:
+  """An empty cell between two observed categories is a candidate gap."""
   report = _detect(_write_corpus(tmp_path, _PLACEMENTS))
 
-  assert report.sparse_max_count == 0
   gap = _gap(report, "topicxmethod:takotsubo:rct")
   assert gap.gap_type == "coverage_gap"
   assert gap.cell_count == 0
   assert gap.corpus_paper_count == 6
-  assert "topicxmethod:heart-failure:retrospective" not in {
-    g.gap_id for g in report.gaps
+
+
+def test_single_paper_cell_is_a_candidate_only_when_more_were_expected(
+  tmp_path: Path,
+) -> None:
+  """One Paper where more than one was expected is a candidate; otherwise not."""
+  report = _detect(_write_corpus(tmp_path, _PLACEMENTS))
+  ids = {g.gap_id for g in report.gaps}
+
+  # 2 heart-failure x 5 retrospective / 6 Papers: about 1.7 expected, 1 observed.
+  gap = _gap(report, "topicxmethod:heart-failure:retrospective")
+  assert gap.cell_count == 1
+  assert gap.cell_citation_keys == ["p06"]
+  assert "only 1 Paper" in gap.explanation
+  assert {link.role for link in gap.evidence} >= {"cell"}
+  # 2 heart-failure x 1 RCT / 6: about 0.3 expected, 1 observed.
+  assert "topicxmethod:heart-failure:rct" not in ids
+  # 2 heart-failure x 1 aged / 6: about 0.3 expected, 1 observed.
+  assert "topicxpopulation:heart-failure:aged" not in ids
+  # 4 Takotsubo x 5 retrospective: well covered.
+  assert "topicxmethod:takotsubo:retrospective" not in ids
+
+
+def test_the_candidate_rule_is_the_same_at_every_corpus_size(tmp_path: Path) -> None:
+  """A single-Paper cell with about one Paper expected stays out at 25 Papers too."""
+  placements: Placements = {
+    **{f"a{i:02d}": [("topic", "takotsubo")] for i in range(20)},
+    "b00": [("topic", "takotsubo"), ("method", "rct")],
+    **{f"c{i:02d}": [("method", "retrospective")] for i in range(4)},
   }
-  assert all(g.cell_count == 0 for g in report.gaps if isinstance(g, CellGap))
+
+  report = _detect(_write_corpus(tmp_path, placements))
+
+  assert report.corpus_paper_count == 25
+  # 21 Takotsubo x 1 RCT / 25 Papers: 0.84 expected, 1 observed.
+  assert "topicxmethod:takotsubo:rct" not in {g.gap_id for g in report.gaps}
+  assert "empty" in report.candidate_rule
+  assert "more than one" in report.candidate_rule
+
+
+@pytest.mark.parametrize(
+  ("observed", "row", "column", "total", "expected"),
+  [
+    (0, 5, 5, 10, 1 / 252),
+    (1, 5, 5, 10, 26 / 252),
+    (0, 3, 3, 10, 35 / 120),
+    (0, 4, 1, 6, 2 / 6),
+    (0, 6, 6, 10, 0.0),
+    (2, 2, 3, 6, 1.0),
+  ],
+)
+def test_l1_is_the_hypergeometric_lower_tail(
+  observed: int, row: int, column: int, total: int, expected: float
+) -> None:
+  """P(X <= observed) for a cell, given its two category sizes and the Corpus."""
+  assert l1_probability(observed, row, column, total) == pytest.approx(expected)
+
+
+def _balanced_placements() -> Placements:
+  """Ten Papers: five Takotsubo retrospective, five heart-failure RCT."""
+  return {
+    **{
+      f"a{i}": [("topic", "takotsubo"), ("method", "retrospective")] for i in range(5)
+    },
+    **{f"b{i}": [("topic", "heart-failure"), ("method", "rct")] for i in range(5)},
+  }
+
+
+def test_an_empty_cell_between_two_halves_ranks_high(tmp_path: Path) -> None:
+  """N = 10, margins 5 and 5, empty: about 0.004, so the L1 level is High."""
+  report = _detect(_write_corpus(tmp_path, _balanced_placements()))
+
+  gap = _gap(report, "topicxmethod:takotsubo:rct")
+  assert gap.l1_probability == pytest.approx(0.00397, abs=1e-5)
+  assert gap.confidence == "high"
+  assert [(s.layer, s.effect, s.level_after) for s in gap.trail] == [
+    ("l1", "start", "high")
+  ]
+  assert "2.5 of 10 Papers" in gap.confidence_reason
+  assert "1 time in 252" in gap.confidence_reason
+
+
+def test_l1_levels_follow_the_probability_cut_points(tmp_path: Path) -> None:
+  """At most 0.05 is High, at most 0.20 Medium, anything above Low."""
+  placements: Placements = {
+    **{f"a{i}": [("topic", "takotsubo")] for i in range(4)},
+    **{f"b{i}": [("method", "rct")] for i in range(4)},
+    **{f"c{i}": [("topic", "heart-failure")] for i in range(2)},
+  }
+  report = _detect(_write_corpus(tmp_path, placements))
+
+  # 4 x 4 of 10, empty: 15/210, about 0.071.
+  medium = _gap(report, "topicxmethod:takotsubo:rct")
+  assert medium.l1_probability == pytest.approx(15 / 210)
+  assert medium.confidence == "medium"
+  # 2 x 4 of 10, empty: 15/45, about 0.33.
+  low = _gap(report, "topicxmethod:heart-failure:rct")
+  assert low.l1_probability == pytest.approx(15 / 45)
+  assert low.confidence == "low"
+
+
+def test_the_artifact_records_the_smallest_margins_per_level(tmp_path: Path) -> None:
+  """For N = 10, equal margins of 5 can reach High and 4 Medium."""
+  report = _detect(_write_corpus(tmp_path, _balanced_placements()))
+
+  assert report.l1_smallest_margins == L1Margins(high=5, medium=4)
+
+
+def test_no_card_text_claims_significance(tmp_path: Path) -> None:
+  """The L1 score is never worded as a significance test or a p-value."""
+  report = _detect(_write_corpus(tmp_path, _balanced_placements()))
+
+  for gap in report.gaps:
+    if isinstance(gap, CellGap):
+      texts = [gap.explanation, gap.confidence_reason] + [s.reason for s in gap.trail]
+      for line in texts:
+        assert "significan" not in line.lower()
+        assert re.search(r"\bp\b", line, flags=re.IGNORECASE) is None, line
 
 
 def test_topic_pairs_never_studied_together_are_knowledge_gaps(tmp_path: Path) -> None:
@@ -199,29 +314,6 @@ def test_topic_pairs_never_studied_together_are_knowledge_gaps(tmp_path: Path) -
 
   knowledge = [g for g in report.gaps if g.gap_type == "knowledge_gap"]
   assert [g.gap_id for g in knowledge] == ["topicxtopic:heart-failure:takotsubo"]
-
-
-def test_large_corpus_also_counts_single_paper_cells(tmp_path: Path) -> None:
-  """At 25 Papers and above, a single-Paper cell is a gap and says so."""
-  placements = dict(_PLACEMENTS)
-  for index in range(7, 26):
-    placements[f"p{index:02d}"] = [("topic", "takotsubo"), ("method", "retrospective")]
-
-  report = _detect(_write_corpus(tmp_path, placements))
-
-  assert report.corpus_paper_count == 25
-  assert report.sparse_max_count == 1
-  gap = _gap(report, "topicxmethod:heart-failure:retrospective")
-  assert gap.cell_count == 1
-  assert gap.cell_citation_keys == ["p06"]
-  assert "only 1 Paper" in gap.explanation
-  assert {link.role for link in gap.evidence} >= {"cell"}
-
-
-@pytest.mark.parametrize(("size", "expected"), [(10, 0), (24, 0), (25, 1), (75, 1)])
-def test_sparse_threshold_follows_corpus_size(size: int, expected: int) -> None:
-  """The provisional threshold switches from empty-only to single-Paper at 25."""
-  assert sparse_max_count(size) == expected
 
 
 def test_every_card_states_count_and_links_evidence(tmp_path: Path) -> None:
@@ -243,7 +335,7 @@ def test_every_card_states_count_and_links_evidence(tmp_path: Path) -> None:
   for card in report.gaps:
     assert card.evidence
     if isinstance(card, CellGap):
-      assert card.cell_count <= report.sparse_max_count
+      assert card.cell_count <= 1
 
 
 def test_confidence_grows_with_how_expected_the_combination_was(
@@ -637,7 +729,7 @@ def test_bracketed_ids_copied_from_the_prompt_still_resolve(tmp_path: Path) -> N
 
 
 def test_every_cell_candidate_carries_a_verdict_trail(tmp_path: Path) -> None:
-  """The heuristic is the trail's start step and the last step's level is final."""
+  """L1 is the trail's start step and the last step's level is final."""
   report = _detect(_write_corpus(tmp_path, _PLACEMENTS))
 
   cells = [gap for gap in report.gaps if isinstance(gap, CellGap)]
@@ -646,7 +738,7 @@ def test_every_cell_candidate_carries_a_verdict_trail(tmp_path: Path) -> None:
     assert gap.trail, gap.gap_id
     start = gap.trail[0]
     assert start.effect == "start"
-    assert start.layer == "heuristic"
+    assert start.layer == "l1"
     assert start.reason == gap.confidence_reason
     assert gap.trail[-1].level_after == gap.confidence
 
@@ -667,3 +759,24 @@ def test_an_artifact_written_before_the_trail_still_reads(tmp_path: Path) -> Non
     ("heuristic", "start", gap.confidence)
   ]
   assert gap.trail[0].reason == gap.confidence_reason
+
+
+def test_an_artifact_written_before_l1_still_reads(tmp_path: Path) -> None:
+  """A sparse-count artifact reads with its old rule and a recomputed L1 score."""
+  root = _write_corpus(tmp_path, _balanced_placements())
+  _detect(root)
+  artifact = root / "artifacts" / "candidate_gaps.json"
+  data = json.loads(artifact.read_text(encoding="utf-8"))
+  for key in ("candidate_rule", "l1_smallest_margins"):
+    data.pop(key)
+  data["sparse_max_count"] = 0
+  for gap in data["gaps"]:
+    gap.pop("l1_probability", None)
+  artifact.write_text(json.dumps(data), encoding="utf-8")
+
+  report = read_candidate_gaps(root)
+
+  assert "at most 0 Papers" in report.candidate_rule
+  assert report.l1_smallest_margins is None
+  gap = _gap(report, "topicxmethod:takotsubo:rct")
+  assert gap.l1_probability == pytest.approx(1 / 252)

@@ -209,9 +209,11 @@ offered as a Method alias; procedures map onto Topics. Output:
 
 ## 4. Detect — `detect.py`
 
-Builds the Coverage Matrices from the normalized facts and **cards every sparse
-cell** as a Candidate Gap — Knowledge, Coverage, and Unanswered-Limitation types
-(the last via the limitation grouping + follow-up matcher in `limitations.py`).
+Builds the Coverage Matrices from the normalized facts and **cards every
+candidate cell** (empty, or one Paper where more than one was expected), ranked
+by the L1 hypergeometric score, as a Candidate Gap — Knowledge, Coverage, and
+Unanswered-Limitation types (the last via the limitation grouping + follow-up
+matcher in `limitations.py`).
 Output: `artifacts/candidate_gaps.json`. Gaps are candidates for human judgment,
 with a confidence and the reasoning attached — never verdicts.
 

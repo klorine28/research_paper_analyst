@@ -419,8 +419,14 @@ GAP_DATA_NEIGHBOURS_MORE = "…and {count} more neighbouring cells."
 GAP_DATA_SCORE_HEADING = "Score and reasons"
 GAP_DATA_SCORE = (
   "Expected about {expected:.1f} Papers in this cell if its categories were "
-  "independent across the {total} Papers; {observed} observed. This is a ranking "
-  "score, not a significance test."
+  "independent across the {total} Papers; {observed} observed. The level ranks "
+  "candidates against each other; it does not prove a gap."
+)
+# What L1 can rank at this Corpus size (ADR 0008 §4), for two equal-sized
+# categories with no Paper combining them.
+GAP_L1_MARGINS = (
+  "At {total} Papers, an empty cell ranks High only when both of its categories "
+  "cover at least {high} Papers each, and Medium from {medium} each."
 )
 # Evidence-window expansion (issue #47): the anchor quote shown in its paragraph.
 EVIDENCE_POINTERS_LABEL = "Points to: {pointers}"

@@ -1,8 +1,8 @@
 """
 The detect stage: find Candidate Gaps and write the CandidateGaps artifact.
 
-It builds Coverage Matrices from the NormalizedFacts artifact and turns empty
-or sparse cells into Knowledge Gap and Coverage Gap cards, and it groups the
+It builds Coverage Matrices from the NormalizedFacts artifact and turns candidate
+cells into Knowledge Gap and Coverage Gap cards, and it groups the
 Corpus's limitation statements into Unanswered Limitation cards:
 
 - **Knowledge Gaps** come from the Topic × Topic matrix: two Topics the Corpus
@@ -24,12 +24,18 @@ consequence of the taxonomy listing categories this Corpus never touches. The
 taxonomy hierarchy (`parent`) is not rolled up: a Paper counts only in the
 categories it was placed on.
 
-The sparse-cell threshold is provisional (`docs/BRIEF.md`): only empty cells
-count for Corpora under 25 Papers; empty or single-Paper cells at 25 and above.
-Every card states its cell count and the denominator it was computed over.
+The candidate net is one rule at every Corpus size (ADR 0008 §2): a cell is a
+candidate if it is empty, or holds one Paper while more than one was expected
+if its two categories were independent. Every card states its cell count and
+the denominator it was computed over.
+
 Each cell card records a verdict trail: one step per detection layer, in the
-order applied (ADR 0008). For now the confidence heuristic is the only layer,
-so every trail holds its single `start` step.
+order applied (ADR 0008). L1 opens every trail: the one-sided hypergeometric
+lower tail `P(X <= observed)` of the cell given its two category sizes, a
+ranking score and never a significance test (no multiplicity correction, and
+no card wording claims one). It is computed exactly with integer
+combinatorics, and its cut points are compared as fractions so a probability
+of exactly 1/20 ranks High on every platform.
 
 When an `Embedder` is injected, cross-Paper limitation pairs whose embeddings
 are close are passed to grouping as merge hints, and the embedding model id,
@@ -45,7 +51,9 @@ card links to Evidence from Papers in the Corpus manifest only
 """
 
 import logging
+import math
 from collections.abc import Iterable
+from fractions import Fraction
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -80,9 +88,10 @@ logger = logging.getLogger(__name__)
 
 CANDIDATE_GAPS_NAME = "candidate_gaps.json"
 
-# Provisional sparse-cell rule (docs/BRIEF.md, open decision -1): below this
-# many Papers only empty cells are gaps; at or above it, single-Paper cells too.
-SPARSE_CORPUS_SIZE = 25
+# L1 starting levels (ADR 0008 §1): the lower-tail probability at or under
+# which an empty-or-thin cell starts High, then Medium; anything above is Low.
+L1_HIGH_MAX = Fraction(1, 20)
+L1_MEDIUM_MAX = Fraction(1, 5)
 
 CellGapType = Literal["knowledge_gap", "coverage_gap"]
 GapType = Literal["knowledge_gap", "coverage_gap", "unanswered_limitation"]
@@ -90,8 +99,10 @@ Confidence = Literal["low", "medium", "high"]
 EvidenceRole = Literal["row", "column", "cell"]
 LayerEffect = Literal["start", "raise", "lower", "reject", "none"]
 
-# The layer whose verdict opens every cell candidate's trail until the layered
-# detection of ADR 0008 replaces it.
+# The layer whose verdict opens every cell candidate's trail.
+L1_LAYER = "l1"
+# The layer that opened the trail of artifacts written before L1: a pre-trail
+# artifact's single start step is rebuilt under this name.
 HEURISTIC_LAYER = "heuristic"
 
 # The matrices this slice detects over: (row axis, column axis, Gap Type).
@@ -132,10 +143,25 @@ _TEXT: dict[str, str] = {
     "studied outside the Corpus or unrecorded by the extraction."
   ),
   "confidence": (
-    "If {row} and {column} were independent across the {total} Papers, about "
-    "{expected:.1f} Papers would combine them; {count} do."
+    "About {expected:.1f} of {total} Papers would combine {row} and {column} if "
+    "the two were independent; {count} do. {chance} {level}"
   ),
-  "confidence_single": " Downgraded one level because 1 Paper does combine them.",
+  "chance_rare": (
+    "With these category sizes, chance alone would leave this cell with so few Papers "
+    "about 1 time in {one_in}."
+  ),
+  "chance_common": (
+    "With these category sizes, chance alone would leave this cell with so few Papers "
+    "more often than not."
+  ),
+  "level_high": "Ranked High: 1 time in 20 or rarer.",
+  "level_medium": "Ranked Medium: rarer than 1 time in 5, but not 1 in 20.",
+  "level_low": "Ranked Low: 1 time in 5 or more often.",
+  "candidate_rule": (
+    "A cell is a candidate if it is empty, or holds one Paper while more than one "
+    "was expected (row Papers × column Papers / Corpus Papers above 1)."
+  ),
+  "legacy_rule": "A cell is a candidate if it holds at most {count} Papers.",
   "limitation": (
     "Candidate Unanswered Limitation: {source_count} Paper(s) in the Corpus "
     "({papers}) state this limitation or open question, and none of the "
@@ -222,6 +248,9 @@ class CellGap(BaseModel):
   confidence: Confidence = Field(description="The final level after every layer.")
   confidence_reason: str
   trail: list[LayerStep] = Field(min_length=1)
+  l1_probability: float = Field(
+    ge=0, le=1, description="L1: P(X <= cell count) under independence."
+  )
   row_axis: Axis
   row_id: str
   row_label: str
@@ -237,17 +266,32 @@ class CellGap(BaseModel):
 
   @model_validator(mode="before")
   @classmethod
-  def _start_trail_from_confidence(cls, data: Any) -> Any:
-    """Give a pre-trail artifact's card its single heuristic start step."""
-    if isinstance(data, dict) and "trail" not in data:
+  def _fill_fields_of_older_artifacts(cls, data: Any) -> Any:
+    """
+    Give an older artifact's card the fields it was written without.
+
+    A pre-trail card gets its single heuristic start step; a pre-L1 card gets
+    its L1 score recomputed from its recorded counts, which fully determine it.
+    """
+    if not isinstance(data, dict):
+      return data
+    filled: dict[str, Any] = dict(data)
+    if "trail" not in filled:
       start = {
         "layer": HEURISTIC_LAYER,
         "effect": "start",
-        "level_after": data.get("confidence"),
-        "reason": data.get("confidence_reason"),
+        "level_after": filled.get("confidence"),
+        "reason": filled.get("confidence_reason"),
       }
-      return {**data, "trail": [start]}
-    return data
+      filled["trail"] = [start]
+    if "l1_probability" not in filled:
+      filled["l1_probability"] = l1_probability(
+        int(filled["cell_count"]),
+        int(filled["row_paper_count"]),
+        int(filled["column_paper_count"]),
+        int(filled["corpus_paper_count"]),
+      )
+    return filled
 
 
 class StatementEvidence(BaseModel):
@@ -280,14 +324,33 @@ CandidateGap = Annotated[
 ]
 
 
+class L1Margins(BaseModel):
+  """
+  The smallest equal category sizes at which an empty cell reaches each level.
+
+  For a Corpus of N Papers, an empty cell between two categories of m Papers
+  each ranks High only from `high` and Medium only from `medium`: what L1 can
+  and cannot detect at this Corpus size. None when no size up to N reaches it.
+  """
+
+  high: int | None
+  medium: int | None
+
+
 class CandidateGapsReport(BaseModel):
-  """What the detect stage produced: matrices, groups, gap cards, provenance."""
+  """
+  What the detect stage produced: matrices, groups, gap cards, provenance.
+
+  An artifact written before the candidate rule existed recorded a sparse
+  count instead; it reads with that count restated as its rule and no margins.
+  """
 
   corpus_root: Path
   corpus_paper_count: int = Field(description="Papers in the Coverage Matrices.")
   extracted_paper_count: int = Field(description="Papers checked for limitations.")
-  sparse_max_count: int = Field(
-    description="Cells with at most this many Papers are gap signals."
+  candidate_rule: str = Field(description="Which cells became cell candidates.")
+  l1_smallest_margins: L1Margins | None = Field(
+    default=None, description="None in artifacts written before L1."
   )
   normalized_prompt_version: str
   limitation_prompt_versions: list[str]
@@ -306,10 +369,70 @@ class CandidateGapsReport(BaseModel):
   limitation_groups: list[LimitationGroup]
   gaps: list[CandidateGap]
 
+  @model_validator(mode="before")
+  @classmethod
+  def _rule_from_sparse_count(cls, data: Any) -> Any:
+    """Restate a pre-L1 artifact's sparse count as its candidate rule."""
+    if isinstance(data, dict) and "candidate_rule" not in data:
+      if "sparse_max_count" in data:
+        rule = _TEXT["legacy_rule"].format(count=data["sparse_max_count"])
+        return {**data, "candidate_rule": rule}
+    return data
 
-def sparse_max_count(corpus_paper_count: int) -> int:
-  """Return the largest cell count that still counts as a gap for this Corpus."""
-  return 0 if corpus_paper_count < SPARSE_CORPUS_SIZE else 1
+
+def l1_probability(
+  observed: int, row_count: int, column_count: int, total: int
+) -> float:
+  """
+  Return `P(X <= observed)` for a cell, its two categories independent.
+
+  X is hypergeometric: of `total` Papers, `row_count` are on the row category,
+  and `column_count` are drawn for the column category; X counts the draws on
+  the row category too.
+  """
+  return float(_lower_tail(observed, row_count, column_count, total))
+
+
+def l1_level(probability: Fraction | float) -> Confidence:
+  """Return the starting level for an L1 probability (ADR 0008 §1)."""
+  if probability <= L1_HIGH_MAX:
+    return "high"
+  if probability <= L1_MEDIUM_MAX:
+    return "medium"
+  return "low"
+
+
+def l1_smallest_margins(total: int) -> L1Margins:
+  """Find the smallest equal category sizes at which an empty cell ranks each level."""
+  high: int | None = None
+  medium: int | None = None
+  for margin in range(1, total + 1):
+    level = l1_level(_lower_tail(0, margin, margin, total))
+    if medium is None and level != "low":
+      medium = margin
+    if level == "high":
+      high = margin
+      break
+  return L1Margins(high=high, medium=medium)
+
+
+def is_candidate_cell(cell_count: int, expected: float) -> bool:
+  """Apply the candidate net: empty, or one Paper where more than one was expected."""
+  return cell_count == 0 or (cell_count == 1 and expected > 1)
+
+
+def _lower_tail(
+  observed: int, row_count: int, column_count: int, total: int
+) -> Fraction:
+  """Compute the hypergeometric lower tail exactly, as a fraction."""
+  draws = math.comb(total, column_count)
+  if draws == 0:
+    return Fraction(1)
+  ways = sum(
+    math.comb(row_count, k) * math.comb(total - row_count, column_count - k)
+    for k in range(0, observed + 1)
+  )
+  return Fraction(ways, draws)
 
 
 def detect_corpus(  # pylint: disable=too-many-locals
@@ -368,7 +491,8 @@ def detect_corpus(  # pylint: disable=too-many-locals
     corpus_root=root,
     corpus_paper_count=len(papers),
     extracted_paper_count=len(extractions),
-    sparse_max_count=sparse_max_count(len(papers)),
+    candidate_rule=_TEXT["candidate_rule"],
+    l1_smallest_margins=l1_smallest_margins(len(papers)),
     normalized_prompt_version=normalized.prompt_version,
     limitation_prompt_versions=[GROUP_PROMPT_VERSION, FOLLOW_UP_PROMPT_VERSION],
     tier=tier,
@@ -397,14 +521,13 @@ def detect_corpus(  # pylint: disable=too-many-locals
 def _matrix_gaps(
   papers: list[NormalizedFacts],
 ) -> tuple[list[CoverageMatrix], list[CandidateGap]]:
-  """Build every Coverage Matrix and card each cell at or under the threshold."""
-  threshold = sparse_max_count(len(papers))
+  """Build every Coverage Matrix and card each candidate cell."""
   matrices: list[CoverageMatrix] = []
   gaps: list[CandidateGap] = []
   for row_axis, column_axis, gap_type in MATRIX_SPECS:
     matrix = build_matrix(papers, row_axis, column_axis)
     matrices.append(matrix)
-    gaps.extend(_gaps_from_matrix(matrix, papers, gap_type, threshold))
+    gaps.extend(_gaps_from_matrix(matrix, papers, gap_type))
   return matrices, gaps
 
 
@@ -483,14 +606,16 @@ def _gaps_from_matrix(
   matrix: CoverageMatrix,
   papers: list[NormalizedFacts],
   gap_type: CellGapType,
-  threshold: int,
 ) -> list[CellGap]:
-  """Turn every cell at or under the sparse threshold into a gap card."""
+  """Turn every cell the candidate net catches into a gap card."""
   rows = {row.category_id: row for row in matrix.rows}
   columns = {column.category_id: column for column in matrix.columns}
+  total = matrix.corpus_paper_count
   gaps: list[CellGap] = []
   for cell in matrix.cells:
-    if cell.paper_count > threshold:
+    row, column = rows[cell.row_id], columns[cell.column_id]
+    expected = row.paper_count * column.paper_count / total if total else 0.0
+    if not is_candidate_cell(cell.paper_count, expected):
       continue
     gaps.append(
       _build_gap(
@@ -510,7 +635,11 @@ def _build_gap(  # pylint: disable=too-many-arguments,too-many-positional-argume
 ) -> CellGap:
   """Assemble one gap card with its explanation, confidence, and Evidence."""
   total = matrix.corpus_paper_count
-  confidence, confidence_reason = _confidence(row, column, cell, total)
+  probability = _lower_tail(
+    cell.paper_count, row.paper_count, column.paper_count, total
+  )
+  confidence = l1_level(probability)
+  confidence_reason = _l1_reason(row, column, cell, total, probability)
   template = _TEXT["empty"] if cell.paper_count == 0 else _TEXT["single"]
   explanation = template.format(
     gap_type=_GAP_TYPE_NAMES[gap_type],
@@ -530,9 +659,10 @@ def _build_gap(  # pylint: disable=too-many-arguments,too-many-positional-argume
     explanation=explanation + _TEXT["caveat"],
     confidence=confidence,
     confidence_reason=confidence_reason,
+    l1_probability=float(probability),
     trail=[
       LayerStep(
-        layer=HEURISTIC_LAYER,
+        layer=L1_LAYER,
         effect="start",
         level_after=confidence,
         reason=confidence_reason,
@@ -553,31 +683,34 @@ def _build_gap(  # pylint: disable=too-many-arguments,too-many-positional-argume
   )
 
 
-def _confidence(
-  row: MatrixCategory, column: MatrixCategory, cell: MatrixCell, total: int
-) -> tuple[Confidence, str]:
+def _l1_reason(
+  row: MatrixCategory,
+  column: MatrixCategory,
+  cell: MatrixCell,
+  total: int,
+  probability: Fraction,
+) -> str:
   """
-  Grade how surprising a sparse cell is, from its categories' marginal counts.
+  Explain the L1 level in counts, never as a significance claim.
 
-  The rubric compares the cell with the count expected if the two categories
-  were independent across the Corpus: an empty cell where two or more Papers
-  were expected is more telling than one where under one was. A single-Paper
-  cell is downgraded one level. This is a v1 heuristic, not a statistical test.
+  The probability is restated as "about 1 time in n" so a reader without
+  statistics training can weigh it; the level's cut points are restated the
+  same way.
   """
   expected = row.paper_count * column.paper_count / total if total else 0.0
-  levels: tuple[Confidence, ...] = ("low", "medium", "high")
-  level = 2 if expected >= 2 else 1 if expected >= 1 else 0
-  reason = _TEXT["confidence"].format(
+  if 0 < probability <= Fraction(1, 2):
+    chance = _TEXT["chance_rare"].format(one_in=round(1 / probability))
+  else:
+    chance = _TEXT["chance_common"]
+  return _TEXT["confidence"].format(
     row=row.label,
     column=column.label,
     total=total,
     expected=expected,
     count=cell.paper_count,
+    chance=chance,
+    level=_TEXT[f"level_{l1_level(probability)}"],
   )
-  if cell.paper_count > 0:
-    level = max(level - 1, 0)
-    reason += _TEXT["confidence_single"]
-  return levels[level], reason
 
 
 def _evidence(

@@ -128,8 +128,13 @@ Builds Coverage Matrices and cards the four in-Corpus gap signals into
   addressed (LLM-grouped).
 
 Matrix detection is deterministic; only cells whose two categories both occur
-in the Corpus count. Sparse threshold is provisional: empty cells only under 25
-Papers, empty-or-single at 25+. Every card carries confidence, reasoning,
+in the Corpus count. One candidate rule at every Corpus size: a cell is a
+candidate if it is empty, or holds one Paper where more than one was expected.
+Confidence starts from L1, the hypergeometric lower tail `P(X ≤ observed)`
+(≤ 0.05 High, ≤ 0.20 Medium, else Low), a ranking score that cards explain in
+counts and never call significant. The artifact records the rule, each cell's
+`l1_probability`, and the smallest equal category sizes that can rank High or
+Medium at this Corpus size. Every card carries confidence, reasoning,
 denominator, and in-Corpus Evidence.
 
 ### Retrieve — `retrieval.py`
