@@ -23,6 +23,7 @@ from research_gap_dashboard.analytics import GroundedNarrative
 from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard.artifacts import ManifestArtifact, PaperRecord
 from research_gap_dashboard.dashboard.corpus_scope import CorpusScope
+from research_gap_dashboard.dashboard.entry_log import EntryLogView
 from research_gap_dashboard.dashboard.gaps import NarrativeScope
 
 # Characters LaTeX treats as special inside a BibTeX field value. Braces are left
@@ -46,17 +47,20 @@ def build_write_up(
   coverage: NarrativeScope,
   manifest: ManifestArtifact,
   scope: CorpusScope | None,
+  entry_log: EntryLogView | None = None,
 ) -> WriteUp:
   """
   Build the Markdown, BibTeX and scope statement for one generated narrative.
 
   `coverage` is the accepted-gaps scope the narrative was generated over, so the
-  scope statement states the same denominator the page showed.
+  scope statement states the same denominator the page showed. `entry_log`,
+  when given, adds how the Papers entered the Corpus and the suggested papers
+  that could not be obtained (ADR 0010 §4).
   """
   papers = {paper.citation_key: paper for paper in manifest.papers}
   cited = sorted({key for key in narrative.citations if key in papers})
   cited_papers = [papers[key] for key in cited]
-  scope_statement = _scope_statement(coverage, manifest, scope)
+  scope_statement = _scope_statement(coverage, manifest, scope, entry_log)
   return WriteUp(
     markdown=_markdown(corpus_name, narrative, cited_papers, scope_statement),
     bibtex="\n".join(_bibtex_entry(paper) for paper in cited_papers),
@@ -66,7 +70,10 @@ def build_write_up(
 
 
 def _scope_statement(
-  coverage: NarrativeScope, manifest: ManifestArtifact, scope: CorpusScope | None
+  coverage: NarrativeScope,
+  manifest: ManifestArtifact,
+  scope: CorpusScope | None,
+  entry_log: EntryLogView | None,
 ) -> str:
   """State what was searched, the denominator, and what the Corpus left out."""
   if scope is None:
@@ -85,7 +92,15 @@ def _scope_statement(
   limits = text.EXPORT_SCOPE_LIMITS.format(
     unmatched=len(manifest.unmatched_entries), orphans=len(manifest.orphan_pdfs)
   )
-  return "\n\n".join([searched, denominator, limits, text.EXPORT_SCOPE_CAVEAT])
+  parts = [searched, denominator, limits]
+  if entry_log is not None:
+    if entry_log.papers:
+      parts.append(text.EXPORT_SCOPE_ENTRY_LOG.format(summary=entry_log.summary))
+    if entry_log.unavailable:
+      parts.append(
+        text.ENTRY_LOG_UNAVAILABLE_SCOPE.format(count=len(entry_log.unavailable))
+      )
+  return "\n\n".join([*parts, text.EXPORT_SCOPE_CAVEAT])
 
 
 def _year_range(manifest: ManifestArtifact) -> str:

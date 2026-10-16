@@ -17,6 +17,7 @@ import pytest
 
 from test_detect import _PLACEMENTS, _write_corpus
 
+from research_gap_dashboard.dashboard.trust_gate import acknowledge_denominator
 import research_gap_dashboard.dashboard as dashboard_pkg
 from research_gap_dashboard.dashboard import pipeline_runner, text
 from research_gap_dashboard.dashboard.pipeline_runner import (
@@ -222,6 +223,30 @@ def test_a_chain_checks_the_key_before_launching_anything(
   ]
 
 
+def test_a_chain_gives_each_stage_its_own_options(tmp_path: Path, fake_run: _FakeRun):
+  """Detect then `saturate --auto`: the option goes to saturate alone."""
+  run_stages(
+    tmp_path,
+    ["detect", "saturate"],
+    env=_KEY_ENV,
+    stage_args={"saturate": ["--auto"]},
+  )
+
+  assert [args[3:] for args, _ in fake_run.calls] == [
+    ["detect", str(tmp_path.resolve())],
+    ["saturate", str(tmp_path.resolve()), "--auto"],
+  ]
+
+
+def test_an_incomplete_detect_still_runs_the_checks(tmp_path: Path, fake_run: _FakeRun):
+  """Incomplete is not failure: the automatic checks still follow detect."""
+  fake_run.returncode = 2
+
+  results = run_stages(tmp_path, ["detect", "saturate"], env=_KEY_ENV)
+
+  assert [r.stage for r in results] == ["detect", "saturate"]
+
+
 def test_a_chain_holds_the_lock_throughout(tmp_path: Path, fake_run: _FakeRun):
   """No other run can slip in between the two commands of a chain."""
   nested: list[Any] = []
@@ -266,6 +291,8 @@ def _open_gap_cards(corpus: Path, monkeypatch: pytest.MonkeyPatch):
   """Run the Streamlit shell on the Gap Cards page for a corpus directory."""
   from streamlit.testing.v1 import AppTest
 
+  # Past the soft Trust gate (#77): this fixture Corpus is partial.
+  acknowledge_denominator(corpus)
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()

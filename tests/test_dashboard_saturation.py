@@ -10,7 +10,7 @@ subprocess is patched so the real CLI never runs.
 from conftest import open_page
 import shutil
 import subprocess
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -30,14 +30,29 @@ from test_saturate import (
   _variant_check,
 )
 
+from research_gap_dashboard.dashboard.trust_gate import acknowledge_denominator
 import research_gap_dashboard.dashboard as dashboard_pkg
 from research_gap_dashboard.dashboard import pipeline_runner, text
 from research_gap_dashboard.dashboard.artifacts import (
   load_candidate_gaps,
   load_saturation_checks,
 )
-from research_gap_dashboard.dashboard.gaps import GapCard, build_gap_cards
-from research_gap_dashboard.dashboard.judgments import load_judgments
+from research_gap_dashboard.dashboard.gaps import (
+  GapCard,
+  GapCardsData,
+  build_gap_cards,
+  filter_gap_cards,
+  plan_accepted_checks,
+)
+from research_gap_dashboard.dashboard.judgments import load_judgments, record_judgment
+from research_gap_dashboard.dashboard.run_cost import (
+  estimate_gap_checks_cost,
+  estimate_stage_cost,
+  needs_confirmation,
+)
+from research_gap_dashboard.dashboard.views.session_keys import (
+  GAP_FILTER_POSSIBLY_ADDRESSED_KEY,
+)
 from research_gap_dashboard.saturate import QUERY_VARIANT_PROMPT_VERSION
 
 
@@ -200,6 +215,8 @@ def _open_all_gap_cards(corpus: Path, monkeypatch: pytest.MonkeyPatch):
   """Open the Gap Cards page on the fixture with every confidence level shown."""
   from streamlit.testing.v1 import AppTest
 
+  # Past the soft Trust gate (#77): this fixture Corpus is partial.
+  acknowledge_denominator(corpus)
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
@@ -312,3 +329,133 @@ def test_a_second_attempt_that_did_not_run_says_why(corpus: Path):
 
   assert check.second_attempt is not None
   assert view.second_attempt_note == check.second_attempt.note
+
+
+# --- "Check all accepted" and the "possibly addressed" filter (issue #90) --------
+
+
+def _data(corpus: Path) -> GapCardsData:
+  """Build the Gap Cards read model over the fixture."""
+  return build_gap_cards(
+    load_candidate_gaps(corpus),
+    load_judgments(corpus),
+    saturation=load_saturation_checks(corpus),
+  )
+
+
+def test_the_possibly_addressed_filter_keeps_only_threatened_gaps(corpus: Path):
+  """Only gaps whose latest check found closing work pass; the rest are counted."""
+  _check(corpus, FILLED_GAP)
+  _check(corpus, CONTROL_GAP)
+  data = _data(corpus)
+
+  shown = filter_gap_cards(data, possibly_addressed_only=True)
+
+  assert [card.gap_id for card in shown.cards] == [FILLED_GAP]
+  assert shown.hidden_count == data.gap_count - 1
+
+
+def test_the_plan_skips_fresh_checks_and_unaccepted_gaps(corpus: Path):
+  """Accepted gaps checked within 30 days are fresh; the others are to check."""
+  moment = datetime(2026, 3, 1, tzinfo=UTC)
+  _check(corpus, FILLED_GAP, now=lambda: moment)
+  for gap_id in (FILLED_GAP, CONTROL_GAP, FILLED_LIMITATION):
+    record_judgment(corpus, gap_id, "accepted")
+
+  plan = plan_accepted_checks(_data(corpus), moment + timedelta(days=10))
+  assert plan.fresh == [FILLED_GAP]
+  assert set(plan.to_check) == {CONTROL_GAP, FILLED_LIMITATION}
+
+  later = plan_accepted_checks(_data(corpus), moment + timedelta(days=31))
+  assert not later.fresh
+  assert later.accepted_count == 3
+
+
+def test_check_all_accepted_runs_saturate_accepted(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """The button counts the gaps to check and runs `saturate --accepted`."""
+  fake = _FakeRun()
+  monkeypatch.setattr(pipeline_runner.subprocess, "run", fake)
+  record_judgment(corpus, FILLED_GAP, "accepted")
+  record_judgment(corpus, CONTROL_GAP, "accepted")
+  _check(corpus, FILLED_GAP)
+  app = _open_all_gap_cards(corpus, monkeypatch)
+
+  button = next(b for b in app.button if b.key == "saturate-accepted")
+  assert button.label == text.GAP_CHECK_ALL_ACCEPTED_BUTTON.format(count=1)
+  assert text.GAP_CHECK_ALL_ACCEPTED_FRESH.format(count=1) in [
+    c.value for c in app.caption
+  ]
+  button.click().run()
+
+  assert not app.exception
+  assert fake.calls[0][3:] == ["saturate", str(corpus.resolve()), "--accepted"]
+
+
+def test_check_all_accepted_asks_to_confirm_above_the_threshold(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """A bulk check estimated above `LLM_COST_CONFIRM_ABOVE` asks first."""
+  fake = _FakeRun()
+  monkeypatch.setattr(pipeline_runner.subprocess, "run", fake)
+  monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+  monkeypatch.delenv("LLM_DEFAULT_MODEL", raising=False)
+  monkeypatch.setenv("LLM_COST_CONFIRM_ABOVE", "0.05")
+  record_judgment(corpus, FILLED_GAP, "accepted")
+  record_judgment(corpus, CONTROL_GAP, "accepted")
+  app = _open_all_gap_cards(corpus, monkeypatch)
+
+  next(b for b in app.button if b.key == "saturate-accepted").click().run()
+
+  assert not app.exception
+  assert not fake.calls
+  assert text.RUN_CONFIRM_PROMPT.format(stage="saturate") in [
+    w.value for w in app.warning
+  ]
+  next(b for b in app.button if b.key == "confirm-saturate-accepted").click().run()
+  assert fake.calls[0][3:] == ["saturate", str(corpus.resolve()), "--accepted"]
+
+
+def test_a_single_card_check_stays_under_the_threshold(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """One gap's estimate is below the bulk one; it launches without confirming."""
+  monkeypatch.delenv("LLM_DEFAULT_MODEL", raising=False)
+  one = estimate_gap_checks_cost(corpus, 1)
+  two = estimate_gap_checks_cost(corpus, 2)
+  assert one.usd is not None and two.usd is not None
+  assert two.usd == pytest.approx(2 * one.usd)
+  assert estimate_stage_cost(corpus, "saturate").usd == pytest.approx(one.usd)
+  assert needs_confirmation(two, 0.05) and not needs_confirmation(one, 0.05)
+
+
+def test_no_accepted_gaps_means_no_bulk_button(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """With nothing accepted there is nothing to check in bulk."""
+  app = _open_all_gap_cards(corpus, monkeypatch)
+
+  assert not [b for b in app.button if b.key == "saturate-accepted"]
+
+
+def test_the_filter_says_how_many_gaps_it_hides(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """Turning on "possibly addressed only" shows the threatened gap and the count."""
+  _check(corpus, FILLED_GAP)
+  _check(corpus, CONTROL_GAP)
+  total = _data(corpus).gap_count
+  app = _open_all_gap_cards(corpus, monkeypatch)
+
+  app.toggle(key=GAP_FILTER_POSSIBLY_ADDRESSED_KEY).set_value(True).run()
+
+  assert not app.exception
+  captions = [c.value for c in app.caption]
+  assert text.GAP_FILTER_POSSIBLY_ADDRESSED_HIDDEN.format(hidden=total - 1) in captions
+  assert (
+    text.GAP_FILTER_SUMMARY.format(shown=1, total=total, hidden=total - 1) in captions
+  )
+  keys = {b.key for b in app.button}
+  assert f"saturate-{FILLED_GAP}" in keys
+  assert f"saturate-{CONTROL_GAP}" not in keys

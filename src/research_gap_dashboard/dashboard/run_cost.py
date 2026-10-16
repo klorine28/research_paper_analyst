@@ -59,6 +59,15 @@ _TOKENS_PER_PAPER: dict[str, tuple[int, int]] = {
 }
 
 
+# Per-gap (input, output) token allowance for a saturation check, which scales
+# with the gaps checked, not the Papers: LLM screening of up to ten hits (~800
+# tokens in, ~100 out each) plus one query-variant call on zero hits. Priced at
+# the default model as an upper bound, though the check runs on the cheap tier.
+_TOKENS_PER_GAP: dict[str, tuple[int, int]] = {
+  "saturate": (9_500, 1_300),
+}
+
+
 class CostConfigError(ValueError):
   """Raised when `LLM_COST_CONFIRM_ABOVE` isn't a non-negative number."""
 
@@ -70,6 +79,7 @@ class CostEstimate(BaseModel):
   paper_count: int
   model: str
   usd: float | None
+  gap_count: int | None = None
 
 
 class ActualCost(BaseModel):
@@ -100,7 +110,7 @@ class _UsageRecord(BaseModel):
 
 def uses_llm(stage: str) -> bool:
   """Whether a stage calls the LLM, and so has a cost at all."""
-  return stage in _TOKENS_PER_PAPER
+  return stage in _TOKENS_PER_PAPER or stage in _TOKENS_PER_GAP
 
 
 def cost_confirm_threshold(env: Mapping[str, str] | None = None) -> float:
@@ -132,6 +142,8 @@ def estimate_stage_cost(
   env = os.environ if env is None else env
   model = env.get(MODEL_ENV) or DEFAULT_MODEL
   paper_count = _paper_count(corpus_root)
+  if stage in _TOKENS_PER_GAP:
+    return estimate_gap_checks_cost(corpus_root, 1, env)
   if not uses_llm(stage):
     return CostEstimate(stage=stage, paper_count=paper_count, model=model, usd=0.0)
   input_tokens, output_tokens = _TOKENS_PER_PAPER[stage]
@@ -140,6 +152,22 @@ def estimate_stage_cost(
     paper_count=paper_count,
     model=model,
     usd=_price(model, input_tokens * paper_count, output_tokens * paper_count),
+  )
+
+
+def estimate_gap_checks_cost(
+  corpus_root: Path, gap_count: int, env: Mapping[str, str] | None = None
+) -> CostEstimate:
+  """Estimate checking `gap_count` gaps against the wider literature (ADR 0009)."""
+  env = os.environ if env is None else env
+  model = env.get(MODEL_ENV) or DEFAULT_MODEL
+  input_tokens, output_tokens = _TOKENS_PER_GAP["saturate"]
+  return CostEstimate(
+    stage="saturate",
+    paper_count=_paper_count(corpus_root),
+    model=model,
+    usd=_price(model, input_tokens * gap_count, output_tokens * gap_count),
+    gap_count=gap_count,
   )
 
 

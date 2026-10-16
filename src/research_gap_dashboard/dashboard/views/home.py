@@ -3,6 +3,8 @@ The Home screen: Corpus health and the recommended next step (issue #76).
 
 The recommendation and the completed steps come from `guided_flow`, which reads
 the pipeline status and the fallout on disk; this module only lays them out.
+When the researcher has worked on the Corpus before, it first offers to resume
+at the furthest step reached (issue #83), read from the resume point.
 The Home screen knows steps, not pages: its button records the step and the
 shell opens that step's first page, so the page registry stays the one place
 that maps steps to pages.
@@ -19,10 +21,14 @@ from research_gap_dashboard.dashboard.guided_flow import (
   build_flow_progress,
   step_label,
 )
+from research_gap_dashboard.dashboard.journal import load_journal
+from research_gap_dashboard.dashboard.judgments import load_judgments
+from research_gap_dashboard.dashboard.resume import load_resume_point
 from research_gap_dashboard.dashboard.views.run_changes import render_run_changes
 from research_gap_dashboard.dashboard.views.session_keys import PENDING_STEP_KEY
 
 RECOMMENDED_BUTTON_KEY = "home-recommended-step"
+RESUME_BUTTON_KEY = "home-resume-step"
 
 
 def render_page(chosen: CorpusChoice) -> None:
@@ -30,6 +36,7 @@ def render_page(chosen: CorpusChoice) -> None:
   progress = build_flow_progress(chosen.root)
   st.header(text.HOME_HEADING)
   st.caption(text.HOME_INTRO)
+  _render_resume(chosen)
   _render_recommendation(progress)
   _render_health(progress)
   render_run_changes(chosen.root)
@@ -38,6 +45,29 @@ def render_page(chosen: CorpusChoice) -> None:
 
 def _open_step(step: Step) -> None:
   st.session_state[PENDING_STEP_KEY] = step
+
+
+def _render_resume(chosen: CorpusChoice) -> None:
+  """Offer to return to the furthest step reached, if any (issue #83)."""
+  furthest = load_resume_point(chosen.root).furthest_step
+  if furthest is None:
+    return
+  with st.container(border=True):
+    st.subheader(text.HOME_RESUME_HEADING)
+    st.markdown(
+      text.HOME_RESUME_REACHED.format(step=step_label(furthest))
+      + " "
+      + text.HOME_RESUME_SAVED.format(
+        verdicts=len(load_judgments(chosen.root).judgments),
+        entries=len(load_journal(chosen.root).entries),
+      )
+    )
+    st.button(
+      text.HOME_RESUME_BUTTON.format(step=step_label(furthest)),
+      key=RESUME_BUTTON_KEY,
+      on_click=_open_step,
+      args=(furthest,),
+    )
 
 
 def _render_recommendation(progress: FlowProgress) -> None:

@@ -24,6 +24,13 @@ from research_gap_dashboard.dashboard.artifacts import (
   UnmatchedEntryRecord,
 )
 from research_gap_dashboard.dashboard.corpus_scope import CorpusScope
+from research_gap_dashboard.dashboard.entry_log import (
+  EntryLog,
+  EntryRoute,
+  LogEntry,
+  UnavailablePaper,
+  build_entry_log_view,
+)
 from research_gap_dashboard.dashboard.export import build_write_up
 from research_gap_dashboard.dashboard.gaps import NarrativeScope
 
@@ -169,3 +176,29 @@ def test_exports_are_reproducible_from_the_same_inputs(field: str):
   assert getattr(_write_up(), field) == getattr(_write_up(), field)
   reordered = _narrative(["lee2021", "smith2019"])
   assert getattr(_write_up(), field) == getattr(_write_up(reordered), field)
+
+
+def test_scope_statement_discloses_entry_routes_and_unavailable_papers():
+  """The exported scope says how the Papers entered and what could not be had."""
+  when = datetime(2024, 1, 1, tzinfo=timezone.utc)
+  log = EntryLog(
+    entries=[
+      LogEntry(citation_key="lee2021", route=EntryRoute.SATURATION_HIT, entered_at=when)
+    ],
+    unavailable=[
+      UnavailablePaper(
+        doi="10.9/x", title="X", route=EntryRoute.SATURATION_HIT, marked_at=when
+      )
+    ],
+  )
+  write_up = build_write_up(
+    corpus_name="takotsubo",
+    narrative=_narrative(),
+    coverage=_coverage(),
+    manifest=_manifest(),
+    scope=_scope(),
+    entry_log=build_entry_log_view(log, _manifest()),
+  )
+
+  assert "2 imported \u00b7 1 from saturation checks" in write_up.scope_statement
+  assert "1 suggested paper(s) could not be obtained" in write_up.scope_statement

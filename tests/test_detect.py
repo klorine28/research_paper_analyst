@@ -40,6 +40,7 @@ from research_gap_dashboard.limitations import (
   FOLLOW_UP_PROMPT_VERSION,
   GROUP_PROMPT_VERSION,
 )
+from research_gap_dashboard.sources import OpenAlexAdapter, PubMedAdapter
 from research_gap_dashboard.taxonomy import Axis
 
 Placements = dict[str, list[tuple[Axis, str]]]
@@ -417,6 +418,24 @@ def test_cli_detect_writes_the_artifact(tmp_path: Path, monkeypatch) -> None:
 
   assert main(["detect", str(root)]) == EXIT_OK
   assert (root / "artifacts" / "candidate_gaps.json").is_file()
+
+
+def test_cli_detect_makes_no_literature_search_calls(
+  tmp_path: Path, monkeypatch
+) -> None:
+  """Saturation checks run after detect, never inside it (ADR 0009 §5)."""
+  root = _write_corpus(tmp_path, _PLACEMENTS)
+  monkeypatch.setattr(cli, "build_llm_client", lambda **_: StubLlmClient({}))
+
+  def _no_search(*_args: Any, **_kwargs: Any) -> Any:
+    raise AssertionError("detect must not search the wider literature")
+
+  monkeypatch.setattr(cli, "_build_search_sources", _no_search)
+  monkeypatch.setattr(OpenAlexAdapter, "search", _no_search)
+  monkeypatch.setattr(PubMedAdapter, "search", _no_search)
+
+  assert main(["detect", str(root)]) == EXIT_OK
+  assert not (root / "artifacts" / "saturation_checks.json").exists()
 
 
 def test_cli_detect_records_the_run_llm_usage(tmp_path: Path, monkeypatch) -> None:

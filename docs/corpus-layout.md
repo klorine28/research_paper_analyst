@@ -8,6 +8,7 @@ it knows where everything lives.
 <corpus>/
   corpus.bib          # the paper list: a BibTeX file, or dois.txt (one DOI per line)
   scope.json          # the scope statement: question, field, what was searched
+  entry_log.json      # how and when each Paper entered, and suggested papers marked unavailable
   papers/             # the Papers' PDFs, and nothing else
   paper-data/         # per-Paper derived data (parsed sections, Extractions, LLM cache)
   artifacts/          # stage outputs (ingest -> extract -> aggregate -> detect)
@@ -30,6 +31,16 @@ it knows where everything lives.
   Corpus is created from its "New analysis" form (or added later to an older
   Corpus) and shows it on every page. It is a Corpus input, like the paper
   list (ADR 0007), not an artifact.
+- **The entry log sits next to the scope.** `entry_log.json` records each
+  Paper's entry route (imported, added by upload, from a retrieval suggestion,
+  from a saturation check) and date, plus suggested papers marked unavailable
+  (ADR 0010 §4). The dashboard writes it when it places a paper list (the
+  initial import before the first ingest, "added by upload" after) and when a
+  suggestion is added or marked unavailable. A manifest Paper the log has never
+  seen is recorded as imported, dated by the manifest, the first time the
+  dashboard opens the Corpus, so older Corpora get a complete log. The
+  Overview shows the route summary and timeline; the scope line on every page
+  and the exported scope statement disclose the unavailable papers.
 - **A Corpus holds 10–75 Papers.** The envelope is enforced by ingest, not by
   the layout check.
   `ingest --check` reports the pairing and the envelope without writing the

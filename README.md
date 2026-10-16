@@ -38,6 +38,7 @@ reads:
 | `LLM_MAX_TOKENS` | `16384` | Max output tokens per completion; a Paper whose Extraction is cut off at this budget fails with a reason saying so. |
 | `OPENALEX_MAILTO` | _(none)_ | Contact email that puts OpenAlex calls in the faster polite pool; `--mailto` overrides it. |
 | `NCBI_API_KEY` | _(none)_ | NCBI E-utilities key; raises PubMed's rate limit from 3 to 10 requests a second. |
+| `SATURATE_AUTO` | `on` | `off` switches off the automatic wider-literature checks of high-confidence gaps that run after `detect` from the Pipeline page (`saturate --auto`, ADR 0009). |
 
 ### Optional embeddings
 
@@ -144,9 +145,10 @@ just dashboard
 
 Set `RESEARCH_GAP_CORPORA_DIR` to the folder that holds your corpus directories
 (defaults to `./corpora`); the sidebar lists every corpus under it that has a
-manifest. The dashboard opens on a Home screen with the Corpus's health and a
-recommended next step; the sidebar groups the pages under the numbered steps of
-the guided path (1 Scope → 2 Build → 3 Trust → 4 Explore → 5 Judge → 6 Grow → 7
+manifest. The dashboard reopens on the Corpus you worked on last, on a Home
+screen that offers to resume at the furthest step you reached, with the
+Corpus's health and a recommended next step; the sidebar groups the pages under
+the numbered steps of the guided path (1 Scope → 2 Build → 3 Trust → 4 Explore → 5 Judge → 6 Grow → 7
 Write), and every page has a step bar and Previous/Next buttons, while any page
 stays one click away. The Corpus Overview page shows the paper count, papers per year,
 venues, and what was left out, alongside a prominent reminder that detected
