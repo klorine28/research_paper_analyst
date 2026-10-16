@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from research_gap_dashboard.cli import main
-from research_gap_dashboard.ingest import CorpusSizeError, ingest_corpus
+from research_gap_dashboard.ingest import CorpusSizeError, check_corpus, ingest_corpus
 from research_gap_dashboard.sources import WorkRecord
 
 
@@ -261,3 +261,61 @@ def test_a_paper_without_a_doi_is_not_resolved_and_carries_no_citation_graph(
   assert paper.referenced_works == []
   assert paper.resolution_error is None
   assert paper.title == "Unpublished work thesis2024"
+
+
+# --- Pairing check before ingesting (#75) -------------------------------------
+
+
+def test_the_pairing_check_reports_pairs_and_leftovers_without_writing(corpus: Path):
+  """`check_corpus` pairs like ingest, but leaves no manifest behind."""
+  orphan = corpus / "papers" / "stray-paper.pdf"
+  shutil.copy(sorted((corpus / "papers").glob("*.pdf"))[0], orphan)
+  _add_preprint(corpus, "thesis2024", with_pdf=False)
+
+  check = check_corpus(corpus)
+
+  assert len(check.paired) == 10
+  assert [u.entry.citation_key for u in check.unmatched_entries] == ["thesis2024"]
+  assert [path.name for path in check.orphan_pdfs] == ["stray-paper.pdf"]
+  assert check.within_envelope
+  assert check.refusal is None
+  assert not (corpus / "artifacts" / "corpus-manifest.json").exists()
+
+
+def test_the_pairing_check_refuses_a_corpus_outside_the_envelope(corpus: Path):
+  """Outside 10-75 Papers, the check says so, naming the count, before ingest."""
+  for pdf in sorted((corpus / "papers").glob("*.pdf"))[:3]:
+    pdf.unlink()
+
+  check = check_corpus(corpus)
+
+  assert not check.within_envelope
+  refusal = check.refusal or ""
+  assert "v1 supports 10-75" in refusal
+  assert "7 Papers" in refusal
+
+
+def test_cli_ingest_check_prints_the_pairing_as_json(
+  corpus: Path, capsys: pytest.CaptureFixture[str]
+):
+  """`ingest --check` prints the pairing on stdout and writes no manifest."""
+  assert main(["ingest", str(corpus), "--check"]) == 0
+
+  printed = json.loads(capsys.readouterr().out)
+  assert len(printed["paired"]) == 10
+  assert printed["within_envelope"] is True
+  assert not (corpus / "artifacts" / "corpus-manifest.json").exists()
+
+
+def test_cli_ingest_check_fails_outside_the_envelope_but_still_reports(
+  corpus: Path, capsys: pytest.CaptureFixture[str]
+):
+  """A Corpus outside the envelope fails the check, with the pairing printed."""
+  for pdf in sorted((corpus / "papers").glob("*.pdf"))[:3]:
+    pdf.unlink()
+
+  assert main(["ingest", str(corpus), "--check"]) == 1
+
+  printed = json.loads(capsys.readouterr().out)
+  assert printed["within_envelope"] is False
+  assert len(printed["unmatched_entries"]) == 3

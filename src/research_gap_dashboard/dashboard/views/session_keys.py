@@ -54,3 +54,7 @@ COMPARISON_PICKER_KEY = "comparison_paper_picker"
 # rerun a download click triggers, and are dropped once the judgments change
 # (issue #82).
 NARRATIVE_KEY = "narrative_summary"
+# The Add Papers panel keeps what its last upload placed and the pairing check
+# that followed, so both stay on screen across the rerun the upload triggers
+# (issue #75).
+UPLOAD_STATE_KEY = "paper_upload_state"
