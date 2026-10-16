@@ -1,0 +1,19 @@
+[
+ {
+  "id": "methods-templin",
+  "question": "What methods did Templin use?",
+  "expected_citations": ["templin2019"],
+  "required_evidence": ["resting state functional connectivity"]
+ },
+ {
+  "id": "cross-paper-cardiac-mri",
+  "question": "Which papers used cardiac MRI, and what did it show?",
+  "expected_citations": ["niederseer2020"],
+  "required_evidence": ["oedema"]
+ },
+ {
+  "id": "out-of-corpus-vaccines",
+  "question": "What is the efficacy of mRNA COVID-19 vaccines in children?",
+  "abstain": true
+ }
+]

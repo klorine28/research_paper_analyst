@@ -6,7 +6,6 @@ import streamlit as st
 
 from research_gap_dashboard import analytics as analytics_api
 from research_gap_dashboard.analytics import (
-  CorpusPaper,
   GroundedChatAnswer,
   GroundedNarrative,
   GroundingContext,
@@ -29,7 +28,7 @@ from research_gap_dashboard.dashboard.conversations import Conversation
 from research_gap_dashboard.dashboard.corpus_scope import load_scope
 from research_gap_dashboard.dashboard.entry_log import reconcile_entry_log
 from research_gap_dashboard.dashboard.export import build_write_up
-from research_gap_dashboard.dashboard.fact_pool import load_fact_pool
+from research_gap_dashboard.dashboard.fact_pool import corpus_grounding_context
 from research_gap_dashboard.dashboard.gaps import (
   DEFAULT_CONFIDENCE_FILTER,
   GapCard,
@@ -38,7 +37,6 @@ from research_gap_dashboard.dashboard.gaps import (
   build_gap_cards,
   narrative_scope,
   scope_context_to_gap,
-  surfaced_gap_context,
 )
 from research_gap_dashboard.dashboard.journal import (
   delete_entry,
@@ -100,7 +98,7 @@ def render_page(chosen: CorpusChoice) -> None:
   _render_narrative_summary(
     chosen,
     manifest,
-    _grounding_context(corpus_root, manifest, has_gaps),
+    corpus_grounding_context(corpus_root, manifest, has_gaps, _confidence_levels()),
     client,
     has_gaps,
   )
@@ -216,7 +214,7 @@ def _conversation_context(
   carries the researcher's kept journal notes, labelled as their own so grounding
   still binds the model to cite only Corpus Papers (issue #50).
   """
-  base = _grounding_context(corpus_root, manifest, has_gaps)
+  base = corpus_grounding_context(corpus_root, manifest, has_gaps, _confidence_levels())
   notes = render_notes_for_context(load_journal(corpus_root))
   note_list = [notes] if notes else []
   if conversation.gap_id:
@@ -251,30 +249,6 @@ def _confidence_levels() -> list[str]:
 def _gap_cards(corpus_root: Path) -> GapCardsData:
   """Build the gap cards with their verdicts, without widening Evidence."""
   return build_gap_cards(load_candidate_gaps(corpus_root), load_judgments(corpus_root))
-
-
-def _grounding_context(
-  corpus_root: Path, manifest: ManifestArtifact, has_gaps: bool
-) -> GroundingContext:
-  """
-  Map this Corpus's artifact read models onto the analytics grounding context.
-
-  Only the gaps the confidence filter surfaces enter it (issue #98); the
-  narrative narrows them further to the accepted ones.
-  """
-  papers = [
-    CorpusPaper(
-      citation_key=paper.citation_key,
-      title=paper.title,
-      year=paper.year,
-      authors=paper.authors,
-    )
-    for paper in manifest.papers
-  ]
-  context = GroundingContext(papers=papers, fact_pool=load_fact_pool(corpus_root))
-  if not has_gaps:
-    return context
-  return surfaced_gap_context(_gap_cards(corpus_root), context, _confidence_levels())
 
 
 def _render_narrative_summary(
