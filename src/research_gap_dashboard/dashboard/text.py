@@ -1021,3 +1021,44 @@ RUN_CONFIRM_PROMPT = (
 )
 RUN_CONFIRM_BUTTON = "Run anyway"
 RUN_CANCEL_BUTTON = "Cancel"
+
+# Exporting the write-up (issue #82): the narrative as Markdown, a BibTeX file of
+# the Corpus Papers it cites, and the scope-and-limits statement. The exported
+# text states no export time, so the same judgments export byte-identical files.
+EXPORT_HEADING = "Export the write-up"
+EXPORT_INTRO = (
+  "Download the narrative as Markdown, a BibTeX file of the Corpus Papers it "
+  "cites, and the scope-and-limits statement, for your thesis or grant."
+)
+EXPORT_MARKDOWN_BUTTON = "Download narrative (Markdown)"
+EXPORT_BIBTEX_BUTTON = "Download cited Papers (BibTeX)"
+EXPORT_SCOPE_BUTTON = "Download scope statement"
+EXPORT_TITLE = "Gaps in the literature: {corpus}"
+EXPORT_REFERENCES_HEADING = "Cited Corpus Papers"
+EXPORT_NO_REFERENCES = "This narrative cites no Corpus Paper."
+EXPORT_DROPPED_NOTE = (
+  "Note: {count} citation(s) in the generated text did not resolve to a Corpus "
+  "Paper and were dropped: {papers}."
+)
+EXPORT_SCOPE_HEADING = "Scope and limits"
+EXPORT_SCOPE_RECORDED = (
+  "Research question: {question}\n\nField: {field}\n\nWhat was searched: {searched}"
+)
+EXPORT_SCOPE_NOT_RECORDED = (
+  "Research question, field and what was searched: not recorded for this Corpus."
+)
+EXPORT_SCOPE_DENOMINATOR = (
+  "This write-up covers {accepted} accepted Candidate Gap(s) over {papers} "
+  "Papers in the Corpus ({years}). Excluded: {rejected} rejected and "
+  "{undecided} undecided gap(s)."
+)
+EXPORT_SCOPE_YEARS_UNKNOWN = "publication years unknown"
+EXPORT_SCOPE_LIMITS = (
+  "The Corpus could not place {unmatched} unmatched paper-list entry(ies) and "
+  "{orphans} PDF(s) without a paper-list entry; they are not part of this "
+  "analysis."
+)
+EXPORT_SCOPE_CAVEAT = (
+  "Every gap here was computed only over the Papers in this Corpus, not the "
+  "whole literature. The gaps are candidates for human judgment, not verdicts."
+)

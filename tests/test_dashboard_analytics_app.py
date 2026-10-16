@@ -27,6 +27,9 @@ from research_gap_dashboard.dashboard.text import (
   ANALYTICS_NEW_CONVERSATION_BUTTON,
   ANALYTICS_SUMMARY_NEEDS_ACCEPTED,
   ANALYTICS_RENAME_BUTTON,
+  EXPORT_BIBTEX_BUTTON,
+  EXPORT_MARKDOWN_BUTTON,
+  EXPORT_SCOPE_BUTTON,
   PAGE_ANALYTICS,
 )
 from research_gap_dashboard.detect import detect_corpus
@@ -232,3 +235,32 @@ def test_narrative_without_accepted_gaps_explains_what_to_do(
     in infos
   )
   assert not prompts
+
+
+def test_a_generated_narrative_offers_its_write_up_for_export(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """After generating, the narrative, BibTeX and scope can be downloaded (#82)."""
+  gaps = build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus)).cards
+  record_judgment(corpus, gaps[0].gap_id, "accepted")
+  app, _ = _run_with_narrative(corpus, monkeypatch)
+  assert not app.download_button
+
+  generate = next(
+    button for button in app.button if button.label == ANALYTICS_GENERATE_SUMMARY_BUTTON
+  )
+  generate.click().run()
+
+  assert not app.exception
+  labels = [button.proto.label for button in app.download_button]
+  assert labels == [
+    EXPORT_MARKDOWN_BUTTON,
+    EXPORT_BIBTEX_BUTTON,
+    EXPORT_SCOPE_BUTTON,
+  ]
+
+  # A narrative built from the old judgments is never exported after they change.
+  record_judgment(corpus, gaps[1].gap_id, "accepted")
+  app.run()
+  assert not app.exception
+  assert not app.download_button
