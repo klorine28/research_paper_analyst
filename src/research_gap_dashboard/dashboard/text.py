@@ -22,9 +22,46 @@ SCOPE_STATEMENT = (
 # Corpus selection and navigation.
 CORPUS_PICKER_LABEL = "Corpus"
 NO_CORPORA = (
-  "No analysed corpora found. Run the pipeline (`ingest`) against a corpus "
-  "directory first, then point the dashboard at the folder that holds it."
+  "No Corpora yet. Start a new analysis below: name the Corpus and state its "
+  "scope, then add its Papers."
 )
+INGESTABLE_FOLDERS_INTRO = (
+  "Or ingest a corpus folder that already holds its Papers (a papers/ folder of "
+  "PDFs and its paper list):"
+)
+
+# Creating a Corpus and its scope statement (issue #74).
+NEW_CORPUS_HEADING = "New analysis"
+NEW_CORPUS_INTRO = (
+  "Create an empty Corpus and state its scope. The scope is shown on every page "
+  "so readers know what the Corpus was built from."
+)
+NEW_CORPUS_NAME_LABEL = "Corpus name"
+NEW_CORPUS_NAME_HELP = "Becomes the Corpus folder name: letters, digits, '-' or '_'."
+NEW_CORPUS_SUBMIT = "Create Corpus"
+SCOPE_QUESTION_LABEL = "Research question"
+SCOPE_FIELD_LABEL = "Field"
+SCOPE_SEARCHED_LABEL = "What was searched"
+SCOPE_SEARCHED_HELP = (
+  "Databases, search terms, date range and any filters, so a reader can tell "
+  "what this Corpus does and does not cover."
+)
+CORPUS_SCOPE_STATEMENT = (
+  "**Scope of this Corpus.** Question: {question} \u00b7 Field: {field} \u00b7 "
+  "Searched: {searched}. Everything shown here covers only the Papers in this "
+  "Corpus, not the whole literature."
+)
+SCOPE_MISSING_PROMPT = (
+  "This Corpus has no scope statement yet. Add its question, field and what was "
+  "searched, so every page can say what the Corpus covers."
+)
+SCOPE_ADD_EXPANDER = "Add a scope statement"
+SCOPE_SAVE_BUTTON = "Save scope"
+CORPUS_HAS_NO_PAPERS = (
+  "This Corpus has no ingested Papers yet. Put its PDFs in `{papers_dir}` and "
+  "its paper list (a `.bib` file or `dois.txt`) in `{root}`, then run ingest."
+)
+RUN_INGEST_BUTTON = "Run ingest"
 NAV_LABEL = "Page"
 PAGE_OVERVIEW = "Corpus Overview"
 PAGE_GAP_CARDS = "Gap Cards"
@@ -36,6 +73,7 @@ PAGE_COMPARISON = "Paper Comparison"
 PAGE_ANALYTICS = "Conversational Analytics"
 PAGE_VERIFY = "Verify Extractions"
 PAGE_ATTENTION = "Needs Attention"
+PAGE_PIPELINE = "Pipeline"
 
 # Needs-Attention page and the corpus-wide incompleteness banner (issue #46
 # Step 3). The banner states the denominator research integrity demands so a
@@ -47,7 +85,15 @@ ATTENTION_ALL_CLEAR = (
   "manual attention."
 )
 ATTENTION_NO_PIPELINE = (
-  "Run `parse` and `extract` on this Corpus first; there is nothing to report yet."
+  "Nothing to report yet: the parse and extract stages haven't run on this Corpus."
+)
+ATTENTION_NO_PARSED_TEXT_REASON = (
+  "no parsed text on disk; the parse stage has not read it"
+)
+ATTENTION_RERUN_HEADING = "Apply corrections and re-run"
+ATTENTION_RERUN_HINT = (
+  "After saving corrections below, apply them to the parsed text, then re-run "
+  "extract so they reach the pipeline."
 )
 ATTENTION_UNPARSED_HEADING = "PDFs no parser could read"
 ATTENTION_REJECTED_HEADING = "Papers whose extraction was rejected"
@@ -90,10 +136,12 @@ VERIFY_PROMOTE_HELP = (
   "is re-checked against the Paper's text; one that doesn't match refuses the "
   "whole promotion and nothing is written."
 )
-VERIFY_NO_EXTRACTIONS = "No Extractions to review. Run `extract` on this Corpus first."
+VERIFY_NO_EXTRACTIONS = (
+  "No Extractions to review yet: the extract stage hasn't run on this Corpus."
+)
 VERIFY_NO_PARSED_TEXT = (
   "This Paper has no parsed text, so edits and added facts cannot be grounded. "
-  "Run `parse` on this Corpus first."
+  "The parse stage has not read its PDF yet."
 )
 VERIFY_PAPER_PICKER_LABEL = "Paper to verify"
 VERIFY_SUMMARY = (
@@ -171,7 +219,7 @@ def completeness_caveat(missing: int, dropped_papers: int) -> str:
 
 
 COMPLETENESS_NO_DATA = (
-  "Run `parse` and `extract` on this Corpus to measure completeness."
+  "Completeness can't be measured yet: run the parse and extract stages."
 )
 
 # Per-axis frequency bars: how often each Topic, Method, Population, and Dataset
@@ -181,8 +229,8 @@ AXIS_FREQUENCIES_QUESTION = (
   "How often does each Topic, Method, Population, and Dataset appear across the Corpus?"
 )
 AXIS_FREQUENCIES_NO_DATA = (
-  "Run `aggregate` on this Corpus to place Papers on the Topic, Method, "
-  "Population, and Dataset axes."
+  "No Papers placed yet: the aggregate stage places Papers on the Topic, "
+  "Method, Population, and Dataset axes."
 )
 AXIS_DENOMINATOR = "{placed} of {total} Papers placed on {axis}."
 COLUMN_CATEGORY = "Category"
@@ -194,7 +242,8 @@ FACT_DENSITY_SUMMARY = (
   "{facts} verified facts across {papers} extracted Papers (mean {mean:.1f})."
 )
 FACT_DENSITY_NO_DATA = (
-  "Run `extract` on this Corpus to measure how many facts each Paper contributed."
+  "No facts to count yet: the extract stage measures how many facts each Paper "
+  "contributed."
 )
 COLUMN_PAPER = "Paper"
 COLUMN_FACTS = "Facts"
@@ -280,7 +329,16 @@ NO_CANDIDATE_GAPS_ARTIFACT = (
   "No candidate gaps yet: the detect stage hasn't run on this Corpus. It needs "
   "the Corpus ingested, extracted and aggregated first."
 )
-RUN_DETECT_BUTTON = "\u25b6 Run detect"
+RUN_STAGE_BUTTON = "\u25b6 Run {stage}"
+RUN_DETECT_BUTTON = RUN_STAGE_BUTTON.format(stage="detect")
+RUN_INGEST_CORPUS_BUTTON = "\u25b6 Run ingest on {name}"
+RUN_INGEST_RESOLVE_BUTTON = "\u25b6 Run ingest with DOI resolution"
+
+
+def run_stage_button(stage: str) -> str:
+  """Label the button that runs one pipeline stage on the chosen Corpus."""
+  return RUN_STAGE_BUTTON.format(stage=stage)
+
 
 # Pipeline runs launched from the dashboard (ADR 0007). `{stage}` is the CLI
 # command name. Exit code 2 is "completed but incomplete" (ADR 0006), never a
@@ -303,7 +361,7 @@ RUN_MISSING_KEY = (
   "`{stage}` needs an Anthropic API key and was not started. Set "
   "ANTHROPIC_API_KEY in your .env (see .env.example), then reload."
 )
-RUN_DETAILS_LABEL = "Run details"
+RUN_OUTPUT_LABEL = "Run output"
 RUN_COMMAND_LABEL = "Command: `{command}`  \u00b7  exit code {exit_code}"
 RUN_STDOUT_LABEL = "Standard output"
 RUN_STDERR_LABEL = "Standard error"
@@ -460,11 +518,12 @@ META_CAVEAT = (
   "here links the two \u2014 it is not a claim about the wider literature."
 )
 META_NO_MANIFEST = (
-  "Run `ingest` on this Corpus first; the meta-analysis reads the CorpusManifest."
+  "This Corpus hasn't been ingested yet; the meta-analysis reads the "
+  "CorpusManifest that ingest writes."
 )
 META_NO_NORMALIZED = (
-  "Run `aggregate` on this Corpus first; the co-occurrence graphs read the "
-  "NormalizedFacts artifact."
+  "The aggregate stage hasn't run on this Corpus yet; the co-occurrence graphs "
+  "read the NormalizedFacts artifact."
 )
 META_QUESTION_LABEL = "Question this graph answers"
 META_GAP_LENS_LABEL = "Gap lens"
@@ -516,8 +575,8 @@ META_CITATION_DENOMINATOR = (
   "Drawn over the {resolved} of {total} Papers with an OpenAlex id."
 )
 META_CITATION_UNRESOLVED = (
-  "{count} Paper(s) have no OpenAlex id and are not on the graph (run ingest "
-  "`--resolve`): {keys}."
+  "{count} Paper(s) have no OpenAlex id and are not on the graph (resolve their "
+  "DOIs with the button below): {keys}."
 )
 META_CITATION_NO_DOI = (
   "{count} Paper(s) have no DOI, so they cannot be resolved and are not on "
@@ -555,8 +614,8 @@ META_COOCCURRENCE_WEAK_HIDDEN = (
 )
 META_COOCCURRENCE_EMPTY_REASON = (
   "NormalizedFacts placed no Corpus Paper on the {axis} axis, so there is "
-  "nothing to co-occur. Run `aggregate`, or check the {axis} taxonomy covers "
-  "this Corpus."
+  "nothing to co-occur. Run the aggregate stage, or check the {axis} taxonomy "
+  "covers this Corpus."
 )
 META_METHOD_THIN_NOTE = (
   "Few Methods mapped: the Method axis holds study designs only, so clinical "
@@ -593,7 +652,8 @@ META_COLLABORATION_DENOMINATOR = (
   "Nodes are the {authors} authors across the {papers} Papers that list authors."
 )
 META_COLLABORATION_MISSING = (
-  "{count} Paper(s) list no authors and contribute no node (run ingest `--resolve`)."
+  "{count} Paper(s) list no authors and contribute no node (resolve their DOIs "
+  "with the button below)."
 )
 META_COLLABORATION_TABLE_CAPPED = (
   "Showing the {shown} most-published of {total} authors."
@@ -637,8 +697,7 @@ LIMITATIONS_INTRO = (
   "the Corpus, or in a passage the extraction did not capture."
 )
 NO_CANDIDATE_GAPS_ARTIFACT_LIMITATIONS = (
-  "No limitation groups found for this Corpus. Run the pipeline through "
-  "`detect` against this corpus directory first."
+  "No limitation groups yet: the detect stage hasn't run on this Corpus."
 )
 NO_LIMITATION_GROUPS = (
   "The detect stage grouped no limitation or future-work statements in this "
@@ -674,8 +733,7 @@ RETRIEVAL_SEPARATION_NOTICE = (
   "the Corpus, not gaps the tool has confirmed."
 )
 NO_RETRIEVAL_GAPS_ARTIFACT = (
-  "No out-of-corpus candidates found for this Corpus. Run the pipeline through "
-  "`retrieve` against this corpus directory first."
+  "No out-of-corpus candidates yet: the retrieve stage hasn't run on this Corpus."
 )
 NO_RETRIEVAL_CANDIDATES = (
   "The retrieve stage found no out-of-corpus candidates for this Corpus. That "
@@ -706,14 +764,12 @@ EXPLAINER_INTRO = (
   "language, once in plain language \u2014 grounded only in that Paper's text."
 )
 EXPLAINER_NO_PAPERS = (
-  "This Corpus has no Papers to explain. Run the pipeline (`ingest`) against a "
-  "corpus directory first."
+  "This Corpus has no Papers to explain yet: ingest it to list its Papers."
 )
 EXPLAINER_PAPER_PICKER_LABEL = "Paper"
 EXPLAINER_SUMMARY = "{explained} of {total} Papers have an explanation."
 NO_EXPLANATION_FOR_PAPER = (
-  "No explanation for this Paper yet. Run the pipeline through `explain` against "
-  "this corpus directory first."
+  "No explanation for this Paper yet: the explain stage hasn't covered it."
 )
 EXPLAINER_METADATA_HEADING = "Paper"
 EXPLAINER_METADATA_LABEL = "{title}"
@@ -733,8 +789,8 @@ COMPARISON_INTRO = (
   "agree when the pipeline placed them on the same category."
 )
 COMPARISON_NO_ARTIFACTS = (
-  "This Corpus has not been extracted and aggregated yet. Run the pipeline "
-  "through `extract` and `aggregate` against this corpus directory first."
+  "This Corpus has not been extracted and aggregated yet: run the extract "
+  "stage, then aggregate."
 )
 COMPARISON_PICKER_LABEL = "Papers to compare (2\u201315)"
 COMPARISON_TOO_FEW = "Pick at least 2 Papers to see a comparison."
@@ -773,8 +829,7 @@ ANALYTICS_INTRO = (
   "conversation persists so it can carry over months."
 )
 ANALYTICS_NO_MANIFEST = (
-  "This Corpus has not been ingested yet. Run the pipeline (`ingest`) against "
-  "a corpus directory first."
+  "This Corpus has not been ingested yet: ingest it to start a conversation."
 )
 ANALYTICS_NO_KEY = (
   "Conversational Analytics needs an Anthropic API key to answer. Set "
@@ -850,8 +905,8 @@ ANALYTICS_SUMMARY_DENOMINATOR = (
   "Excluded: {rejected} rejected and {undecided} undecided gap(s)."
 )
 ANALYTICS_SUMMARY_NEEDS_GAPS = (
-  "No Candidate Gaps found for this Corpus yet. Run the pipeline through "
-  "`detect` to generate a narrative summary."
+  "No Candidate Gaps found for this Corpus yet: run the detect stage to "
+  "generate a narrative summary."
 )
 ANALYTICS_GENERATE_SUMMARY_BUTTON = "Generate narrative summary"
 
@@ -866,3 +921,44 @@ ANALYTICS_SCOPED_INTRO = (
   "it?' from just that slice. It remains a candidate for human judgment, not a "
   "verdict, and this conversation is saved so you can return to it."
 )
+
+# Pipeline status panel (ADR 0007, issue #70). Status is read from which
+# artifacts exist and when they were written; re-run is always offered. Cost
+# appears only inside the collapsed Run details, so it never distracts.
+PIPELINE_HEADING = "Pipeline"
+PIPELINE_INTRO = (
+  "Each stage writes an artifact. A stage is **stale** when one of its inputs "
+  "changed after it last ran; re-run it to bring it up to date. Any stage can be "
+  "re-run at any time: unchanged work is served from the cache."
+)
+STAGE_STATE_LABELS = {
+  "done": "\u2705 Done",
+  "not_run": "\u26aa Not run",
+  "stale": "\U0001f7e0 Stale",
+}
+STAGE_ROW = "**{stage}** \u00b7 {state} \u00b7 writes `{artifact}`"
+STAGE_LAST_RUN = "Last written {when:%Y-%m-%d %H:%M}."
+STAGE_NEWER_INPUTS = "Changed since: {inputs}"
+STAGE_NEWER_INPUTS_MORE = " and {count} more"
+RUN_STAGE_BUTTON = "\u25b6 Run {stage}"
+RERUN_STAGE_BUTTON = "\u21bb Re-run {stage}"
+RUN_DETAILS_LABEL = "Run details"
+RUN_DETAILS_INTRO = (
+  "Estimates are a rough upper bound: Papers in the Corpus ({papers}) times a "
+  "per-Paper token allowance at `{model}` list prices, as if nothing were "
+  "cached. Re-runs usually cost far less. A run estimated above "
+  "{threshold} (LLM_COST_CONFIRM_ABOVE) asks for confirmation first."
+)
+RUN_COST_HEADER = (
+  "| Stage | Estimated (upper bound) | Last run | Calls (cached) |\n|---|---|---|---|"
+)
+RUN_COST_ROW = "| {stage} | {estimate} | {actual} | {calls} |"
+RUN_COST_UNPRICED = "unknown (no price for this model)"
+RUN_COST_NOT_RECORDED = "not recorded"
+RUN_COST_NOT_APPLICABLE = "\u2014"
+RUN_CONFIRM_PROMPT = (
+  "`{stage}`'s estimated cost is above your confirmation threshold "
+  "(LLM_COST_CONFIRM_ABOVE). Open Run details for the estimate. Run it anyway?"
+)
+RUN_CONFIRM_BUTTON = "Run anyway"
+RUN_CANCEL_BUTTON = "Cancel"

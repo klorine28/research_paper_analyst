@@ -1,6 +1,7 @@
 """The Field Meta-Analysis page: the six graph tiles and their full-size panels."""
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 import plotly.graph_objects as go
@@ -36,6 +37,11 @@ from research_gap_dashboard.dashboard.meta_analysis import (
   build_limitation_flow,
   build_network_figure,
 )
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  render_run_button,
+  render_run_buttons,
+)
 from research_gap_dashboard.dashboard.views.session_keys import (
   EXPLAINER_PAPER_KEY,
   PENDING_NAV_KEY,
@@ -67,8 +73,10 @@ _META_THUMB_HEIGHT = 170
 def render_page(chosen: CorpusChoice) -> None:
   """Render the Field Meta-Analysis page as a gallery of the six graph tiles."""
   st.header(text.META_HEADING)
+  render_last_run(chosen.root)
   if not has_manifest(chosen.root):
     st.warning(text.META_NO_MANIFEST)
+    render_run_buttons(chosen.root, ["ingest"], scope="meta")
     return
   st.info(text.META_INTRO)
   st.caption(text.META_GALLERY_HINT)
@@ -104,7 +112,7 @@ def render_page(chosen: CorpusChoice) -> None:
     META_OPEN_KEY,
     lambda chart_id: _render_meta_preview(chart_id, bundle),
     lambda chart_id: _render_meta_panel(
-      chart_id, manifest, normalized, has_gaps, bundle
+      chart_id, manifest, normalized, bundle, chosen.root
     ),
   )
 
@@ -182,28 +190,58 @@ def _render_network_preview(graph: NetworkGraph | None) -> None:
 
 
 def _render_meta_panel(  # noqa: ANN001
-  chart_id: str, manifest, normalized, has_gaps: bool, bundle: _MetaBundle
+  chart_id: str,
+  manifest,
+  normalized,
+  bundle: _MetaBundle,
+  corpus_root: Path,
 ) -> None:
   """Render a tile's full chart below the grid (the coloured header is generic)."""
   if chart_id == "citation":
     render_network_graph(bundle.citation, show_title=False)
+    _render_resolve_button(manifest, corpus_root, chart_id)
   elif chart_id in ("topic", "method"):
+    graph = bundle.topic if chart_id == "topic" else bundle.method
     if normalized is None:
       st.info(text.META_NO_NORMALIZED)
+      render_run_buttons(corpus_root, ["aggregate"], scope=f"meta-{chart_id}")
     else:
       _render_cooccurrence(normalized, manifest, axis=chart_id, show_title=False)
+      if graph is not None and graph.is_empty:
+        render_run_buttons(corpus_root, ["aggregate"], scope=f"meta-{chart_id}")
   elif chart_id == "trends":
     if bundle.trends is None:
       st.info(text.META_NO_NORMALIZED)
+      render_run_buttons(corpus_root, ["aggregate"], scope="meta-trends")
     else:
       _render_trends(bundle.trends)
   elif chart_id == "authors":
     render_author_table(bundle.authors, show_title=False)
+    _render_resolve_button(manifest, corpus_root, chart_id)
   elif chart_id == "limitation":
-    if not has_gaps or bundle.limitation is None:
+    if bundle.limitation is None:
       st.info(text.NO_CANDIDATE_GAPS_ARTIFACT_LIMITATIONS)
+      render_run_buttons(corpus_root, ["detect"], scope="meta-limitation")
     else:
       render_limitation_flow(bundle.limitation, show_title=False)
+
+
+def _render_resolve_button(manifest, corpus_root: Path, chart_id: str) -> None:  # noqa: ANN001
+  """
+  Offer to re-ingest with DOI resolution while any DOI-bearing Paper is unresolved.
+
+  Citations and authors come from the scholarly source, so these graphs stay
+  thin until ingest has resolved the Papers' DOIs; Papers with no DOI never can.
+  """
+  if not any(paper.doi and not paper.openalex_id for paper in manifest.papers):
+    return
+  render_run_button(
+    corpus_root,
+    "ingest",
+    text.RUN_INGEST_RESOLVE_BUTTON,
+    args=["--resolve"],
+    key=f"run-meta-{chart_id}-resolve",
+  )
 
 
 def _render_cooccurrence(  # noqa: ANN001

@@ -27,6 +27,9 @@ categories it was placed on.
 The sparse-cell threshold is provisional (`docs/BRIEF.md`): only empty cells
 count for Corpora under 25 Papers; empty or single-Paper cells at 25 and above.
 Every card states its cell count and the denominator it was computed over.
+Each cell card records a verdict trail: one step per detection layer, in the
+order applied (ADR 0008). For now the confidence heuristic is the only layer,
+so every trail holds its single `start` step.
 
 When an `Embedder` is injected, cross-Paper limitation pairs whose embeddings
 are close are passed to grouping as merge hints, and the embedding model id,
@@ -44,9 +47,9 @@ card links to Evidence from Papers in the Corpus manifest only
 import logging
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from research_gap_dashboard.aggregate import (
   CategoryAssignment,
@@ -85,6 +88,11 @@ CellGapType = Literal["knowledge_gap", "coverage_gap"]
 GapType = Literal["knowledge_gap", "coverage_gap", "unanswered_limitation"]
 Confidence = Literal["low", "medium", "high"]
 EvidenceRole = Literal["row", "column", "cell"]
+LayerEffect = Literal["start", "raise", "lower", "reject", "none"]
+
+# The layer whose verdict opens every cell candidate's trail until the layered
+# detection of ADR 0008 replaces it.
+HEURISTIC_LAYER = "heuristic"
 
 # The matrices this slice detects over: (row axis, column axis, Gap Type).
 MATRIX_SPECS: tuple[tuple[Axis, Axis, CellGapType], ...] = (
@@ -188,15 +196,32 @@ class EvidenceLink(BaseModel):
   evidence: Evidence
 
 
+class LayerStep(BaseModel):
+  """One detection layer's verdict on a cell candidate (ADR 0008 §1, §5)."""
+
+  layer: str = Field(description="The layer that judged the candidate.")
+  effect: LayerEffect
+  level_after: Confidence = Field(description="The confidence after this step.")
+  reason: str = Field(description="Why, in plain words.")
+
+
 class CellGap(BaseModel):
-  """One Knowledge or Coverage Gap card: a sparse cell and why it matters."""
+  """
+  One Knowledge or Coverage Gap card: a sparse cell and why it matters.
+
+  `trail` lists every layer's verdict in the order applied; the first step is
+  always a `start`, and `confidence` is the final level. An artifact written
+  before trails existed reads with a single start step rebuilt from its
+  recorded confidence and reason, so old artifacts stay readable.
+  """
 
   gap_id: str = Field(description="Stable id: '<row axis>x<column axis>:<row>:<col>'.")
   gap_type: CellGapType
   title: str
   explanation: str
-  confidence: Confidence
+  confidence: Confidence = Field(description="The final level after every layer.")
   confidence_reason: str
+  trail: list[LayerStep] = Field(min_length=1)
   row_axis: Axis
   row_id: str
   row_label: str
@@ -209,6 +234,20 @@ class CellGap(BaseModel):
   column_paper_count: int
   corpus_paper_count: int = Field(description="The denominator: Papers counted.")
   evidence: list[EvidenceLink] = Field(min_length=1)
+
+  @model_validator(mode="before")
+  @classmethod
+  def _start_trail_from_confidence(cls, data: Any) -> Any:
+    """Give a pre-trail artifact's card its single heuristic start step."""
+    if isinstance(data, dict) and "trail" not in data:
+      start = {
+        "layer": HEURISTIC_LAYER,
+        "effect": "start",
+        "level_after": data.get("confidence"),
+        "reason": data.get("confidence_reason"),
+      }
+      return {**data, "trail": [start]}
+    return data
 
 
 class StatementEvidence(BaseModel):
@@ -491,6 +530,14 @@ def _build_gap(  # pylint: disable=too-many-arguments,too-many-positional-argume
     explanation=explanation + _TEXT["caveat"],
     confidence=confidence,
     confidence_reason=confidence_reason,
+    trail=[
+      LayerStep(
+        layer=HEURISTIC_LAYER,
+        effect="start",
+        level_after=confidence,
+        reason=confidence_reason,
+      )
+    ],
     row_axis=matrix.row_axis,
     row_id=row.category_id,
     row_label=row.label,

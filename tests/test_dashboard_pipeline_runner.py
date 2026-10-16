@@ -67,6 +67,22 @@ def test_detect_runs_the_cli_as_a_subprocess(tmp_path: Path, fake_run: _FakeRun)
   assert kwargs["check"] is False
 
 
+def test_stage_options_follow_the_corpus_path(tmp_path: Path, fake_run: _FakeRun):
+  """Options such as ingest's `--resolve` are passed after the Corpus path."""
+  result = run_stage(tmp_path, "ingest", env={}, args=["--resolve"])
+
+  expected = [
+    "uv",
+    "run",
+    "research-gap-dashboard",
+    "ingest",
+    str(tmp_path.resolve()),
+    "--resolve",
+  ]
+  assert fake_run.calls[0][0] == expected
+  assert result.command == expected
+
+
 @pytest.mark.parametrize(
   ("returncode", "outcome"),
   [

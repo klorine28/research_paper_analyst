@@ -23,7 +23,9 @@ from research_gap_dashboard.dashboard.parse_corrections import (
 )
 from research_gap_dashboard.dashboard.views.run_controls import (
   render_last_run,
-  run_and_redraw,
+  render_pending_confirmation,
+  render_run_buttons,
+  request_run,
 )
 
 # The seam command that folds the overlay into paper-data/, then the stage that
@@ -46,6 +48,7 @@ def render_attention(report: AttentionReport, corpus_root: Path) -> None:
   banner = report.banner
   if banner.total_papers == 0:
     st.info(text.ATTENTION_NO_PIPELINE)
+    render_run_buttons(corpus_root, ["parse", "extract"], scope="attention")
     return
   if banner.is_complete:
     st.success(text.ATTENTION_ALL_CLEAR)
@@ -59,6 +62,12 @@ def render_attention(report: AttentionReport, corpus_root: Path) -> None:
       banner.reached_artifact,
     )
   )
+  if any(item.kind in ("unparsed", "extraction_failed") for item in report.items):
+    st.subheader(text.ATTENTION_RERUN_HEADING)
+    st.caption(text.ATTENTION_RERUN_HINT)
+    render_run_buttons(
+      corpus_root, ["apply-parse-corrections", "extract"], scope="attention-fix"
+    )
 
   _render_attention_section(
     report, corpus_root, "unparsed", text.ATTENTION_UNPARSED_HEADING, correct=True
@@ -102,15 +111,16 @@ def _render_correction_box(corpus_root: Path, citation_key: str) -> None:
     key=f"parse-correction-{citation_key}",
     help=text.ATTENTION_CORRECTION_HELP,
   )
-  if not st.button(
-    text.ATTENTION_APPLY_CORRECTION,
-    key=f"apply-correction-{citation_key}",
-    type="primary",
-  ):
+  button_key = f"apply-correction-{citation_key}"
+  # A re-extract estimated above LLM_COST_CONFIRM_ABOVE waits for confirmation
+  # here, under the box that asked for it (the correction is already saved).
+  if render_pending_confirmation(corpus_root, button_key):
+    return
+  if not st.button(text.ATTENTION_APPLY_CORRECTION, key=button_key, type="primary"):
     return
   try:
     record_parse_correction(corpus_root, citation_key, pasted)
   except EmptyCorrectionError:
     st.warning(text.ATTENTION_CORRECTION_EMPTY)
     return
-  run_and_redraw(corpus_root, APPLY_AND_REEXTRACT)
+  request_run(corpus_root, APPLY_AND_REEXTRACT, button_key)

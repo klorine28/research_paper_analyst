@@ -187,3 +187,27 @@ def test_an_empty_paste_is_refused_without_a_run(
   assert not app.exception
   assert not pipeline.commands
   assert text.ATTENTION_CORRECTION_EMPTY in [w.value for w in app.warning]
+
+
+def test_apply_asks_first_when_the_re_extract_is_expensive(
+  corpus: Path, pipeline: _FakePipeline, monkeypatch: pytest.MonkeyPatch
+):
+  """The chain goes through the cost confirmation: saved now, run on "Run anyway"."""
+  monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+  monkeypatch.setenv("LLM_COST_CONFIRM_ABOVE", "0")
+  app = _open_attention(corpus, monkeypatch)
+
+  _apply(app, _TEXT)
+
+  assert not app.exception
+  assert load_parse_corrections(corpus).correction_for("scan") is not None
+  assert not pipeline.commands
+  prompt = text.RUN_CONFIRM_PROMPT.format(
+    stage="apply-parse-corrections \u2192 extract"
+  )
+  assert prompt in [w.value for w in app.warning]
+
+  next(b for b in app.button if b.label == text.RUN_CONFIRM_BUTTON).click().run()
+
+  assert not app.exception
+  assert pipeline.commands == ["apply-parse-corrections", "extract"]

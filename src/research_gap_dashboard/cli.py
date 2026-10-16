@@ -8,12 +8,17 @@ into exit codes; all behavior lives in the stage modules.
 import argparse
 import logging
 import sys
+from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 
 import httpx
 
-from research_gap_dashboard.aggregate import aggregate_corpus, load_pipeline_taxonomies
+from research_gap_dashboard.aggregate import (
+  aggregate_corpus,
+  load_pipeline_taxonomies,
+  read_normalized_facts,
+)
 from research_gap_dashboard.dashboard.extraction_review import (
   FIELD_NAMES as _GOLD_FIELD_NAMES,
 )
@@ -28,13 +33,19 @@ from research_gap_dashboard.embeddings import (
 )
 from research_gap_dashboard.env import load_env
 from research_gap_dashboard.explain import explain_corpus
-from research_gap_dashboard.extract import extract_corpus
+from research_gap_dashboard.extract import extract_corpus, read_extractions
 from research_gap_dashboard.ingest import (
   CorpusLayoutError,
   CorpusSizeError,
   ingest_corpus,
 )
-from research_gap_dashboard.llm import LlmConfigError, build_llm_client
+from research_gap_dashboard.llm import (
+  LlmClient,
+  LlmConfigError,
+  LlmUsage,
+  build_llm_client,
+  write_usage,
+)
 from research_gap_dashboard.parsing import parse_corpus
 from research_gap_dashboard.promote_gold import (
   GoldPromotionRefusedError,
@@ -60,6 +71,12 @@ from research_gap_dashboard.taxonomy import (
   TaxonomyError,
   load_taxonomy,
 )
+from research_gap_dashboard.term_promotion import (
+  UnmappedTermScreen,
+  find_candidate,
+  promote_unmapped_term,
+  screen_unmapped_terms,
+)
 from research_gap_dashboard.vocabulary import (
   AliasOverlay,
   AliasOverlayError,
@@ -74,6 +91,11 @@ from research_gap_dashboard.vocabulary import (
 )
 
 LLM_CACHE_DIR = ".llm-cache"
+# Each LLM stage's last run's calls and tokens, read by the dashboard's Run
+# details to report what a run actually cost (issue #70).
+LLM_USAGE_PATH = Path("artifacts") / "llm-usage.json"
+# The commands whose LLM usage is recorded.
+_LLM_COMMANDS = frozenset({"extract", "explain", "aggregate", "detect"})
 
 logger = logging.getLogger("research_gap_dashboard")
 
@@ -282,7 +304,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     "taxonomy": _run_taxonomy,
     "aliases": _run_aliases,
   }
-  return runners[arguments.command](arguments)
+  if arguments.command not in _LLM_COMMANDS:
+    return runners[arguments.command](arguments)
+  arguments.llm_usage = LlmUsage()
+  try:
+    return runners[arguments.command](arguments)
+  finally:
+    usage: LlmUsage = arguments.llm_usage
+    # A run that never reached the LLM (bad config, missing input) leaves the
+    # previous run's record in place rather than overwriting it with nothing.
+    if usage.calls or usage.cached_calls:
+      write_usage(arguments.corpus / LLM_USAGE_PATH, arguments.command, usage)
+
+
+def _llm_client(arguments: argparse.Namespace) -> LlmClient:
+  """Build the stage's cached LLM client, tallying its usage for the run."""
+  return build_llm_client(
+    cache_dir=arguments.corpus / LLM_CACHE_DIR, usage=arguments.llm_usage
+  )
 
 
 def _run_ingest(arguments: argparse.Namespace) -> int:
@@ -422,7 +461,7 @@ def _run_apply_parse_corrections(arguments: argparse.Namespace) -> int:
 def _run_extract(arguments: argparse.Namespace) -> int:
   """LLM-extract structured facts with verified Evidence into the artifact."""
   try:
-    client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
+    client = _llm_client(arguments)
   except LlmConfigError as error:
     logger.error("%s", error)
     return EXIT_ERROR
@@ -454,7 +493,7 @@ def _run_extract(arguments: argparse.Namespace) -> int:
 def _run_explain(arguments: argparse.Namespace) -> int:
   """LLM-explain each Paper's experiment in domain and lay language."""
   try:
-    client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
+    client = _llm_client(arguments)
   except LlmConfigError as error:
     logger.error("%s", error)
     return EXIT_ERROR
@@ -487,7 +526,7 @@ def _run_aggregate(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   try:
-    client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
+    client = _llm_client(arguments)
   except LlmConfigError as error:
     logger.error("%s", error)
     return EXIT_ERROR
@@ -511,7 +550,7 @@ def _run_aggregate(arguments: argparse.Namespace) -> int:
 def _run_detect(arguments: argparse.Namespace) -> int:
   """Find the Corpus's Candidate Gaps and write the CandidateGaps artifact."""
   try:
-    client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
+    client = _llm_client(arguments)
     embedding_config = EmbeddingConfig.from_env()
   except (LlmConfigError, EmbeddingConfigError) as error:
     logger.error("%s", error)
@@ -615,8 +654,19 @@ def _add_aliases_parser(subcommands) -> None:
     help="Only list aliases with this status.",
   )
 
+  unmapped = actions.add_parser(
+    "suggest-unmapped",
+    help="List recurring verified unmapped terms that may become aliases.",
+  )
+  unmapped.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  _add_taxonomy_option(unmapped)
+
   for name, text in (
     ("approve", "Approve a proposed alias for this Corpus only."),
+    (
+      "approve-unmapped",
+      "Map an offered unmapped term onto a category, for this Corpus only.",
+    ),
     ("reject", "Reject a proposed alias, or reverse an approval."),
     ("promote", "Copy an approved alias into the shared taxonomy file."),
   ):
@@ -624,7 +674,7 @@ def _add_aliases_parser(subcommands) -> None:
     action.add_argument("corpus", type=Path, help="Path to the corpus directory.")
     action.add_argument("axis", choices=list(AXES), help="The category's axis.")
     action.add_argument("category", help="The category id the alias belongs to.")
-    action.add_argument("alias", help="The alias phrase, as listed.")
+    action.add_argument("alias", help="The alias or term phrase, as listed.")
     _add_taxonomy_option(action)
 
 
@@ -656,26 +706,36 @@ def _run_aliases(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   try:
-    overlay = _alias_action(arguments, overlay, by_path)
-  except AliasOverlayError as error:
-    logger.error("%s", error)
-    return EXIT_ERROR
-  except httpx.HTTPError as error:
-    logger.error("MeSH could not be reached: %s", error)
+    updated = _alias_action(arguments, overlay, by_path)
+  except (AliasOverlayError, FileNotFoundError, httpx.HTTPError) as error:
+    logger.error("%s", _alias_failure(error))
     return EXIT_ERROR
 
-  path = write_alias_overlay(arguments.corpus, overlay)
-  logger.info("Alias overlay written to %s.", path)
+  if updated is not None:
+    path = write_alias_overlay(arguments.corpus, updated)
+    logger.info("Alias overlay written to %s.", path)
   return EXIT_OK
+
+
+def _alias_failure(error: Exception) -> str:
+  """Explain why an `aliases` action failed."""
+  if isinstance(error, FileNotFoundError):
+    return f"Run extract and aggregate on the Corpus first: {error}"
+  if isinstance(error, httpx.HTTPError):
+    return f"MeSH could not be reached: {error}"
+  return str(error)
 
 
 def _alias_action(
   arguments: argparse.Namespace,
   overlay: AliasOverlay,
   by_path: dict[Path, Taxonomy],
-) -> AliasOverlay:
-  """Apply one alias action to the overlay and return the result."""
+) -> AliasOverlay | None:
+  """Apply one alias action and return the overlay, or None if nothing changed."""
   taxonomies = list(by_path.values())
+  if arguments.alias_action == "suggest-unmapped":
+    _log_screen(_screen(arguments.corpus, taxonomies, overlay))
+    return None
   if arguments.alias_action == "suggest-mesh":
     mesh = MeshVocabulary()
     before = len(overlay.entries)
@@ -688,6 +748,15 @@ def _alias_action(
     return overlay
 
   target = (arguments.axis, arguments.category, arguments.alias)
+  if arguments.alias_action == "approve-unmapped":
+    screen = _screen(arguments.corpus, taxonomies, overlay)
+    candidate = find_candidate(screen, arguments.axis, arguments.alias)
+    if candidate is None:
+      raise AliasOverlayError(
+        f"'{arguments.alias}' is not an offered {arguments.axis} term; see "
+        "`aliases suggest-unmapped` for the terms on offer and why others are not."
+      )
+    return promote_unmapped_term(overlay, taxonomies, candidate, arguments.category)
   if arguments.alias_action == "approve":
     return approve_alias(overlay, taxonomies, *target)
   if arguments.alias_action == "reject":
@@ -701,6 +770,42 @@ def _alias_action(
   promoted = promote_alias(overlay, path, *target)
   logger.info("Promoted '%s' into %s.", arguments.alias, path)
   return promoted
+
+
+def _screen(
+  corpus: Path, taxonomies: list[Taxonomy], overlay: AliasOverlay
+) -> UnmappedTermScreen:
+  """Screen a Corpus's unmapped terms from its Extraction and aggregate artifacts."""
+  return screen_unmapped_terms(
+    read_normalized_facts(corpus), read_extractions(corpus), taxonomies, overlay
+  )
+
+
+def _log_screen(screen: UnmappedTermScreen) -> None:
+  """Log the offered unmapped terms with their Papers, and a tally of the rest."""
+  logger.info(
+    "%d unmapped terms offered (verified Evidence, 2+ Papers, past the stoplist).",
+    len(screen.offered),
+  )
+  for candidate in screen.offered:
+    logger.info(
+      "  %s: %s  (%d Papers: %s)",
+      candidate.axis,
+      candidate.term,
+      len(candidate.occurrences),
+      ", ".join(candidate.citation_keys),
+    )
+  reasons = Counter(term.reason for term in screen.set_aside)
+  logger.info(
+    "%d set aside: %s.",
+    len(screen.set_aside),
+    ", ".join(f"{count} {reason}" for reason, count in sorted(reasons.items()))
+    or "none",
+  )
+  if screen.offered:
+    logger.info(
+      "Map one with `aliases approve-unmapped <corpus> <axis> <category> <term>`."
+    )
 
 
 def _log_overlay(overlay: AliasOverlay, status: str | None) -> None:

@@ -74,9 +74,9 @@ class _CorpusLocked(Exception):
   """Another run already holds this Corpus."""
 
 
-def build_command(corpus_root: Path, stage: str) -> list[str]:
-  """Return the argv that runs one CLI stage on a Corpus."""
-  return [*CLI_COMMAND, stage, str(corpus_root.resolve())]
+def build_command(corpus_root: Path, stage: str, args: Sequence[str] = ()) -> list[str]:
+  """Return the argv that runs one CLI stage on a Corpus, with any stage options."""
+  return [*CLI_COMMAND, stage, str(corpus_root.resolve()), *args]
 
 
 def needs_api_key(stage: str) -> bool:
@@ -116,19 +116,28 @@ def _outcome_for(exit_code: int) -> RunOutcome:
 
 
 def run_stage(
-  corpus_root: Path, stage: str, env: Mapping[str, str] | None = None
+  corpus_root: Path,
+  stage: str,
+  env: Mapping[str, str] | None = None,
+  *,
+  args: Sequence[str] = (),
 ) -> RunResult:
   """
   Run one CLI stage on a Corpus as a blocking subprocess and report how it ended.
 
   `env` defaults to the process environment (already populated from `.env` by
-  the app shell); the subprocess inherits it unchanged.
+  the app shell); the subprocess inherits it unchanged. `args` are passed to the
+  stage after the Corpus path (e.g. `--resolve` for ingest).
   """
-  return run_stages(corpus_root, [stage], env)[0]
+  return run_stages(corpus_root, [stage], env, args=args)[0]
 
 
 def run_stages(
-  corpus_root: Path, stages: Sequence[str], env: Mapping[str, str] | None = None
+  corpus_root: Path,
+  stages: Sequence[str],
+  env: Mapping[str, str] | None = None,
+  *,
+  args: Sequence[str] = (),
 ) -> list[RunResult]:
   """
   Run CLI commands in order on a Corpus under one lock; report each one launched.
@@ -138,6 +147,7 @@ def run_stages(
   Every stage's credential is checked before the first launch, and the chain
   stops at the first failure: a later stage never runs on a broken input.
   Incomplete (code 2) is not a failure, so the chain carries on past it.
+  `args` go to every stage; a chain of seam command and stage passes none.
   """
   env = os.environ if env is None else env
   for stage in stages:
@@ -145,7 +155,7 @@ def run_stages(
       return [
         RunResult(
           stage=stage,
-          command=build_command(corpus_root, stage),
+          command=build_command(corpus_root, stage, args),
           outcome=RunOutcome.MISSING_KEY,
         )
       ]
@@ -154,7 +164,7 @@ def run_stages(
   try:
     with _corpus_lock(corpus_root):
       for stage in stages:
-        result = _launch(corpus_root, stage, env)
+        result = _launch(corpus_root, stage, env, args)
         results.append(result)
         if result.outcome == RunOutcome.FAILED:
           break
@@ -162,16 +172,18 @@ def run_stages(
     return [
       RunResult(
         stage=stages[0],
-        command=build_command(corpus_root, stages[0]),
+        command=build_command(corpus_root, stages[0], args),
         outcome=RunOutcome.LOCKED,
       )
     ]
   return results
 
 
-def _launch(corpus_root: Path, stage: str, env: Mapping[str, str]) -> RunResult:
+def _launch(
+  corpus_root: Path, stage: str, env: Mapping[str, str], args: Sequence[str]
+) -> RunResult:
   """Launch one CLI command while the caller holds the Corpus lock."""
-  command = build_command(corpus_root, stage)
+  command = build_command(corpus_root, stage, args)
   logger.info("Running %s", " ".join(command))
   try:
     completed = subprocess.run(
