@@ -300,7 +300,7 @@ def answer_question(  # pylint: disable=too-many-arguments
   as flagged rather than shown (CODING_STANDARDS.md > Research integrity).
   """
   history = history or []
-  grounded = context.for_question(question, _previous_question(history))
+  grounded = context.for_question(question, previous_question(history))
   completion = complete_model(
     client,
     _build_chat_prompt(question, grounded, history),
@@ -316,7 +316,7 @@ def answer_question(  # pylint: disable=too-many-arguments
   )
 
 
-def _previous_question(history: list[str]) -> str:
+def previous_question(history: list[str]) -> str:
   """Return the researcher's last question in the transcript, for follow-ups."""
   for turn in reversed(history):
     if turn.startswith("user:"):

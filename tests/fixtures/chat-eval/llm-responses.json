@@ -1,0 +1,37 @@
+{
+ "01bd05523aa613395d5b1e47556249b57130ec7f657505d4f789410b45d6505f.analytics-chat-v2": {
+  "answer": "Hill et al. used a comprehensive three-stage process to develop and evaluate risk models for predicting atrial fibrillation (AF). The key methodological elements included:\n\n**Models Evaluated:**\nThe study evaluated \"published risk models (Framingham, ARIC, CHARGE-AF), machine learning models, which evaluated baseline and time-updated information (neural network, LASSO, random forests, support vector machines), and Cox regression.\"\n\n**Study Design:**\n\"Development and evaluation of the optimum risk model for prediction of AF was a three-stage process.\" Patients were \"randomly assigned to training and holdout datasets in a 2:1 ratio; these datasets were used to fit and independently assess each risk model, respectively.\"\n\n**Feature Selection and Optimization:**\n\"Covariates in the machine learning approaches at both stages 1 and 2 were selected by recursive feature elimination, with hyperparameters being optimised through five-fold cross-validation.\"\n\n**Data Sources:**\n\"Diagnoses of AF (or atrial flutter, to account for mis-recording) and other comorbidities were identified using Read codes.\"\n\n**Model Evaluation Metrics:**\n\"Discrimination between AF and non-AF cases was assessed using area under the receiver operating characteristic curve (AUROC).\" Additionally, \"Positive predictive value (PPV) and potential numberneeded-to-screen (NNS) were computed at sensitivities of 25%, 50%, and 75%.\"\n\n**Model Interpretability:**\n\"Each covariate's 'relative strength' in predicting AF risk was quantified and expressed as a percentage of the most important covariate within the model.\"\n\nThe optimal model incorporated both baseline and time-varying information, with the neural network approach showing superior performance.",
+  "citations": [
+   "hill2019"
+  ]
+ },
+ "94ae1b05444f01421cfb833169f42f37120368b75ccfaf4778f0323093251486.analytics-chat-v2": {
+  "answer": "According to [seid2019], the study examined 310 adult heart failure patients attending Gondar University referral hospital from February to May 2017. The inclusion criteria specified that \"patients who were 18 years old or above, had been diagnosed with HF, and taking medications and had at least a one month follow up prior to the commencement of the study.\"\n\nThe demographic and clinical characteristics of the study population were:\n- Mean age: 49 (± 19.5 SD) years, ranging from 18 to 89 years\n- Gender: 199 (64.2%) were women\n- Religion: 292 (94.2%) were Orthodox Christians\n- Marital status: 160 (51.6%) were married, 60 (19.4%) were single\n- Education: 153 (49.4%) were unable to read and write\n- Comorbidities: 138 (44.5%) had chronic comorbidity, with hypertension being most common at 79 (25.5%) and kidney disease at 16 (5.2%)\n- Disease severity: Most were classified as NYHA class III (113 patients, 36.5%) followed by class IV (88 patients, 28.4%)",
+  "citations": [
+   "seid2019"
+  ]
+ },
+ "0fed92e36102c1c8ed67c7ff1876b1c8de81df3f0810d68901eff6da876686af.analytics-chat-v2": {
+  "answer": "Lee (2018) used two databases:\n\n1. **National Health Insurance Service-National Sample Cohort (NHIS-NSC) database**: \"The NHIS-National Sample Cohort (NHIS-NSC) is a populationbased cohort created by the NHIS. The NHIS-NSC provides medical researchers with representative information about the healthcare system utilization and health examinations of Korean citizens.\"\n\n2. **Mortality database provided by Statistics Korea**: \"We used the mortality database provided by Statistics Korea, a government agency. This mortality database includes death-related data such as age at the time of death, as well as the causes, date, and place of death.\"",
+  "citations": [
+   "lee2018"
+  ]
+ },
+ "5c55990c6ed6b6b59253fc26bafb8315ebb3fbfb134541afadde07b6755c7b45.analytics-chat-v2": {
+  "answer": "In Seid's study, adherence to self-care recommendations was measured using the 'Revised Heart Failure Compliance Scale'. This tool \"contains six questions with a five-point scale (always = 4, mostly = 3, half of the time = 2, seldom = 1, never = 0 points).\" The scale assessed adherence to six specific self-care areas: \"a low sodium diet, fluid restriction, regular exercise, weight monitoring, medication, and appointment keeping.\"\n\nFor classification purposes, \"patients were classified as 'Good adherent' when they followed a recommendation 'always' or 'mostly' and 'Poor adherent' when they followed a recommendation half of the time, seldom or never\" for each individual recommendation. For overall adherence, \"patients were considered to be 'overall good adherent' when they adhered with ≥ 4 out of the 6 recommendations.\"\n\nData were collected \"by trained pharmacists and nurses through a face to face interview,\" and \"patients' medical records were also reviewed to supplement further clinical data.\"",
+  "citations": [
+   "seid2019"
+  ]
+ },
+ "f036af986f5a8bd09508ec3d1b3f48aa47e5b1e5fe9adb0c4090bad03122ab16.analytics-chat-v2": {
+  "answer": "Two papers used cardiac magnetic resonance imaging (CMR or CMRI):\n\n1. **[italia2021]** - This paper discussed the use of cardiac magnetic resonance (CMR) to evaluate myocardial damage and myocarditis in COVID-19 patients. Specifically, the paper reported that \"A German study suggested that 2 months after SARS-CoV-2 positivity, 78% of survivors had persistent heart involvement, of which 60% presented ongoing signs of myocarditis, revealed with cardiac magnetic resonance (CMR).\"\n\n2. **[dubrock2018]** - This paper included cardiac magnetic resonance imaging as part of its baseline assessment protocol. The methods stated: \"Participants underwent baseline studies at enrollment. These included a history and physical examination, echocardiography, cardiac magnetic resonance imaging (CMRI) if in sinus rhythm, cardiopulmonary exercise test (CPXT), 6-minute walk test, Minnesota Living with Heart Failure Questionnaire and phlebotomy for biomarker measurements.\"\n\nNote that in [dubrock2018], CMRI was performed only \"if in sinus rhythm,\" indicating it was conditionally applied based on the patient's cardiac rhythm status.",
+  "citations": [
+   "italia2021",
+   "dubrock2018"
+  ]
+ },
+ "141529b8f43f0cecd1044b72ee05f806f241bfc25f7cbf781416799688a27594.analytics-chat-v2": {
+  "answer": "The Corpus does not answer this question. The papers in this collection focus on cardiovascular topics including myocardial infarction, atrial fibrillation, heart failure, and COVID-19's impact on the heart. None of the papers address total hip replacement or surgical approaches for orthopedic procedures.",
+  "citations": []
+ }
+}

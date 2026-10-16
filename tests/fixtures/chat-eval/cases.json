@@ -1,0 +1,41 @@
+[
+ {
+  "id": "methods-hill",
+  "question": "What methods did Hill use to predict atrial fibrillation?",
+  "expected_citations": ["hill2019"],
+  "required_evidence": ["three-stage process"]
+ },
+ {
+  "id": "population-seid",
+  "question": "Who was studied in Seid's paper?",
+  "expected_citations": ["seid2019"],
+  "required_evidence": ["310 adult heart failure patients"]
+ },
+ {
+  "id": "dataset-lee",
+  "question": "Which database did Lee use?",
+  "expected_citations": ["lee2018"],
+  "required_evidence": ["National Sample Cohort"]
+ },
+ {
+  "id": "follow-up-seid-adherence",
+  "question": "And how did they measure adherence?",
+  "history": [
+   "user: Tell me about Seid's study.",
+   "assistant: seid2019 is a hospital-based cross-sectional study of adult heart failure patients."
+  ],
+  "expected_citations": ["seid2019"],
+  "required_evidence": ["Revised Heart Failure Compliance Scale"]
+ },
+ {
+  "id": "cross-paper-cardiac-mri",
+  "question": "Which papers used cardiac magnetic resonance imaging?",
+  "expected_citations": ["italia2021", "dubrock2018"],
+  "required_evidence": []
+ },
+ {
+  "id": "out-of-corpus-hip",
+  "question": "Which surgical approach gives the best outcomes in total hip replacement?",
+  "abstain": true
+ }
+]

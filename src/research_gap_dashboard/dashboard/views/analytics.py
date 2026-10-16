@@ -6,8 +6,6 @@ import streamlit as st
 
 from research_gap_dashboard import analytics as analytics_api
 from research_gap_dashboard.analytics import (
-  CorpusPaper,
-  GapFact,
   GroundedChatAnswer,
   GroundedNarrative,
   GroundingContext,
@@ -30,7 +28,7 @@ from research_gap_dashboard.dashboard.conversations import Conversation
 from research_gap_dashboard.dashboard.corpus_scope import load_scope
 from research_gap_dashboard.dashboard.entry_log import reconcile_entry_log
 from research_gap_dashboard.dashboard.export import build_write_up
-from research_gap_dashboard.dashboard.fact_pool import load_fact_pool
+from research_gap_dashboard.dashboard.fact_pool import corpus_grounding_context
 from research_gap_dashboard.dashboard.gaps import (
   GapCard,
   NarrativeScope,
@@ -97,7 +95,7 @@ def render_page(chosen: CorpusChoice) -> None:
   _render_narrative_summary(
     chosen,
     manifest,
-    _grounding_context(corpus_root, manifest, has_gaps),
+    corpus_grounding_context(corpus_root, manifest, has_gaps),
     client,
     has_gaps,
   )
@@ -213,7 +211,7 @@ def _conversation_context(
   carries the researcher's kept journal notes, labelled as their own so grounding
   still binds the model to cite only Corpus Papers (issue #50).
   """
-  base = _grounding_context(corpus_root, manifest, has_gaps)
+  base = corpus_grounding_context(corpus_root, manifest, has_gaps)
   notes = render_notes_for_context(load_journal(corpus_root))
   note_list = [notes] if notes else []
   if conversation.gap_id:
@@ -231,36 +229,6 @@ def _scoped_gap_card(corpus_root: Path, gap_id: str) -> GapCard | None:
     load_candidate_gaps(corpus_root), load_judgments(corpus_root), corpus_root
   )
   return next((card for card in data.cards if card.gap_id == gap_id), None)
-
-
-def _grounding_context(
-  corpus_root: Path, manifest: ManifestArtifact, has_gaps: bool
-) -> GroundingContext:
-  """Map this Corpus's artifact read models onto the analytics grounding context."""
-  papers = [
-    CorpusPaper(
-      citation_key=paper.citation_key,
-      title=paper.title,
-      year=paper.year,
-      authors=paper.authors,
-    )
-    for paper in manifest.papers
-  ]
-  gap_facts: list[GapFact] = []
-  if has_gaps:
-    for gap in load_candidate_gaps(corpus_root).gaps:
-      gap_facts.append(
-        GapFact(
-          gap_type=gap.gap_type,
-          title=gap.title,
-          explanation=gap.explanation,
-          confidence=gap.confidence,
-          source_citation_keys=gap.source_citation_keys,
-        )
-      )
-  return GroundingContext(
-    papers=papers, gaps=gap_facts, fact_pool=load_fact_pool(corpus_root)
-  )
 
 
 def _render_narrative_summary(

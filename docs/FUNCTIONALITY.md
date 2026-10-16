@@ -301,6 +301,15 @@ statements, Evidence and normalized categories), capped at a 12,000-character
 budget; when nothing matches, the model is told so and answers "not in this
 Corpus". A missing `ANTHROPIC_API_KEY` degrades the page to a clear message, not a crash.
 
+Chat quality is measured by an evaluation set (`chat_eval.py`, fixture
+`tests/fixtures/chat-eval/`): questions with the Corpus Papers a correct answer
+cites and the Evidence it must quote, or an expected "not in this Corpus". An
+invented citation (in the citations field or the prose), a citation of a Paper
+the question retrieved nothing from, a missing citation, or unquoted Evidence
+fails the case. `just test` replays recorded completions; re-recording against
+the live model is a manual step, `uv run scripts/record_chat_eval.py` (see the
+fixture's README), which also runs a cases file live against a real Corpus.
+
 ### Not yet built (dashboard)
 - The rest of ADR 0007: in-app upload and Corpus creation, and buttons for the
   seam commands (apply correction and re-extract, promote gold). Running and

@@ -12,11 +12,14 @@ value model; the retrieval itself lives with the analytics machinery (ADR 0002).
 from collections import defaultdict
 from pathlib import Path
 
+from research_gap_dashboard.analytics import CorpusPaper, GapFact, GroundingContext
 from research_gap_dashboard.dashboard.artifacts import (
   ExtractionsArtifact,
+  ManifestArtifact,
   NormalizedFactsArtifact,
   has_extractions,
   has_normalized_facts,
+  load_candidate_gaps,
   load_extractions,
   load_normalized_facts,
 )
@@ -78,3 +81,40 @@ def load_fact_pool(corpus_root: Path) -> list[ExtractedFact]:
     load_normalized_facts(corpus_root) if has_normalized_facts(corpus_root) else None
   )
   return build_fact_pool(load_extractions(corpus_root), normalized)
+
+
+def corpus_grounding_context(
+  corpus_root: Path, manifest: ManifestArtifact, has_gaps: bool
+) -> GroundingContext:
+  """
+  Map a Corpus's artifact read models onto the general chat's grounding context.
+
+  The Analytics page and the chat evaluation set (issue #99) both build the
+  context here, so the eval measures the chat the researcher actually gets.
+  """
+  papers = [
+    CorpusPaper(
+      citation_key=paper.citation_key,
+      title=paper.title,
+      year=paper.year,
+      authors=paper.authors,
+    )
+    for paper in manifest.papers
+  ]
+  gap_facts = (
+    [
+      GapFact(
+        gap_type=gap.gap_type,
+        title=gap.title,
+        explanation=gap.explanation,
+        confidence=gap.confidence,
+        source_citation_keys=gap.source_citation_keys,
+      )
+      for gap in load_candidate_gaps(corpus_root).gaps
+    ]
+    if has_gaps
+    else []
+  )
+  return GroundingContext(
+    papers=papers, gaps=gap_facts, fact_pool=load_fact_pool(corpus_root)
+  )

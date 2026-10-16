@@ -1,0 +1,2112 @@
+{
+ "papers": [
+  {
+   "citation_key": "hanna2019",
+   "title": "The Role of the TGF-β Superfamily in Myocardial Infarction",
+   "year": 2019,
+   "authors": [
+    "Anis Hanna",
+    "Nikolaos G. Frangogiannis"
+   ]
+  },
+  {
+   "citation_key": "puhl2019",
+   "title": "Neutrophils in Post-myocardial Infarction Inflammation: Damage vs. Resolution?",
+   "year": 2019,
+   "authors": [
+    "Sarah‐Lena Puhl",
+    "Sabine Steffens"
+   ]
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "title": "Angiogenic Endothelial Cell Signaling in Cardiac Hypertrophy and Heart Failure",
+   "year": 2019,
+   "authors": [
+    "Rajinikanth Gogiraju",
+    "Magdalena L. Bochenek",
+    "Katrin Schäfer"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "title": "Mortality and causes of death in patients with atrial fibrillation: A nationwide population-based study",
+   "year": 2018,
+   "authors": [
+    "Euijae Lee",
+    "Eue‐Keun Choi",
+    "Kyungdo Han",
+    "HyunJung Lee",
+    "Won-Seok Choe",
+    "So‐Ryoung Lee",
+    "Myung‐Jin Cha",
+    "Woo‐Hyun Lim",
+    "Yong‐Jin Kim",
+    "Seil Oh"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "title": "Evidence for Inflammation as a Driver of Atrial Fibrillation",
+   "year": 2020,
+   "authors": [
+    "Xiaoxu Zhou",
+    "Samuel C. Dudley"
+   ]
+  },
+  {
+   "citation_key": "hill2019",
+   "title": "Predicting atrial fibrillation in primary care using machine learning",
+   "year": 2019,
+   "authors": [
+    "Nathan R. Hill",
+    "Daniel Ayoubkhani",
+    "Phil C. McEwan",
+    "Daniel Sugrue",
+    "Usman Shakeel Farooqui",
+    "Steven Lister",
+    "Matthew Lumley",
+    "Ameet Bakhai",
+    "Alexander Thomas Cohen",
+    "Mark D O'Neill",
+    "David Andrew Clifton",
+    "Jason P. Gordon"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "title": "COVID-19 and Heart Failure: From Epidemiology During the Pandemic to Myocardial Injury, Myocarditis, and Heart Failure Sequelae",
+   "year": 2021,
+   "authors": [
+    "Leonardo Italia",
+    "Daniela Tomasoni",
+    "Stefano Bisegna",
+    "Edoardo Pancaldi",
+    "Lorenzo Stretti",
+    "Marianna Adamo",
+    "Marco Metra"
+   ]
+  },
+  {
+   "citation_key": "dubrock2018",
+   "title": "High-sensitivity C-reactive protein in heart failure with preserved ejection fraction",
+   "year": 2018,
+   "authors": [
+    "Hilary M. DuBrock",
+    "Omar F. AbouEzzeddine",
+    "Margaret M. Redfield"
+   ]
+  },
+  {
+   "citation_key": "seid2019",
+   "title": "Adherence to self-care recommendations and associated factors among adult heart failure patients. From the patients’ point of view",
+   "year": 2019,
+   "authors": [
+    "Mohammed Assen Seid",
+    "Ousman Abubeker Abdela",
+    "Ejigu Gebeye Zeleke"
+   ]
+  },
+  {
+   "citation_key": "maejima2020",
+   "title": "SGLT2 Inhibitors Play a Salutary Role in Heart Failure via Modulation of the Mitochondrial Function",
+   "year": 2020,
+   "authors": [
+    "Yasuhiro Maejima"
+   ]
+  }
+ ],
+ "fact_pool": [
+  {
+   "citation_key": "hanna2019",
+   "field": "research_question",
+   "statement": "The paper reviews current knowledge on the patterns, mechanisms of regulation and activation of TGF-β superfamily members in the infarcted heart, and discusses their cellular actions and downstream signaling mechanisms.",
+   "passage": "This manuscript reviews our current knowledge on the patterns and mechanisms of regulation and activation of TGF-β superfamily members in the infarcted heart, and discusses their cellular actions and downstream signaling mechanisms.",
+   "section": "abstract",
+   "terms": [
+    "Myocardial Ischemia",
+    "myocardial infarction"
+   ]
+  },
+  {
+   "citation_key": "hanna2019",
+   "field": "key_findings",
+   "statement": "In the infarcted heart, TGF-β isoforms modulate cardiomyocyte survival and hypertrophic responses, critically regulate immune cell function, activate fibroblasts, and stimulate a matrix-preserving program.",
+   "passage": "In the infarcted heart, TGF-β isoforms modulate cardiomyocyte survival and hypertrophic responses, critically regulate immune cell function, activate fibroblasts, and stimulate a matrix-preserving program.",
+   "section": "abstract",
+   "terms": [
+    "Myocardial Ischemia",
+    "infarcted heart"
+   ]
+  },
+  {
+   "citation_key": "hanna2019",
+   "field": "key_findings",
+   "statement": "BMP subfamily members have been suggested to exert both pro- and anti-inflammatory actions and may regulate fibrosis.",
+   "passage": "BMP subfamily members have been suggested to exert both pro- and anti-inflammatory actions and may regulate fibrosis.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "hanna2019",
+   "field": "key_findings",
+   "statement": "Members of the GDF subfamily may modulate survival and hypertrophy of cardiomyocytes and regulate inflammation.",
+   "passage": "Members of the GDF subfamily may also modulate survival and hypertrophy of cardiomyocytes and regulate inflammation.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "hanna2019",
+   "field": "key_findings",
+   "statement": "Myocardial infarction is associated with induction of several members of the TGF-β superfamily, including TGF-β1, TGF-β2, TGF-β3, BMP-2, BMP-4, BMP-10, GDF-8, GDF-11 and activin A.",
+   "passage": "Myocardial infarction is associated with induction of several members of the superfamily, including TGF-β1, TGF-β2, TGF-β3, bone morphogenetic protein (BMP)-2, BMP-4, BMP-10, growth differentiation factor (GDF)-8, GDF-11 and activin A.",
+   "section": "abstract",
+   "terms": [
+    "Myocardial Ischemia",
+    "myocardial infarction"
+   ]
+  },
+  {
+   "citation_key": "hanna2019",
+   "field": "key_findings",
+   "statement": "TGF-β plays a crucial role in expansion of the myofibroblast population in the healing infarct and stimulates expression of extracellular matrix proteins.",
+   "passage": "TGF-β plays a crucial role in expansion of the myofibroblast population in the healing infarct and stimulates expression of extracellular matrix proteins.",
+   "section": "other",
+   "terms": [
+    "Myocardial Ischemia",
+    "healing infarct"
+   ]
+  },
+  {
+   "citation_key": "hanna2019",
+   "field": "key_findings",
+   "statement": "In vivo experiments using cell-specific knockout strategies suggested that Smad3 signaling exerts important actions in regulating cardiomyocyte, fibroblast, and macrophage function following myocardial infarction.",
+   "passage": "In vivo experiments using cell-specific knockout strategies suggested that Smad3 signaling exerts important actions in regulating cardiomyocyte, fibroblast, and macrophage function following myocardial infarction.",
+   "section": "other",
+   "terms": [
+    "Myocardial Ischemia",
+    "myocardial infarction"
+   ]
+  },
+  {
+   "citation_key": "hanna2019",
+   "field": "limitations",
+   "statement": "The pleiotropic, cell-specific, and context-dependent actions of TGF-β superfamily members pose major challenges in therapeutic translation.",
+   "passage": "However, the pleiotropic, cell-specific, and context-dependent actions of TGF-β superfamily members pose major challenges in therapeutic translation.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "hanna2019",
+   "field": "limitations",
+   "statement": "Our current knowledge of the cell-specific actions of TGF-βs in vivo is not sufficient to design therapy.",
+   "passage": "Clearly, activation of TGF-β signaling affects phenotype and function of all cells involved in cardiac repair, exerting both protective and detrimental effects. Our current knowledge of the cell-specific actions of TGF-βs in vivo is not sufficient to design therapy.",
+   "section": "other",
+   "terms": []
+  },
+  {
+   "citation_key": "hanna2019",
+   "field": "future_work",
+   "statement": "Identification of patient subpopulations with overactive TGF-β signaling through the use of carefully validated biomarkers, or imaging studies, will be essential in order to design personalized treatment strategies.",
+   "passage": "Thus, identification of patient subpopulations with overactive TGF-β signaling through the use of carefully validated biomarkers, or imaging studies, will be essential in order to design personalized treatment strategies.",
+   "section": "other",
+   "terms": []
+  },
+  {
+   "citation_key": "hanna2019",
+   "field": "future_work",
+   "statement": "Attempts for clinical translation of TGF-β/Smad inhibition strategies following infarction should focus on brief therapeutic interventions, and may need to exclude vulnerable patients.",
+   "passage": "Thus, attempts for clinical translation of TGF-β/Smad inhibition strategies following infarction should focus on brief therapeutic interventions, and may need to exclude vulnerable patients.",
+   "section": "other",
+   "terms": [
+    "Myocardial Ischemia",
+    "infarction"
+   ]
+  },
+  {
+   "citation_key": "puhl2019",
+   "field": "research_question",
+   "statement": "Whether neutrophils play distinct and possibly stage-dependent roles in post-myocardial infarction inflammation, damage, and resolution.",
+   "passage": "Unraveling the distinct and possibly stage-dependent properties of neutrophils in cardiac repair may provide new therapeutic strategies in order to improve the clinical outcome for myocardial infarction patients.",
+   "section": "abstract",
+   "terms": [
+    "Myocardial Ischemia",
+    "post-myocardial infarction inflammation"
+   ]
+  },
+  {
+   "citation_key": "puhl2019",
+   "field": "research_question",
+   "statement": "Whether sex-specific differences exist in neutrophil signaling and function after myocardial infarction.",
+   "passage": "Of particular interest in this context are recent experimental data dissecting sex-specific differences in neutrophil signaling after myocardial infarction.",
+   "section": "abstract",
+   "terms": [
+    "Myocardial Ischemia",
+    "myocardial infarction"
+   ]
+  },
+  {
+   "citation_key": "puhl2019",
+   "field": "key_findings",
+   "statement": "Limiting neutrophil counts at the beginning of the active phase reduced infarct size and improved cardiac function.",
+   "passage": "Limiting neutrophil counts at this time point reduced the infarct size and improved cardiac function.",
+   "section": "results",
+   "terms": [
+    "Myocardial Ischemia",
+    "infarct size",
+    "Heart Function Tests",
+    "cardiac function"
+   ]
+  },
+  {
+   "citation_key": "puhl2019",
+   "field": "key_findings",
+   "statement": "Male infarcted tissue showed higher IL-1β, IL-6, and IL-6 receptor expression at day 1 and 4 post-MI compared to females.",
+   "passage": "MI studies in mice confirmed that males resolved IL6 more slowly from plasma, and that male infarcted tissue showed higher IL-1β, IL-6, and IL-6 receptor expression at day 1 and 4 post-MI.",
+   "section": "results",
+   "terms": [
+    "Myocardial Ischemia",
+    "post-MI"
+   ]
+  },
+  {
+   "citation_key": "puhl2019",
+   "field": "key_findings",
+   "statement": "Aging in females abolished the initial protection against excessive IL-6 production and signaling due to reduced liver X receptors/retinoid X receptor LXR/RXR activation.",
+   "passage": "In this study, aging in females abolished the initial protection against excessive IL-6 production and signaling due to reduced liver X receptors/retinoid X receptor LXR/RXR activation.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "puhl2019",
+   "field": "future_work",
+   "statement": "Dissecting the function of neutrophils in the setting of post-MI inflammation and repair will require further research in additional preclinical animal models as well as data from human samples, wherever applicable.",
+   "passage": "Dissecting the function of neutrophils in the setting of post-MI inflammation and repair will require further research in additional preclinical animal models as well as data from human samples, wherever applicable.",
+   "section": "conclusion",
+   "terms": [
+    "Myocardial Ischemia",
+    "post-MI inflammation and repair"
+   ]
+  },
+  {
+   "citation_key": "puhl2019",
+   "field": "future_work",
+   "statement": "The identification of mediators that stimulate the post-inflammatory resolution phase might be facilitated by the use of proteomic and lipidomic screening approaches with inflammatory cell secretome or cardiac tissue isolated after MI.",
+   "passage": "The identification of such mediators might be facilitated by the use of proteomic and lipidomic screening approaches with inflammatory cell secretome or cardiac tissue isolated after MI.",
+   "section": "conclusion",
+   "terms": [
+    "Myocardial Ischemia",
+    "post-inflammatory resolution phase",
+    "cardiac tissue isolated after MI"
+   ]
+  },
+  {
+   "citation_key": "puhl2019",
+   "field": "future_work",
+   "statement": "Whether the pericardial lymphocyte response has an impact on the functional activity of neutrophils released from the bone marrow at different stages after MI deserves further investigation.",
+   "passage": "Whether the pericardial lymphocyte response has an impact on the functional activity of neutrophils released from the bone marrow at different stages after MI deserves further investigation.",
+   "section": "discussion",
+   "terms": [
+    "Myocardial Ischemia",
+    "after MI"
+   ]
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "field": "research_question",
+   "statement": "The paper explores the molecular causes underlying inadequate cardiac vascularization during pathological hypertrophy and the transition to heart failure.",
+   "passage": "Although the molecular causes underlying the inadequate (with respect to the increased oxygen and energy demands of the hypertrophied cardiomyocyte) cardiac vascularization developing during pathological hypertrophy are incompletely understood.",
+   "section": "abstract",
+   "terms": [
+    "Heart Failure",
+    "heart failure"
+   ]
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "field": "populations",
+   "statement": "The review discusses findings from patients with heart failure, cardiac hypertrophy, hypertrophic cardiomyopathy, dilated cardiomyopathy, and hypertensive heart disease.",
+   "passage": "Changes in the cardiac microvasculature during cardiac hypertrophy have been examined in a number of studies, for example in hypertrophic (23) and dilated cardiomyopathy (24) or hypertensive heart disease (25).",
+   "section": "results",
+   "terms": [
+    "Heart Failure",
+    "heart failure",
+    "Cardiomegaly",
+    "cardiac hypertrophy",
+    "Cardiomyopathy, Hypertrophic",
+    "hypertrophic cardiomyopathy",
+    "Cardiomyopathy, Dilated",
+    "dilated cardiomyopathy",
+    "Humans",
+    "patients"
+   ]
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "field": "populations",
+   "statement": "The review examines findings from patients with end-stage heart failure undergoing aortic valve replacement.",
+   "passage": "For example, a significantly increased PTP1B activity was detected in hypertrophic hearts of rats after bandings as well as in left ventricular tissue specimens of patients with systolic dysfunction undergoing aortic valve replacement (194)",
+   "section": "results",
+   "terms": [
+    "Heart Failure",
+    "end-stage heart failure",
+    "Heart Valve Prosthesis Implantation",
+    "aortic valve replacement",
+    "Humans",
+    "patients"
+   ]
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "field": "populations",
+   "statement": "The review discusses preclinical models using mice, rats, rabbits, pigs, dogs, and canines with experimentally-induced cardiac hypertrophy.",
+   "passage": "Similar to observations in patients, morphometric studies in preclinical models of cardiac hypertrophy also revealed a reduction in capillary density and inadequate growth of the coronary microvasculature [reviewed in Kamo et al. (40)].",
+   "section": "results",
+   "terms": [
+    "Cardiomegaly",
+    "cardiac hypertrophy",
+    "Mice",
+    "mice",
+    "Rats",
+    "rats",
+    "Swine",
+    "pigs"
+   ]
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "field": "key_findings",
+   "statement": "Pathological cardiac hypertrophy is characterized by inadequate rarefaction of the cardiac microvasculature, whereas physiological hypertrophy maintains proportional capillary growth.",
+   "passage": "In cardiac hypertrophy developing in response to postnatal growth, physical exercise or pregnancy, so-called physiological hypertrophy, capillaries grow proportional to cardiomyocyte volume thus maintaining the capillary density observed in normal non-hypertrophied hearts. In contrast, maladaptive or pathological cardiac hypertrophy is characterized by an inadequate rarefaction of the cardiac microvasculature.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "field": "key_findings",
+   "statement": "Reduced capillary density in patients with hypertrophic cardiomyopathy may be responsible for clinical signs of ischemia in the absence of epicardial coronary artery stenosis.",
+   "passage": "The reduced capillary density observed in patients with hypertrophic cardiomyopathy may also be responsible for the clinical signs and symptoms of ischemia in the absence of epicardial coronary artery stenosis (26).",
+   "section": "results",
+   "terms": [
+    "Cardiomyopathy, Hypertrophic",
+    "hypertrophic cardiomyopathy",
+    "Myocardial Ischemia",
+    "ischemia"
+   ]
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "field": "key_findings",
+   "statement": "VEGF is critically involved in cardiac vascularization and function, as mice lacking VEGF-A isoforms in cardiomyocytes showed coronary hypovascularization, ventricular thinning, and contractile dysfunction.",
+   "passage": "The angiogenic growth factor VEGF is critically involved in cardiac vascularization and function, as shown in transgenic mice lacking all VEGF-A isoforms in cardiomyocytes resulting in coronary hypovascularization, ventricular thinning and contractile dysfunction (43).",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "field": "key_findings",
+   "statement": "Inhibition of angiogenesis using angiogenesis inhibitors accelerated the development of cardiac dysfunction, whereas angiogenesis stimulation delayed the onset of heart failure.",
+   "passage": "A causal role of angiogenesis defects for the conversion from compensated to decompensated hypertrophy is suggested by experimental findings that inhibition of blood vessel formation using angiogenesis inhibitors like TNP-470 or a VEGF trap accelerated the development of cardiac dysfunction (43-45), whereas angiogenesis stimulation delayed the onset of heart failure (46).",
+   "section": "results",
+   "terms": [
+    "Heart Failure",
+    "heart failure"
+   ]
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "field": "key_findings",
+   "statement": "Endothelial cell-specific deletion of PTP1B improves cardiac angiogenesis, reduces cardiac hypoxia, and ameliorates oxidative stress and fibrosis, resulting in improved survival and cardiac pump function.",
+   "passage": "In line with the role of PTP1B as negative regulator of VEGFR2 autophosphorylation (196), we could show that inducible deletion of PTP1B in endothelial cells improves cardiac angiogenesis and reduces cardiac hypoxia, but also ameliorates oxidative stress and fibrosis resulting in an improved survival and better cardiac pump function (195).",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "field": "key_findings",
+   "statement": "Endothelial deletion of p53 attenuated cardiac fibrosis and was associated with lower mRNA expression of transcription factors controlling mesenchymal differentiation.",
+   "passage": "In line with the role of p53 in HIF1α degradation (45), we could show that endothelial deletion of p53 attenuated cardiac fibrosis and was associated with lower mRNA expression of transcription factors controlling mesenchymal differentiation, both in banded mouse hearts and primary endothelial cells stimulated with TGFβ1 (234)",
+   "section": "results",
+   "terms": [
+    "Cardiomyopathies",
+    "cardiac fibrosis"
+   ]
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "field": "key_findings",
+   "statement": "Increased endothelial cell death contributes to rarefaction of the cardiac vasculature during pathological hypertrophy.",
+   "passage": "Increased endothelial cell death may also contribute to the rarefaction of the cardiac vasculature observed during pathological hypertrophy. In fact, angiogenic growth factors may act by inhibiting apoptosis (224), and promotion of endothelial cell survival represents a central mechanism during new vessel formation (225).",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "field": "key_findings",
+   "statement": "TGFβ1 expression increases particularly during the transition from stable to symptomatic heart failure.",
+   "passage": "Importantly, TGFβ1 expression was found to increase particularly during the transition from stable to symptomatic heart failure (294).",
+   "section": "results",
+   "terms": [
+    "Heart Failure",
+    "heart failure"
+   ]
+  },
+  {
+   "citation_key": "gogiraju2019",
+   "field": "future_work",
+   "statement": "Potential treatment strategies targeting endothelial cells and angiogenesis regulation in the heart are currently limited to the experimental, preclinical stage and have not entered the clinic.",
+   "passage": "Because cardiac vascularization plays a central role in the transition from adaptive cardiac hypertrophy to heart failure, endothelial cells and signaling mechanisms involved in the regulation or dysregulation of angiogenesis in the heart represent promising therapeutic targets to improve pressure overload-induced cardiac remodeling and to prevent the transition to heart failure. However, potential treatment strategies are currently limited to the experimental, preclinical stage and have not entered the clinic.",
+   "section": "conclusion",
+   "terms": []
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "research_question",
+   "statement": "The paper investigated mortality patterns and closely analyzed the cause of death in patients with atrial fibrillation, examining the impact of atrial fibrillation on mortality risk stratified by age, sex, and detailed causes of death.",
+   "passage": "Therefore, in this study, we investigated the mortality patterns and closely analyzed the cause of death in patients with AF by using a nationwide population-based cohort.",
+   "section": "introduction",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "atrial fibrillation"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "methods",
+   "statement": "Atrial fibrillation was defined according to ICD-10 code I48 requiring ≥2 outpatient visits or ≥1 hospitalization per year.",
+   "passage": "According to the revised 10th International Statistical Classification of Diseases and related health problems (ICD-10) codes, AF was defined as I48 to include patients requiring ≥2 outpatient visits or ≥1 hospitalization per year.",
+   "section": "methods",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "atrial fibrillation"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "methods",
+   "statement": "Patients with mitral stenosis or preexisting mechanical heart valves were excluded to ensure the study included only patients with nonvalvular atrial fibrillation.",
+   "passage": "To ensure that the study included only patients with nonvalvular AF, we excluded those with mitral stenosis (I50, I52, and I59) or preexisting mechanical heart valves (Z952-Z945).",
+   "section": "methods",
+   "terms": [
+    "Heart Valve Diseases",
+    "mitral stenosis",
+    "Heart Valve Prosthesis Implantation",
+    "mechanical heart valves"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "methods",
+   "statement": "The causes of death were coded based on the Korean Standard Classification of Diseases and Causes of Death, which is based on the ICD-10 system.",
+   "passage": "The causes of death were coded based on the Korean Standard Classification of Diseases and Causes of Death, which is based on the ICD-10 system.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "methods",
+   "statement": "The standardized mortality ratio (SMR) was used to compare the mortality rate with that in the general population, calculated as the ratio of the observed deaths in the population with AF to the expected deaths based on data from the general Korean population.",
+   "passage": "The standardized mortality ratio (SMR) was used to compare the mortality rate with that in the general population. SMR is the ratio of the observed deaths in the population with AF to the expected deaths based on data from the general Korean population.",
+   "section": "methods",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "atrial fibrillation"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "methods",
+   "statement": "Survival analysis of patients with atrial fibrillation based on the CHA2DS2-VASc score was performed using the Kaplan-Meier method.",
+   "passage": "Survival analysis of patients with AF based on the CHA2DS2-VASc score was performed using the Kaplan-Meier method.",
+   "section": "methods",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "atrial fibrillation"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "populations",
+   "statement": "The study enrolled 15,411 patients with atrial fibrillation from the Korean National Health Insurance Service-National Sample Cohort between 2002 and 2013.",
+   "passage": "A total of 15,411 patients with atrial fibrillation from the Korean National Health Insurance Service-National Sample Cohort were enrolled, and causes of death were identified according to codes of the 10th revision of the International Classification of Diseases.",
+   "section": "abstract",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "atrial fibrillation",
+    "Humans",
+    "patients"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "populations",
+   "statement": "The mean patient age was 63.9 ± 15.9 years, and 8,226 (53.4%) of the patients were men.",
+   "passage": "The mean patient age was 63.9 ± 15.9 years, and 8,226 (53.4%) of the patients were men.",
+   "section": "results",
+   "terms": [
+    "Middle Aged",
+    "mean patient age was 63.9 ± 15.9 years",
+    "Male",
+    "8,226 (53.4%) of the patients were men"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "populations",
+   "statement": "Two-thirds of patients with atrial fibrillation were aged ≥60 years (n = 10,292, 66.7%) and 16.9% of patients were aged <50 years (n = 1,232).",
+   "passage": "Two-thirds of patients with AF were aged ≥60 years (n = 10,292, 66.7%) and 16.9% of patients were aged <50 years (n = 1,232).",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "atrial fibrillation",
+    "Middle Aged",
+    "patients with atrial fibrillation were aged ≥60 years",
+    "Aged",
+    "Adult",
+    "patients were aged <50 years"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "datasets",
+   "statement": "The study used the National Health Insurance Service-National Sample Cohort (NHIS-NSC) database, a population-based cohort created by the National Health Insurance Service in Korea.",
+   "passage": "The NHIS-National Sample Cohort (NHIS-NSC) is a populationbased cohort created by the NHIS. The NHIS-NSC provides medical researchers with representative information about the healthcare system utilization and health examinations of Korean citizens.",
+   "section": "methods",
+   "terms": [
+    "Administrative Claims, Healthcare",
+    "National Health Insurance Service-National Sample Cohort (NHIS-NSC) database"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "datasets",
+   "statement": "The mortality database provided by Statistics Korea was used, which includes death-related data such as age at the time of death, as well as the causes, date, and place of death.",
+   "passage": "We used the mortality database provided by Statistics Korea, a government agency. This mortality database includes death-related data such as age at the time of death, as well as the causes, date, and place of death.",
+   "section": "methods",
+   "terms": [
+    "Vital Statistics",
+    "mortality database provided by Statistics Korea"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "key_findings",
+   "statement": "From 2002 to 2013, a total of 4,479 (29%) deaths were confirmed, and the crude mortality rate for all-cause death was 63.3 per 1,000 patient-years.",
+   "passage": "From 2002 to 2013, a total of 4,479 (29%) deaths were confirmed, and the crude mortality rate for all-cause death was 63.3 per 1,000 patient-years.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "key_findings",
+   "statement": "Patients with atrial fibrillation had a 3.7-fold increased risk of all-cause death compared with the general population.",
+   "passage": "Patients with atrial fibrillation had a 3.7-fold increased risk of all-cause death compared with the general population.",
+   "section": "abstract",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "atrial fibrillation"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "key_findings",
+   "statement": "The standardized mortality ratio for all-cause death was highest in young patients and decreased with increasing age (SMR 21.93, 95% CI 7.60-26.26 in patients aged <20 years; SMR 2.77, 95% CI 2.63-2.91 in patients aged ≥80 years).",
+   "passage": "The standardized mortality ratio for all-cause death was the highest in young patients and decreased with increasing age (standardized mortality ratio 21.93, 95% confidence interval 7.60-26.26 in patients aged <20 years; standardized mortality ratio 2.77, 95% confidence interval 2.632.91 in patients aged ≥80 years).",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "key_findings",
+   "statement": "Women with atrial fibrillation exhibited a greater excess mortality risk than men (SMR 3.81, 95% CI 3.65-3.98 in women; SMR 3.35, 95% CI 3.21-3.48 in men).",
+   "passage": "Women with atrial fibrillation exhibited a greater excess mortality risk than men (standardized mortality ratio 3.81, 95% confidence interval 3.653.98 in women; standardized mortality ratio 3.35, 95% confidence interval 3.21-3.48 in men).",
+   "section": "abstract",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "atrial fibrillation"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "key_findings",
+   "statement": "Cardiovascular disease was the leading cause of death (38.5%), and cerebral infarction was the most common specific disease.",
+   "passage": "Cardiovascular disease was the leading cause of death (38.5%), and cerebral infarction was the most common specific disease.",
+   "section": "abstract",
+   "terms": [
+    "Heart Defects, Congenital",
+    "cardiovascular disease",
+    "Myocardial Ischemia",
+    "cerebral infarction"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "key_findings",
+   "statement": "Patients with atrial fibrillation had an about 5 times increased risk of death due to cardiovascular disease compared with the general population.",
+   "passage": "Patients with atrial fibrillation had an about 5 times increased risk of death due to cardiovascular disease compared with the general population.",
+   "section": "abstract",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "atrial fibrillation",
+    "Heart Defects, Congenital",
+    "cardiovascular disease"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "key_findings",
+   "statement": "In patients with AF, diseases of the circulatory system (38.0%) were the most common cause of death, followed by malignant neoplasms (23.4%) and diseases of the respiratory system (8.4%).",
+   "passage": "In patients with AF, diseases of the circulatory system (38.0%) were the most common cause of death, followed by malignant neoplasms (23.4%) and diseases of the respiratory system (8.4%).",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "key_findings",
+   "statement": "Cerebral infarction (I63, 7.8%) was the most common cause of death in patients with AF, followed by lung cancer (C34, 6.0%), myocardial infarction (I21, 5.0%), senility (R54, 4.5%), and sequelae of cerebrovascular diseases (I69, 4.5%).",
+   "passage": "With respect to specific disease entities, cerebral infarction (I63, 7.8%) was the most common cause of death in patients with AF, followed by lung cancer (C34, 6.0%), myocardial infarction (I21, 5.0%), senility (R54, 4.5%), and sequelae of cerebrovascular diseases (I69, 4.5%).",
+   "section": "results",
+   "terms": [
+    "Myocardial Ischemia",
+    "cerebral infarction",
+    "myocardial infarction"
+   ]
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "limitations",
+   "statement": "The definitions of AF and other comorbidities were based on the NHIS claims data, and the causes of death were based on ICD-10 diagnosis codes, thus the possibility of underestimation or overestimation cannot be ignored.",
+   "passage": "First, the definitions of AF and other comorbidities were based on the NHIS claims data, and the causes of death were based on ICD-10 diagnosis codes. Thus, the possibility of underestimation or overestimation of the number of patients with AF and the cause of death cannot be ignored.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "limitations",
+   "statement": "Detailed information about the type of AF could not be verified in these claims data.",
+   "passage": "In addition, detailed information about the type of AF could not be verified in these claims data.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "limitations",
+   "statement": "The Korean mortality database did not contain clinical variables that could affect survival, preventing adjustment for these factors.",
+   "passage": "Second, although it would be reasonable to adjust several clinical variables that could affect survival, the Korean mortality database provided by Statistics Korea (a government agency) did not contain these data.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "lee2018",
+   "field": "limitations",
+   "statement": "This study included only Koreans; thus, the results may not be generalizable to other populations.",
+   "passage": "Third, this study included only Koreans; thus, our results may not be generalizable to other populations.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "research_question",
+   "statement": "This paper reviews the roles of inflammation in the occurrence, development, and mechanisms of AF and reviews the therapeutic implications of the correlation of inflammation and AF.",
+   "passage": "This paper reviews the roles of inflammation in the occurrence, development, and mechanisms of AF and reviews the therapeutic implications of the correlationof inflammationandAF.",
+   "section": "abstract",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "Inflammation can alter atrial electrophysiology and structure to increase the vulnerability to AF through electrical and structural remodeling.",
+   "passage": "Inflammation can alter atrial electrophysiology and structure to increase the vulnerability to AF. These two effects are known as atrial electrical and structural remodeling, respectively.",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "The degree of atrial fibrosis is positively associated with AF persistence.",
+   "passage": "Evidence for the relationship of AF and fibrosis includes the degree of atrial fibrosis positively associated with AF persistence",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "AF patients have higher CD45+ lymphocytes and CD68+ macrophages counts in the atria than do controls.",
+   "passage": "AF patients have higher CD45 + lymphocytes (22) and CD68 + macrophages counts in the atria than do controls.",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "Cardiac MCP1 is increased in AF patients.",
+   "passage": "cardiac MCP1, a cytokine that can recruit monocytes, dendritic cells and memory T cells, is increased in AF patients",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "The activity of NLRP3 inflammasome is elevated in the atrial cardiomyocytes from paroxysmal and chronic AF patients.",
+   "passage": "The activity of NLRP3 inflammasome is elevated in the atrial CMs from paroxysmal and chronic AF patients",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "paroxysmal and chronic AF"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "In a mouse with constitutive expression of active NLRP3, spontaneous atrial ectopy and inducible AF occur.",
+   "passage": "In a mouse with constitutive expression of active NLRP3, spontaneous atrial ectopy and inducible AF occur",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "The prevalence of AF is increased in rheumatoid arthritis patients.",
+   "passage": "In many clinical studies, the prevalence of AF is shown to be increased in RA patients",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "CRP is increased in patients with AF and there is a dose dependence of CRP and AF risk.",
+   "passage": "C reactive protein (CRP), an acute-phase protein whose circulating concentrations rise in response to inflammation, is increased in patients with AF (58). Moreover, there is a dose dependence of CRP and AF risk",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "High-sensitivity CRP is associated with AF development and persistence and predicts increased mortality in AF patients.",
+   "passage": "High-sensitivity CRP is associated with AF development and persistence (63), and predicts increased mortality in AF patients",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "High levels of serum IL-6 are linked to the recurrence of AF after electrical cardioversion and catheter ablation.",
+   "passage": "high levels of serum IL-6 are linked to the recurrence of AF after electrical cardioversion and catheter ablation",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF",
+    "Electric Countershock",
+    "electrical cardioversion",
+    "Catheter Ablation",
+    "catheter ablation"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "Elevated circulating IL-6 levels have been correlated with increased incidence of AF.",
+   "passage": "Elevated circulating IL-6 levels have also been correlated with increased incidence of AF",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "Higher TNF-α levels are linked to greater risk of AF.",
+   "passage": "Higher TNF-α levels are linked to greater risk of AF",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "WBC count was associated with the incidence of AF in the Framingham Heart Study.",
+   "passage": "In the Framingham Heart Study, WBC count was associated with the incidence of AF",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "The neutrophil/lymphocyte ratio predicts AF after bypass surgery.",
+   "passage": "The neutrophil/lymphocyte ratio (NLR), a routinely available marker of the systemic inflammatory response, predicts AF after bypass surgery",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF after bypass surgery",
+    "Coronary Artery Bypass",
+    "bypass surgery"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "Corticosteroids have a potent anti-inflammatory effect on reducing recurrence of AF after ablation therapy and post-operative AF after cardiac surgery.",
+   "passage": "Corticosteroids have a potent anti-inflammatory effect on reducing recurrence of AF after ablation therapy (90, 91) and post-operative AF after cardiac surgery",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF after ablation therapy",
+    "post-operative AF after cardiac surgery"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "Both angiotensin receptor blockers and angiotensin-converting enzyme inhibitors can reduce new-onset AF in patients with hypertension.",
+   "passage": "Both angiotensin receptor blockers (ARBs) and angiotensin-converting enzyme inhibitors (ACEIs) can reduce new-onset AF in patients with hypertension.",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "new-onset AF",
+    "hypertension"
+   ]
+  },
+  {
+   "citation_key": "zhou2020",
+   "field": "key_findings",
+   "statement": "Spironolactone treatment significantly prevented the alterations of atrial structure and function and reduced fibrotic pathways in a canine model with persistent AF.",
+   "passage": "Spironolactone treatment significantly prevented the alterations of atrial structure and function and reduced fibrotic pathways in a canine model with persistent AF.",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "persistent AF"
+   ]
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "research_question",
+   "statement": "The study sought to develop and evaluate novel and conventional statistical and machine learning models for risk-prediction of AF.",
+   "passage": "This study sought to develop and evaluate novel and conventional statistical and machine learning models for risk-predication of AF.",
+   "section": "abstract",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "AF"
+   ]
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "methods",
+   "statement": "Models evaluated included published risk models (Framingham, ARIC, CHARGE-AF), machine learning models, which evaluated baseline and time-updated information (neural network, LASSO, random forests, support vector machines), and Cox regression.",
+   "passage": "Models evaluated included published risk models (Framingham, ARIC, CHARGE-AF), machine learning models, which evaluated baseline and time-updated information (neural network, LASSO, random forests, support vector machines), and Cox regression.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "methods",
+   "statement": "Diagnoses of AF (or atrial flutter, to account for mis-recording) and other comorbidities were identified using Read codes.",
+   "passage": "Diagnoses of AF (or atrial flutter, to account for mis-recording) and other comorbidities were identified using Read codes (S1 Table in the supporting information).",
+   "section": "methods",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "atrial flutter"
+   ]
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "methods",
+   "statement": "Development and evaluation of the optimum risk model for prediction of AF was a three-stage process.",
+   "passage": "Development and evaluation of the optimum risk model for prediction of AF was a three-stage process.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "methods",
+   "statement": "Covariates in the machine learning approaches at both stages 1 and 2 were selected by recursive feature elimination, with hyperparameters being optimised through five-fold cross-validation.",
+   "passage": "Covariates in the machine learning approaches at both stages 1 and 2 were selected by recursive feature elimination, with hyperparameters being optimised through five-fold cross-validation (S5 Table)",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "methods",
+   "statement": "Patients were randomly assigned to training and holdout datasets in a 2:1 ratio; these datasets were used to fit and independently assess each risk model, respectively.",
+   "passage": "To aid generalizability of the results beyond the sample to which the risk models were fitted, patients were randomly assigned to training and holdout datasets in a 2:1 ratio; these datasets were used to fit and independently assess each risk model, respectively.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "methods",
+   "statement": "Each covariate's 'relative strength' in predicting AF risk was quantified and expressed as a percentage of the most important covariate within the model.",
+   "passage": "To aid interpretability of the fitted NN, each covariate's 'relative strength' in predicting AF risk was quantified[23] and expressed as a percentage of the most important covariate within the model.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "methods",
+   "statement": "Discrimination between AF and non-AF cases was assessed using area under the receiver operating characteristic curve (AUROC).",
+   "passage": "Discrimination between AF and non-AF cases was assessed using area under the receiver operating characteristic curve (AUROC): value in the range 0-1, where 1 indicates perfect separation of AF and non-AF cases.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "methods",
+   "statement": "Positive predictive value (PPV) and potential number-needed-to-screen (NNS) were computed at sensitivities of 25%, 50%, and 75%.",
+   "passage": "Positive predictive value (PPV) and potential numberneeded-to-screen (NNS)[25] (potential due to the diagnostic accuracy of the arrhythmia detection device and the paroxysmal nature of the disease) were computed at sensitivities of 25%, 50%, and 75%.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "populations",
+   "statement": "Adults aged 30 years or older without a history of AF, listed on the Clinical Practice Research Datalink.",
+   "passage": "This was a retrospective, cohort study of adults (aged �30 years) without a history of AF, listed on the Clinical Practice Research Datalink, from January 2006 to December 2016.",
+   "section": "abstract",
+   "terms": [
+    "Adult",
+    "Adults aged 30 years or older",
+    "Middle Aged",
+    "Aged",
+    "Aged, 80 and over",
+    "Humans",
+    "patients"
+   ]
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "populations",
+   "statement": "A total of 2,994,837 patients were included in the baseline model, with 162,672 included in the time-varying model (AF patients >1 year of follow-up and matched non-AF sample).",
+   "passage": "A total of 2,994,837 patients were included in the baseline model (S2 Fig), with 162,672 included in the time-varying model (AF patients >1 year of follow-up and matched non-AF sample).",
+   "section": "results",
+   "terms": [
+    "Humans",
+    "patients"
+   ]
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "populations",
+   "statement": "Over the 11-year study period, 95,607 patients (3.19%) were diagnosed with AF, median follow-up time was 7.09 years, and a total of 19.63 million patient-years were accrued.",
+   "passage": "Over the 11-year study period, 95,607 patients (3.19%) were diagnosed with AF, median follow-up time was 7.09 years, and a total of 19.63 million patient-years were accrued.",
+   "section": "results",
+   "terms": [
+    "Humans",
+    "patients"
+   ]
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "datasets",
+   "statement": "Primary care data obtained from the UK Clinical Practice Research Datalink (CPRD).",
+   "passage": "This was a retrospective, observational cohort study using primary care data obtained from the UK Clinical Practice Research Datalink (CPRD)",
+   "section": "methods",
+   "terms": [
+    "Electronic Health Records",
+    "UK Clinical Practice Research Datalink (CPRD)"
+   ]
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "key_findings",
+   "statement": "Analysis of 2,994,837 individuals (3.2% AF) identified time-varying neural networks as the optimal model achieving an AUROC of 0.827 vs. 0.725, with number needed to screen of 9 vs. 13 patients at 75% sensitivity, when compared with the best existing model CHARGE-AF.",
+   "passage": "Analysis of 2,994,837 individuals (3.2% AF) identified time-varying neural networks as the optimal model achieving an AUROC of 0.827 vs. 0.725, with number needed to screen of 9 vs. 13 patients at 75% sensitivity, when compared with the best existing model CHARGEAF.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "key_findings",
+   "statement": "The optimal model confirmed known baseline risk factors (age, previous cardiovascular disease, antihypertensive medication usage) and identified additional time-varying predictors (proximity of cardiovascular events, body mass index (both levels and changes), pulse pressure, and the frequency of blood pressure measurements).",
+   "passage": "The optimal model confirmed known baseline risk factors (age, previous cardiovascular disease, antihypertensive medication usage) and identified additional time-varying predictors (proximity of cardiovascular events, body mass index (both levels and changes), pulse pressure, and the frequency of blood pressure measurements).",
+   "section": "abstract",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "cardiovascular disease",
+    "cardiovascular events"
+   ]
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "key_findings",
+   "statement": "Top predictors in the baseline model were age, history of cardiovascular diseases and events, and prescriptions for antihypertensive medications.",
+   "passage": "When ranked by importance, top predictors in the baseline model were age, history of cardiovascular diseases and events, and prescriptions for antihypertensive medications (Fig 1).",
+   "section": "results",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "history of cardiovascular diseases and events"
+   ]
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "key_findings",
+   "statement": "In the time-varying NN, the presence of heart failure in the most recent 91-day quarter contributed most to the prediction of AF diagnoses.",
+   "passage": "In the time-varying NN, the presence of heart failure in the most recent 91-day quarter contributed most to the prediction of AF diagnoses (Fig 1)",
+   "section": "results",
+   "terms": [
+    "Heart Failure",
+    "heart failure"
+   ]
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "key_findings",
+   "statement": "To identify 75% of diagnosed AF cases, the final NN achieved a PPV of 11.5%, compared to 7.9% for CHARGE-AF and 6.5% for logistic regression, corresponding to NNS of 9, 13, and 15 patients, respectively.",
+   "passage": "To identify 75% of diagnosed AF cases, the final NN (incorporating predicted probabilities from the baseline and time-varying NN) achieved a PPV of 11.5%, compared to 7.9% for CHARGE-AF and 6.5% for logistic regression (Table 3), corresponding to NNS of 9, 13, and 15 patients, respectively.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "key_findings",
+   "statement": "The NN achieved an AUROC of 0.827, compared to 0.725 for CHARGE-AF and 0.695 for logistic regression.",
+   "passage": "The NN achieved an AUROC of 0.827, compared to 0.725 for CHARGE-AF and 0.695 for logistic regression (Table 3).",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "key_findings",
+   "statement": "The optimal time-varying machine learning model exhibited greater predictive performance than existing AF risk models and reflected known and new patient risk factors for AF.",
+   "passage": "The optimal time-varying machine learning model exhibited greater predictive performance than existing AF risk models and reflected known and new patient risk factors for AF.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "limitations",
+   "statement": "A key limitation of this study is the CPRD, and therefore primary care records, as the single data source.",
+   "passage": "A key limitation of this study is the CPRD, and therefore primary care records, as the single data source",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "limitations",
+   "statement": "We likely underestimated AF incidence, as the condition is known to be underdiagnosed in the general population and a high proportion of AF diagnoses are made incidentally in secondary care.",
+   "passage": "We likely underestimated AF incidence, as the condition is known to be underdiagnosed in the general population[6] and a high proportion of AF diagnoses are made incidentally in secondary care",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "limitations",
+   "statement": "CPRD does not provide suitable detailed information on ECG data and their coding—whether AF was a single episode or multiple episodes or persistent—this data is often left incomplete.",
+   "passage": "CPRD does not provide suitable detailed information on ECG data and their codingwhether AF was a single episode or multiple episodes or persistent-this data is often left incomplete.",
+   "section": "discussion",
+   "terms": [
+    "Electrocardiography",
+    "ECG"
+   ]
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "limitations",
+   "statement": "A further limitation is that we were only able to analyse events chronologically in the order that they were recorded on the CPRD, which could impact the finding that a recent adverse cardiovascular event, such as heart failure, was a strong predictor of an upcoming AF diagnosis or that paroxysmal AF may have triggered the heart failure.",
+   "passage": "A further limitation is that we were only able to analyse events chronologically in the order that they were recorded on the CPRD, which could impact the finding that a recent adverse cardiovascular event, such as heart failure, was a strong predictor of an upcoming AF diagnosis or that paroxysmal AF may have triggered the heart failure.",
+   "section": "discussion",
+   "terms": [
+    "Heart Failure",
+    "adverse cardiovascular event, such as heart failure"
+   ]
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "limitations",
+   "statement": "Our study is limited by its retrospective design, as we developed the model based on already diagnosed AF cases and without detailed information surrounding the diagnosis (for example, if patients presented with symptomatic AF or if the diagnosis was incidental) and real-world model performance would be likely to have reduced performance depending on the degree to which associations between risk factors and AF incidence are similar between 'previously diagnosed' and 'yet undiagnosed' AF cases.",
+   "passage": "Finally, our study is limited by its retrospective design, as we developed the model based on already diagnosed AF cases and without detailed information surrounding the diagnosis (for example, if patients presented with symptomatic AF or if the diagnosis was incidental) and real-world model performance would be likely to have reduced performance depending on the degree to which associations between risk factors and AF incidence are similar between 'previously diagnosed' and 'yet undiagnosed' AF cases.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "future_work",
+   "statement": "The next stage of the research is to conduct a clinical trial to investigate model performance in practice, to assess how well the risk factors identified translate into predicting and diagnosing AF in a real-world setting in a bid to optimise the prevention of AF related stroke, heart failure and premature mortality.",
+   "passage": "The next stage of the research is therefore to conduct a clinical trial to investigate model performance in practice, to assess how well the risk factors identified translate into predicting and diagnosing AF in a real-world setting in a bid to optimise the prevention of AF related stroke, heart failure and premature mortality.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "hill2019",
+   "field": "future_work",
+   "statement": "Longitudinal studies to follow up on patients identified as potentially having undiagnosed AF would be required to determine the potential benefit to patients such as the use of anticoagulation therapy to reduce the risk of stroke in this patient group.",
+   "passage": "Longitudinal studies to follow up on patients identified as potentially having undiagnosed AF would be required to determine the potential benefit to patients such as the use of anticoagulation therapy to reduce the risk of stroke in this patient group.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "research_question",
+   "statement": "The review aims to describe the epidemiology of HF during the pandemic, the role of cardiac injury and HF in COVID-19, and its pathogenetic mechanisms.",
+   "passage": "The aim of this review is to describe the epidemiology of HF during the pandemic, the role of cardiac injury and HF in COVID-19, and its pathogenetic mechanisms.",
+   "section": "introduction",
+   "terms": [
+    "Heart Failure",
+    "HF",
+    "Myocardial Ischemia",
+    "cardiac injury"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "methods",
+   "statement": "The review summarizes multiple study designs including retrospective cohort studies, prospective cohort studies, multicenter studies, meta-analyses, case reports, and autopsy studies.",
+   "passage": "Several studies showed a reduction in HF hospitalizations, ranging from 30 to 66% in different countries and leading to a subsequent increase in HF mortality.",
+   "section": "abstract",
+   "terms": [
+    "Retrospective Studies",
+    "retrospective cohort studies",
+    "Prospective Studies",
+    "prospective cohort studies",
+    "Meta-Analysis",
+    "meta-analyses",
+    "Case Reports",
+    "case reports"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "methods",
+   "statement": "Cardiac magnetic resonance (CMR) was used to evaluate ongoing signs of myocardial damage and myocarditis in recovered COVID-19 patients.",
+   "passage": "In this context, imaging tests taken months after recovery from COVID-19 have shown ongoing signs of damage to the heart, even in people who experienced only mild COVID-19 symptoms. A German study suggested that 2 months after SARS-CoV-2 positivity, 78% of survivors had persistent heart involvement, of which 60% presented ongoing signs of myocarditis, revealed with cardiac magnetic resonance (CMR) (142).",
+   "section": "results",
+   "terms": [
+    "Myocarditis",
+    "myocarditis",
+    "Magnetic Resonance Imaging, Cine",
+    "Cardiac magnetic resonance"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "methods",
+   "statement": "Transthoracic echocardiography (TTE) was used to evaluate cardiac abnormalities including left ventricle and right ventricle function.",
+   "passage": "Transthoracic echocardiography (TTE) abnormalities and concomitant cardiac injury were correlated with an increased risk of death; thus, TTE evaluation might be useful to characterize the underlying cardiac substrate, for risk stratification, and to guide clinical decisions (69).",
+   "section": "results",
+   "terms": [
+    "Echocardiography",
+    "Transthoracic echocardiography"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "methods",
+   "statement": "Speckle tracking echocardiography was used to assess longitudinal strain in COVID-19 patients.",
+   "passage": "Speckle tracking was found to be able to identify a reduced basal LV longitudinal strain in more than a half of hospitalized COVID-19 patients (135, 136).",
+   "section": "results",
+   "terms": [
+    "Echocardiography",
+    "Speckle tracking echocardiography"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "methods",
+   "statement": "Endomyocardial biopsy (EMB) was performed to assess histopathological findings in suspected myocarditis cases.",
+   "passage": "Tissue diagnosis criteria were met only in few cases with endomyocardial biopsy (EMB) showing different degrees of aspecific myocardial inflammation and limited or absent myocardial necrosis (85, 86, 88, 90-92).",
+   "section": "results",
+   "terms": [
+    "Myocarditis",
+    "myocarditis"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "methods",
+   "statement": "Reverse transcriptase-polymerase chain reaction (RT-PCR) was used to detect SARS-CoV-2 in cardiac tissue.",
+   "passage": "In a series of 104 EMB, performed in COVID-19 patients with suspected myocarditis or unexplained HF, SARS-CoV-2 was identified through RT-PCR only in five samples (102).",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "methods",
+   "statement": "Post-mortem autopsy studies were conducted to assess cardiac pathology in COVID-19 patients.",
+   "passage": "In a multicentric post-mortem study, Basso et al. found that the most common cardiac autoptic evidence in patients dying for COVID-19 was aspecific interstitial macrophage infiltration (in 86% of cases), whereas 14% of the patients presented a multifocal lymphocytic myocarditis (92)",
+   "section": "results",
+   "terms": [
+    "Case Reports",
+    "autopsy studies"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "methods",
+   "statement": "Troponin levels were measured to define cardiac injury in COVID-19 patients.",
+   "passage": "Since the first Chinese reports, a high incidence of cardiac injury, defined as the presence of elevated troponin (Tn) levels above the 99th percentile of the reference interval, was found in COVID-19 patients.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "populations",
+   "statement": "The review discusses patients hospitalized for COVID-19, including those with pre-existing heart failure and those who develop heart failure during COVID-19.",
+   "passage": "patients hospitalized for COVID-19 may develop both an acute decompensation of chronic HF and de-novo HFasaconsequenceofmyocardial injuryandcardiovascular (CV) complications.",
+   "section": "abstract",
+   "terms": [
+    "Heart Failure",
+    "pre-existing heart failure",
+    "develop heart failure",
+    "Inpatients",
+    "patients hospitalized for COVID-19",
+    "Humans"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "populations",
+   "statement": "The review includes data on competitive athletes recovering from COVID-19.",
+   "passage": "In a study including competitive athletes, referred to the sports medicine clinic after testing positive for COVID-19, 15% of patients had CMR findings suggestive of ongoing myocarditis and 30.8% suggestive of prior myocardial injury",
+   "section": "other",
+   "terms": [
+    "Humans",
+    "competitive athletes recovering from COVID-19"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "populations",
+   "statement": "The review includes COVID-19 patients from multiple countries including China, Italy, USA, Spain, Germany, Brazil, Pakistan, Turkey, and Israel.",
+   "passage": "Chinese reports firstly described the impact of comorbidities and underlying CVD on the development of myocardial injury and subsequent fatal outcomes (15, 39). In-hospital mortality was 7.6% for patients without underlying CVD and normal Tn levels, 13.3% for those with underlying CVD and normal Tn levels, 37.5% for those without underlying CVD but elevated Tn levels, and 69.4% for those with underlying CVD and elevated Tn (39).",
+   "section": "results",
+   "terms": [
+    "Humans",
+    "COVID-19 patients"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "datasets",
+   "statement": "Data from the World Health Organization reporting more than one hundred million confirmed COVID-19 cases worldwide with more than three million deaths as of June 1, 2021.",
+   "passage": "So far, more than one hundred million of confirmed COVID-19 cases can be counted worldwide, with a total of more than three million deaths, as of June 1, 2021, according to the World Health Organization (2).",
+   "section": "introduction",
+   "terms": [
+    "Vital Statistics",
+    "World Health Organization reporting more than one hundred million confirmed COVID-19 cases worldwide with more than three million deaths"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "datasets",
+   "statement": "A meta-analysis including 12,262 patients from 13 studies on elevated troponin and mortality.",
+   "passage": "Data from a recent meta-analysis including 12,262 patients from 13 studies summarized that elevated Tn is associated with increased mortality (OR, 4.75; 95% CI, 4.07-5.53; p < 0.001; I 2 = 19.9%), with 55% sensitivity and 80% specificity (83).",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "datasets",
+   "statement": "Data from the Vaccine Adverse Event Reporting System (VAERS) in the USA reporting more than a thousand cases of possible myocarditis and pericarditis.",
+   "passage": "Up to June 2021, more than a thousand cases of possible myocarditis and pericarditis have been signaled to the Vaccine Adverse Event Reporting System (VAERS) in the USA",
+   "section": "results",
+   "terms": [
+    "Population Surveillance",
+    "Vaccine Adverse Event Reporting System (VAERS)"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "datasets",
+   "statement": "A literature review identifying 277 cardiac autopsies from 22 studies.",
+   "passage": "A literature review, identifying 277 cardiac autopsies from 22 studies, showed that the prevalence of myocarditis in SARS-CoV-2-infected patients was 1.4% (108).",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "key_findings",
+   "statement": "Several studies showed a reduction in HF hospitalizations ranging from 30 to 66% during the COVID-19 pandemic in different countries.",
+   "passage": "Several studies showed a reduction in HF hospitalizations, ranging from 30 to 66% in different countries and leading to a subsequent increase in HF mortality.",
+   "section": "abstract",
+   "terms": [
+    "Heart Failure",
+    "HF hospitalizations"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "key_findings",
+   "statement": "Pre-existing heart failure is a risk factor for a more severe clinical course of COVID-19 and an independent predictor of in-hospital mortality.",
+   "passage": "Second, pre-existing HF is a risk factor for a more severe clinical course of COVID-19 and an independent predictor of in-hospital mortality.",
+   "section": "abstract",
+   "terms": [
+    "Heart Failure",
+    "Pre-existing heart failure"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "key_findings",
+   "statement": "Myocardial injury occurred in at least 10% of unselected COVID-19 cases and up to 41% in critically ill patients or those with concomitant cardiovascular comorbidities.",
+   "passage": "Myocardial injury occurred in at least 10% of unselected COVID-19 cases and up to 41% in critically ill patients or in those with concomitant CV comorbidities.",
+   "section": "abstract",
+   "terms": [
+    "Myocardial Ischemia",
+    "Myocardial injury"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "key_findings",
+   "statement": "The prevalence of heart failure as a comorbid condition ranged from 3.3 to 21% among SARS-CoV-2-infected patients.",
+   "passage": "Further studies showed that the prevalence of HF as a comorbid condition ranged from 3.3 to 21% among SARS-CoV-2-infected patients (Table 2) (19-21, 24-28).",
+   "section": "results",
+   "terms": [
+    "Heart Failure",
+    "heart failure as a comorbid condition"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "key_findings",
+   "statement": "History of heart failure was found to be associated with an increased risk of hospitalization and a severe clinical course in COVID-19 patients.",
+   "passage": "HF history was also found to be associated with an increased risk of hospitalization and a severe clinical course in COVID-19 patients.",
+   "section": "results",
+   "terms": [
+    "Heart Failure",
+    "History of heart failure"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "key_findings",
+   "statement": "Heart failure was one of the strongest predictors for in-hospital admission (OR, 4.43; 95% CI, 2.59-8.04; p < 0.001) and critical illness (OR, 1.9; 95% CI, 1.4-2.5; p < 0.001).",
+   "passage": "Besides age, HF was one of the strongest predictor for in-hospital admission [odds ratio (OR), 4.43; 95% confidence interval (CI), 2.59-8.04; p < 0.001] and critical illness (OR, 1.9; 95% CI, 1.4-2.5; p < 0.001) (19).",
+   "section": "results",
+   "terms": [
+    "Heart Failure",
+    "Heart failure"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "key_findings",
+   "statement": "Elevated troponin is associated with increased mortality (OR, 4.75; 95% CI, 4.07-5.53; p < 0.001) with 55% sensitivity and 80% specificity.",
+   "passage": "Data from a recent meta-analysis including 12,262 patients from 13 studies summarized that elevated Tn is associated with increased mortality (OR, 4.75; 95% CI, 4.07-5.53; p < 0.001; I 2 = 19.9%), with 55% sensitivity and 80% specificity (83).",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "key_findings",
+   "statement": "Acute heart failure occurred in 9.1% of patients during hospitalization for COVID-19, and almost half of them were 'de-novo' HF in patients with no HF history.",
+   "passage": "In an Italian multicenter study, acute HF occurred in 9.1% of patients during hospitalization for COVID-19, and almost half of them were 'de-novo' HF in patients with no HF history (27).",
+   "section": "results",
+   "terms": [
+    "Heart Failure",
+    "Acute heart failure"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "key_findings",
+   "statement": "COVID-19 may be associated with both systolic and diastolic LV dysfunction, with LV diastolic impairment, pulmonary hypertension, and right ventricular dysfunction representing the most frequent findings in echocardiographic studies.",
+   "passage": "However, recent data suggested that COVID-19 may be associated with both systolic and diastolic LV dysfunction, with LV diastolic impairment, pulmonary hypertension, and right ventricular dysfunction representing the most frequent findings in echocardiographic studies.",
+   "section": "abstract",
+   "terms": [
+    "Ventricular Dysfunction",
+    "systolic and diastolic LV dysfunction",
+    "right ventricular dysfunction",
+    "Pulmonary Heart Disease",
+    "pulmonary hypertension"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "key_findings",
+   "statement": "Dexamethasone was found to be associated with lower 28-day mortality in patients receiving ventilatory support in the RECOVERY trial.",
+   "passage": "Dexamethasone was found to be associated with lower 28-day mortality in the controlled, open-label Randomized Evaluation of COVID-19 Therapy (RECOVERY) trial (51). Beneficial effects were limited to those patients receiving ventilatory support (either invasive or noninvasive), while neutral effects were reported among patients not requiring oxygen therapy.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "key_findings",
+   "statement": "The prevalence of myocarditis in SARS-CoV-2-infected patients was 1.4% based on a review of 277 cardiac autopsies from 22 studies.",
+   "passage": "A literature review, identifying 277 cardiac autopsies from 22 studies, showed that the prevalence of myocarditis in SARS-CoV-2-infected patients was 1.4% (108).",
+   "section": "results",
+   "terms": [
+    "Myocarditis",
+    "myocarditis"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "key_findings",
+   "statement": "In a German study, 78% of COVID-19 survivors had persistent heart involvement 2 months after SARS-CoV-2 positivity, of which 60% presented ongoing signs of myocarditis on CMR.",
+   "passage": "A German study suggested that 2 months after SARS-CoV-2 positivity, 78% of survivors had persistent heart involvement, of which 60% presented ongoing signs of myocarditis, revealed with cardiac magnetic resonance (CMR) (142).",
+   "section": "results",
+   "terms": [
+    "Myocarditis",
+    "myocarditis"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "key_findings",
+   "statement": "Patients hospitalized for HF in 2020 experienced worse outcomes compared with those admitted in the previous year, with hospitalization for HF in 2020 independently associated with increased mortality risk.",
+   "passage": "Despite similar demographic characteristics, patients admitted with HF in two referral centers in South London in 2020 experienced worse outcomes compared with those admitted in the previous year (12). Hospitalization for HF in 2020 was independently associated with increased mortality risk (12).",
+   "section": "results",
+   "terms": [
+    "Heart Failure",
+    "HF"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "future_work",
+   "statement": "Heart failure as a possible long-term consequence of cardiac involvement in COVID-19 patients has been supposed and needs to be investigated yet.",
+   "passage": "Beyond the acute phase, HF as a possible long-term consequence of cardiac involvement in COVID-19 patients has been supposed and need to be investigated yet.",
+   "section": "abstract",
+   "terms": [
+    "Heart Failure",
+    "Heart failure"
+   ]
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "future_work",
+   "statement": "The early identification of patients with cardiac abnormalities is of pivotal importance as they may benefit from cardioprotective therapy and need different follow-up strategies.",
+   "passage": "The early identification of patients with cardiac abnormalities is of pivotal importance as they may benefit from cardioprotective therapy and need different followup strategies.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "italia2021",
+   "field": "future_work",
+   "statement": "The meaning of imaging findings showing persistent myocardial damage and fibrosis in the subacute and chronic phases after recovery are currently unknown.",
+   "passage": "The meaning of those imaging findings are currently unknown; however, persistent myocardial damage and fibrosis in the subacute and chronic phases after recovery suggest that COVID-19 may be an independent risk factor for the development of HF (70).",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "research_question",
+   "statement": "The study investigated whether the inflammation biomarker C-reactive protein (CRP) was associated with clinical characteristics, disease severity or pulmonary hypertension in heart failure with preserved ejection fraction (HFpEF).",
+   "passage": "We investigated whether the inflammation biomarker C-reactive protein (CRP) was associated with clinical characteristics, disease severity or PH in HFpEF.",
+   "section": "abstract",
+   "terms": [
+    "Heart Failure",
+    "heart failure with preserved ejection fraction (HFpEF)",
+    "Pulmonary Heart Disease",
+    "pulmonary hypertension"
+   ]
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "research_question",
+   "statement": "The study sought to determine the prevalence of elevated CRP in HFpEF and its association with clinical characteristics, pulmonary hypertension (PH) and measures of heart failure severity.",
+   "passage": "Accordingly, we sought to determine the prevalence of elevated CRP in HFpEF and its association with clinical characteristics, PH and measures of HF severity in the well phenotyped cohort of HFpEF patients who participated in the Phosphodiesterase-5 Inhibition to Improve Clinical Status and Exercise Capacity in Diastolic Heart failure (RELAX) trial.",
+   "section": "introduction",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "methods",
+   "statement": "High-sensitivity C-reactive protein (CRP) levels were measured at baseline.",
+   "passage": "Patients in the Phosphodiesterase-5 Inhibition to Improve Clinical Status and Exercise Capacity in Diastolic Heart failure (RELAX) trial had baseline high-sensitivity CRP levels measured (n = 214).",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "methods",
+   "statement": "High-sensitivity CRP was measured using the BNII nephelometer from Siemens Healthcare utilizing a particle enhanced immunonepholometric assay.",
+   "passage": "High-sensitivity CRP (subsequently referred to as CRP throughout manuscript) was measured using the BNII nephelometer from Siemens Healthcare utilizing a particle enhanced immunonepholometric assay.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "methods",
+   "statement": "Clinical characteristics, exercise performance, echocardiographic variables and biomarkers of neurohumoral activation, fibrosis and myocardial necrosis were assessed.",
+   "passage": "Clinical characteristics, exercise performance, echocardiographic variables and biomarkers of neurohumoral activation, fibrosis and myocardial necrosis were assessed.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "methods",
+   "statement": "Patients with normal (≤3mg/L) versus high (>3mg/L) CRP levels were compared.",
+   "passage": "Patients with normal (≤3mg/L) versus high (>3mg/L) CRP levels were compared.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "methods",
+   "statement": "Baseline studies at enrollment included a history and physical examination, echocardiography, cardiac magnetic resonance imaging if in sinus rhythm, cardiopulmonary exercise test, 6-minute walk test, Minnesota Living with Heart Failure Questionnaire and phlebotomy for biomarker measurements.",
+   "passage": "Participants underwent baseline studies at enrollment. These included a history and physical examination, echocardiography, cardiac magnetic resonance imaging (CMRI) if in sinus rhythm, cardiopulmonary exercise test (CPXT), 6-minute walk test, Minnesota Living with Heart Failure Questionnaire and phlebotomy for biomarker measurements.",
+   "section": "methods",
+   "terms": [
+    "Echocardiography",
+    "echocardiography",
+    "Cardiac Imaging Techniques",
+    "cardiac magnetic resonance imaging",
+    "Exercise Test",
+    "cardiopulmonary exercise test",
+    "6-minute walk test"
+   ]
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "methods",
+   "statement": "Plasma biomarker measurements included biomarkers of neurohumoral activation (NT-proBNP, aldosterone, endothelin-1), renal function (cystatin-C, creatinine, uric acid), fibrosis (pro-collagen III N-terminal peptide, C-telopeptide for type I collagen), myocardial injury (high-sensitivity troponin-I) and inflammation (CRP).",
+   "passage": "Plasma biomarker measurements were performed by the HFN biomarker core laboratory (University of Vermont, Burlington, Vermont), as previously described, and included biomarkers of neurohumoral activation (NT-proBNP, aldosterone, endothelin-1), renal function (cystatin-C, creatinine, uric acid), fibrosis [pro-collagen III N-terminal peptide (PIIINP), Ctelopeptide for type I collagen (CITP)], myocardial injury (high-sensitivity troponin-I) and inflammation (CRP)",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "methods",
+   "statement": "Linear regression models adjusting for treatment group, baseline peak oxygen consumption and CRP were used to examine the interaction between baseline CRP and treatment group on the RELAX trial primary endpoint of change in peak oxygen consumption from baseline to 24 weeks.",
+   "passage": "Linear regression models adjusting for treatment group, baseline peak oxygen consumption and CRP both as a dichotomous (elevated or not) and continuous variable were used to examine the interaction between baseline CRP and treatment group on the RELAX trial primary endpoint of change in peak oxygen consumption from baseline to 24 weeks.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "populations",
+   "statement": "The study included 214 patients from the RELAX trial who had baseline high-sensitivity CRP levels measured.",
+   "passage": "Of the 216 participants enrolled in the RELAX trial, 214 had CRP levels measured at enrollment and comprise the study group",
+   "section": "results",
+   "terms": [
+    "Humans",
+    "patients"
+   ]
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "populations",
+   "statement": "Participants were required to have reduced exercise capacity (≤60% age, sex, and body size predicted peak oxygen consumption) and an elevated N-Terminal pro-B-type natriuretic peptide ≥400pg/ml or an elevated pulmonary capillary wedge pressure.",
+   "passage": "Participants were required to have reduced exercise capacity (≤60% age, sex, and body size predicted peak oxygen consumption) and an elevated N-Terminal pro-B-type natriuretic peptide (NT-proBNP) ≥400pg/ml or an elevated PCWP >20 mmHg at rest or >25 mmHg with exercise at the time of an NT-proBNP measurement of <400pg/mL).",
+   "section": "methods",
+   "terms": [
+    "Humans",
+    "Participants"
+   ]
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "populations",
+   "statement": "Patients had a median age of 69 years, 52% were male, and comorbidities (hypertension, diabetes, atrial fibrillation, obesity, Stage III/IV chronic kidney disease, COPD and ischemic heart disease) were common.",
+   "passage": "As previously reported, patients in the RELAX trial had a median age of 69 years, 52% were male, and comorbidities (hypertension, diabetes, atrial fibrillation (AF), obesity, Stage III/IV chronic kidney disease, COPD and ischemic heart disease) were common.",
+   "section": "results",
+   "terms": [
+    "Male",
+    "male",
+    "Aged",
+    "median age of 69 years"
+   ]
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "datasets",
+   "statement": "Data was obtained from the National Heart Lung and Blood Institute Biologic Specimen and Data Repository Information Coordinating Center using RELAX trial research materials.",
+   "passage": "This manuscript was prepared using HFN RELAX research materials obtained from the NHLBI biologic specimens and data repository information coordinating center and does not necessarily reflect the opinions or views of the HFN RELAX investigators or NHLBI.",
+   "section": "methods",
+   "terms": [
+    "Biological Specimen Banks",
+    "National Heart Lung and Blood Institute Biologic Specimen and Data Repository Information Coordinating Center"
+   ]
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "key_findings",
+   "statement": "The median CRP level was 3.69mg/L and CRP was elevated in 57% of patients.",
+   "passage": "The median CRP level was 3.69mg/L. CRP was elevated in 57% of patients.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "key_findings",
+   "statement": "High CRP levels were associated with younger age, higher body mass index (BMI), chronic obstructive pulmonary disease (COPD), lower peak oxygen consumption and higher endothelin-1 and aldosterone levels.",
+   "passage": "High CRP levels were associated with younger age, higher body mass index (BMI), chronic obstructive pulmonary disease (COPD), lower peak oxygen consumption and higher endothelin-1 and aldosterone levels.",
+   "section": "abstract",
+   "terms": [
+    "Pulmonary Heart Disease",
+    "chronic obstructive pulmonary disease (COPD)"
+   ]
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "key_findings",
+   "statement": "CRP increased progressively with the number of comorbidities (0.7mg/L per increment in comorbidity number, P = 0.02).",
+   "passage": "CRP increased progressively with the number of comorbidities (0.7mg/L per increment in comorbidity number, P = 0.02).",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "key_findings",
+   "statement": "Adjusting for age, BMI and statin use, high CRP levels were additionally associated with atrial fibrillation, right ventricular dysfunction, and higher N-terminal pro-B-type natriuretic peptide levels (P<0.05 for all).",
+   "passage": "Adjusting for age, BMI and statin use, high CRP levels were additionally associated with atrial fibrillation, right ventricular dysfunction, and higher N-terminal pro-B-type natriuretic peptide levels (P<0.05 for all).",
+   "section": "abstract",
+   "terms": [
+    "Arrhythmias, Cardiac",
+    "atrial fibrillation",
+    "Ventricular Dysfunction",
+    "right ventricular dysfunction"
+   ]
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "key_findings",
+   "statement": "CRP was not associated with pulmonary hypertension or left ventricular function.",
+   "passage": "CRP was not associated with PH or left ventricular function.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "key_findings",
+   "statement": "CRP did not identify responders to sildenafil (P-value for interaction 0.13).",
+   "passage": "CRP did not identify responders to sildenafil (P-value for interaction 0.13).",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "key_findings",
+   "statement": "There were no significant associations between CRP levels and sex, race, hospitalizations over the last year, other comorbidities, or statin or heart failure medication use in either unadjusted or adjusted analyses.",
+   "passage": "There were no significant associations between CRP levels and sex, race, hospitalizations over the last year, other comorbidities, or statin or heart failure medication use in either unadjusted or adjusted analyses.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "key_findings",
+   "statement": "There was no significant difference between the groups in symptoms or signs of congestion, heart failure specific quality of life scores or hospitalizations within the last year.",
+   "passage": "There was no significant difference between the groups in symptoms or signs of congestion, HF specific quality of life scores or hospitalizations within the last year.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "limitations",
+   "statement": "This was an exploratory analysis to assess the association between CRP and pulmonary hypertension and other clinical correlates in HFpEF with the aim of generating hypotheses that could be tested in future studies. No correction for multiple comparisons was made and this may result in discovery of associations due to chance.",
+   "passage": "This was an exploratory analysis to assess the association between CRP and PH and other clinical correlates in HFpEF with the aim of generating hypotheses that could be tested in future studies. No correction for multiple comparisons was made and this may result in discovery of associations due to chance.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "limitations",
+   "statement": "The range of CRP levels at enrollment was wide, and the investigators were unable to adjust for confounding factors, such as subclinical infection.",
+   "passage": "The range of CRP levels at enrollment was wide, and we were unable to adjust for confounding factors, such as subclinical infection.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "limitations",
+   "statement": "The association between CRP levels and mortality was not examined as events were low in the 6 month RELAX study.",
+   "passage": "The association between CRP levels and mortality was not examined as events were low in the 6 month RELAX study.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "dubrock2018",
+   "field": "limitations",
+   "statement": "The investigators were limited to the use of echocardiogram, rather than invasive hemodynamic testing, to assess pulmonary hypertension severity in patients with HFpEF, and pulmonary artery systolic pressure estimates were not available on all participants and assessment of right ventricular function was only visual and not quantified.",
+   "passage": "Lastly, we were limited to the use of echocardiogram, rather than invasive hemodynamic testing, to assess PH severity in patients with HFpEF, and PASP estimates were not available on all participants and assessment of RV function was only visual and not quantified.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "research_question",
+   "statement": "The study aimed to assess heart failure patients' adherence to self-care recommendations and its associated factors.",
+   "passage": "Therefore, this study aimed to assess heart failure patients' adherence to self-care recommendations and its associated factors.",
+   "section": "abstract",
+   "terms": [
+    "Heart Failure",
+    "heart failure patients"
+   ]
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "research_question",
+   "statement": "The study was intended to assess heart failure patients' adherence to selfcare recommendations and to identify factors which would affect the patients' adherence level.",
+   "passage": "Therefore, this study was intended to assess heart failure patients' adherence to selfcare recommendations and to identify factors which would affect the patients' adherence level.",
+   "section": "introduction",
+   "terms": [
+    "Heart Failure",
+    "heart failure patients"
+   ]
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "methods",
+   "statement": "Adherence to self-care recommendations was measured using the 'Revised Heart Failure Compliance Scale' containing six questions with a five-point scale (always = 4, mostly = 3, half of the time = 2, seldom = 1, never = 0 points).",
+   "passage": "Adherencetoself-carerecommendations regarding a low sodium diet, fluid restriction, regular exercise, weight monitoring, medication, and appointment keeping was measured using the 'Revised Heart Failure Compliance Scale' [22,24,35] that has been successfully used to measure adherence in heart failure patients, demonstrating adequate reliability and validity [22,24,25,35,36]. This tool contains six questions with a five-point scale (always = 4, mostly = 3, half of the time = 2, seldom = 1, never = 0 points).",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "methods",
+   "statement": "Patients were classified as 'Good adherent' when they followed a recommendation 'always' or 'mostly' and 'Poor adherent' when they followed a recommendation half of the time, seldom or never.",
+   "passage": "Based on previous studies cutoff point used [22,35,36], for each individual self-care recommendation patients were classified as 'Good adherent' when they followed a recommendation 'always' or 'mostly' and 'Poor adherent' when they followed a recommendation half of the time, seldom or never.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "methods",
+   "statement": "Patients were considered to be 'overall good adherent' when they adhered with ≥ 4 out of the 6 recommendations.",
+   "passage": "Finally, patients were considered to be 'overall good adherent' when they adhered with � 4 out of the 6 recommendations.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "methods",
+   "statement": "The Japanese heart failure knowledge scale was used to assess the patients' Knowledge with a Cronbach's alpha for internal consistency of 0.79.",
+   "passage": "The Japanese heart failure knowledge scale was used to assess the patients' Knowledge [34]. This tool consists of questions which focuses on general HF knowledge, HF signs and symptoms, and HF related treatment and self-care. Its Cronbach's alpha for internal consistency was 0.79.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "methods",
+   "statement": "The overall level of knowledge was categorized as 'Good' for HF patients who correctly answered ≥ 75% of knowledge questions and 'Poor' for lower than 75%.",
+   "passage": "Based on previous similar studies [27,37] report, the overall level of knowledge was categorized as 'Good' for HF patients who correctly answered � 75% of knowledge questions and 'Poor' for lower than 75%.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "methods",
+   "statement": "Data were analyzed using SPSS version 20.",
+   "passage": "The data were analyzed using SPSS version 20.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "methods",
+   "statement": "A binary logistic regression model was used to check the effect of different factors on the patients' adherence level.",
+   "passage": "A binary logistic regression model was used to check the effect of different factors on the patients' adherence level.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "methods",
+   "statement": "In multivariable binary logistic regression analysis variables with the p-value<0.05 were considered statistically significant.",
+   "passage": "In multivariable binary logistic regression analysis variables with the p-value<0.05 were considered statistically significant.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "methods",
+   "statement": "Data were collected by trained pharmacists and nurses through a face to face interview.",
+   "passage": "Data collection was pursued in alignment with the study participant's follow-up date. The data were collected by trained pharmacists and nurses through a face to face interview.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "methods",
+   "statement": "Patients' medical records were reviewed to supplement further clinical data such as comorbidity, New York Heart Association (NYHA) functional class, hospitalization history.",
+   "passage": "Patients' medical records were also reviewed to supplement further clinical data such as comorbidity, New York Heart Association (NYHA) functional class, hospitalization history.",
+   "section": "methods",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "populations",
+   "statement": "The study included 310 adult heart failure patients attending Gondar University referral hospital from February to May 2017.",
+   "passage": "A hospital-based cross-sectional study was conducted on 310 adult heart failure patients attending Gondar University referral hospital from February to May 2017.",
+   "section": "abstract",
+   "terms": [
+    "Heart Failure",
+    "adult heart failure patients",
+    "Adult",
+    "Humans"
+   ]
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "populations",
+   "statement": "Patients who were 18 years old or above, had been diagnosed with HF, and taking medications and had at least a one month follow up prior to the commencement of the study were included.",
+   "passage": "Patients who met the inclusion criteria were incorporated in the study: patients who were 18 years old or above, had been diagnosed with HF, and taking medications and had at least a one month follow up prior to the commencement of the study.",
+   "section": "methods",
+   "terms": [
+    "Heart Failure",
+    "diagnosed with HF",
+    "Adult",
+    "Patients who were 18 years old or above",
+    "Humans"
+   ]
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "populations",
+   "statement": "The mean age of participants was 49 (± 19.5 SD) years with the range of 18 to 89 years.",
+   "passage": "The mean age of participants was 49 (± 19.5 SD) years with the range of 18 to 89 years.",
+   "section": "results",
+   "terms": [
+    "Adult",
+    "participants was 49 (± 19.5 SD) years with the range of 18 to 89 years",
+    "Middle Aged",
+    "Aged",
+    "Aged, 80 and over",
+    "Young Adult"
+   ]
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "populations",
+   "statement": "Out of 310 patients, 199 (64.2%) were women.",
+   "passage": "Out of 310 patients, 199 (64.2%) were women.",
+   "section": "results",
+   "terms": [
+    "Female",
+    "199 (64.2%) were women"
+   ]
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "populations",
+   "statement": "Most of the participants 292 (94.2%) were Orthodox Christians.",
+   "passage": "Most of the participants 292 (94.2%) were Orthodox Christians.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "populations",
+   "statement": "More than half 160 (51.6%) of the study participants were married and only 60 (19.4%) of patients were single.",
+   "passage": "More than half 160 (51.6%) of the study participants were married and only 60 (19.4%) of patients were single.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "populations",
+   "statement": "Almost half of the participants 153 (49.4%) were unable to read and write.",
+   "passage": "Almost half of the participants 153 (49.4%) were unable to read and write.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "populations",
+   "statement": "Of 310 study participants, 138 (44.5%) of patients had chronic comorbidity, with hypertension (HTN) 79 (25.5%) and kidney disease (KD) 16 (5.2%) being the most common.",
+   "passage": "Of 310 study participants, 138 (44.5%) of patients had chronic comorbidity. Of this hypertension (HTN) 79 (25.5%) and kidney disease (KD) 16 (5.2%) were the most common.",
+   "section": "results",
+   "terms": [
+    "Heart Failure",
+    "hypertension (HTN)"
+   ]
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "populations",
+   "statement": "The majority of the study participants was recently diagnosed as NYHA class III, 113 (36.5%) followed by class IV 88 (28.4%) heart failure.",
+   "passage": "The majority of the study participants was recently diagnosed as NYHA class III, 113 (36.5%) followed by class IV 88 (28.4%) heart failure.",
+   "section": "results",
+   "terms": [
+    "Heart Failure",
+    "NYHA class III",
+    "class IV heart failure"
+   ]
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "datasets",
+   "statement": "The participants were selected by systematic random sampling technique.",
+   "passage": "The participants were selected by systematic random sampling technique.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "datasets",
+   "statement": "Data were collected through face to face interview and from the patients' medical records.",
+   "passage": "Data were collected through face to face interview and from the patients' medical records.",
+   "section": "abstract",
+   "terms": [
+    "Medical Records",
+    "patients' medical records"
+   ]
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "key_findings",
+   "statement": "Only 22.3% (95% CI, 17.4%-26.8%) of heart failure patients reported good adherence to their self-care recommendations.",
+   "passage": "Of 310 study participants only 22.3% (95% CI, 17.4%-26.8%) of heart failure patients reported good adherence to their self-care recommendations.",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "key_findings",
+   "statement": "Being male in gender was positively associated with adherence to self-care recommendation (AOR = 2.34, 95% CI: 1.18-4.62).",
+   "passage": "Adherence to self-care recommendation was positively associated with being male in gender (AOR = 2.34, 95% CI: 1.18-4.62), good level of heart failure knowledge (AOR = 2.49, 95% CI: 1.276-4.856) and free from chronic comorbid diseases (AOR = 2.57, 95% CI: 1.28-5.14).",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "key_findings",
+   "statement": "Good level of heart failure knowledge was positively associated with adherence to self-care recommendation (AOR = 2.49, 95% CI: 1.276-4.856).",
+   "passage": "Adherence to self-care recommendation was positively associated with being male in gender (AOR = 2.34, 95% CI: 1.18-4.62), good level of heart failure knowledge (AOR = 2.49, 95% CI: 1.276-4.856) and free from chronic comorbid diseases (AOR = 2.57, 95% CI: 1.28-5.14).",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "key_findings",
+   "statement": "Being free from chronic comorbid diseases was positively associated with adherence to self-care recommendation (AOR = 2.57, 95% CI: 1.28-5.14).",
+   "passage": "Adherence to self-care recommendation was positively associated with being male in gender (AOR = 2.34, 95% CI: 1.18-4.62), good level of heart failure knowledge (AOR = 2.49, 95% CI: 1.276-4.856) and free from chronic comorbid diseases (AOR = 2.57, 95% CI: 1.28-5.14).",
+   "section": "abstract",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "key_findings",
+   "statement": "Higher levels of good adherence were noted for follow-up appointments 266 (85.8%) and taking prescribed medications as directed 257 (82.9%).",
+   "passage": "From individual self-care recommendation, higher levels of good adherence were noted for follow-up appointments 266 (85.8%) and taking prescribed medications as directed 257 (82.9%).",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "key_findings",
+   "statement": "The mean (± standard deviation (SD)) HF knowledge score of participants was 8.4 ± 3 points with a range score of (0-14 points) out of a possible maximum score of 14.",
+   "passage": "The mean (± standard deviation (SD)) HF knowledge score of participants was 8.4 ± 3 points with a range score of (0-14 points) out of a possible maximum score of 14.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "key_findings",
+   "statement": "The majority of heart failure patients 232 (74.8%) had a poor level of knowledge regarding signs, symptoms and self-care management of heart failure.",
+   "passage": "The majority of heart failure patients 232 (74.8%) had a poor level of knowledge regarding signs, symptoms and self-care management of heart failure.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "key_findings",
+   "statement": "Males were 2.34 times more adherent than females (AOR = 2.34, 95% CI: 1.18-4.62).",
+   "passage": "Accordingly, males were 2.34 (AOR = 2.34, 95% CI: 1.18-4.62) times more adherent than females.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "key_findings",
+   "statement": "Those who had no comorbid diseases were found to be 2.6 times adherent than who had chronic comorbid conditions (AOR = 2.57, 95% CI: 1.28-5.14).",
+   "passage": "Regarding comorbidity, those who had no comorbid diseases were found to be 2.6 (AOR = 2.57, 95% CI: 1.28-5.14) times adherent than who had chronic comorbid conditions.",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "key_findings",
+   "statement": "HF patients who had a good level of knowledge were 2.5 times more adherent than patients who had a poor level of knowledge (AOR = 2.49, 95% CI: 1.28-4.86).",
+   "passage": "Similarly, HF patients those who had a good level of knowledge were 2.5 times more adherent than patients who had a poor level of knowledge (AOR = 2.49, 95% CI: 1.28-4.86)",
+   "section": "results",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "limitations",
+   "statement": "Patients self-report during the interview was the primary source of data; hence, recall bias and tendency to digress important information's might affect the overall outcome of the study.",
+   "passage": "Patients self-report during the interview was the primary source of data. Hence, recall bias and tendency to digress important information's might affect the overall outcome of the study.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "limitations",
+   "statement": "Lower sample size and absence of multicenter data may hinder to generalize the study outcomes to the general population.",
+   "passage": "Further, lower sample size and absence of multicenter data may hinder to generalize the study outcomes to the general population.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "limitations",
+   "statement": "This is a cross-sectional study (had no follow-up evaluation) and this may affect the patients exact level of adherence to self-care behaviors and also difficult to conclude a causal relationship.",
+   "passage": "Lastly, this is a cross-sectional study (had no follow-up evaluation) and this may affect the patients exact level of adherence to self-care behaviors and also difficult to conclude a causal relationship.",
+   "section": "discussion",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "future_work",
+   "statement": "These results highlight a major opportunity for further prospective follow-up studies, which have an intervention approach for each self-care recommendations.",
+   "passage": "These results highlight a major opportunity for further prospective follow-up studies, which have an intervention approach for each self-care recommendations.",
+   "section": "conclusion",
+   "terms": []
+  },
+  {
+   "citation_key": "seid2019",
+   "field": "future_work",
+   "statement": "Future studies assessing HF patient's adherence through objective measure are warranted to enhance our understanding in this topic.",
+   "passage": "Although prior research found that self-reported adherence may be comparable to objectively measured adherence (e.g., from serum)[52], future studies assessing HF patient's adherence through objective measure are warranted to enhance our understanding in this topic.",
+   "section": "conclusion",
+   "terms": []
+  },
+  {
+   "citation_key": "maejima2020",
+   "field": "future_work",
+   "statement": "Intensive investigations regarding the mechanism through which SGLT2 inhibitors promote the restoration in cases of heart failure would lead to the establishment of these drugs as potent anti-heart failure drugs.",
+   "passage": "Together with ongoing large-scale clinical trials to evaluate the efficacy of SGLT2 inhibitors in patients with heart failure, intensive investigations regarding the mechanism through which SGLT2 inhibitors promote the restoration in cases of heart failure would lead to the establishment of these drugs as potent anti-heart failure drugs.",
+   "section": "abstract",
+   "terms": [
+    "Heart Failure",
+    "heart failure"
+   ]
+  },
+  {
+   "citation_key": "maejima2020",
+   "field": "future_work",
+   "statement": "Two randomized clinical trials are evaluating the effects of SGLT2 inhibitors in patients with established heart failure with a preserved ejection fraction (HFpEF), regardless the presence of diabetes: the EMPEROR-Preserved trial with empagliflozin and the DELIVER trial with dapagliflozin.",
+   "passage": "At the same time, two randomized clinical trials are evaluating the effects of SGLT2 inhibitors in patients with established heart failure with a preserved ejection fraction (HFpEF), regardless the presence of diabetes. One is the EMPEROR-Preserved trial [NCT03057951] with empagliflozin (78), and the other one is the DELIVER trial [NCT03619213] with dapagliflozin.",
+   "section": "conclusion",
+   "terms": [
+    "Heart Failure",
+    "heart failure with a preserved ejection fraction"
+   ]
+  }
+ ]
+}
