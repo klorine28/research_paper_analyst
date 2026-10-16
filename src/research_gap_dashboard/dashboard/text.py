@@ -530,6 +530,9 @@ GAP_FILTER_LABEL = "Show confidence levels"
 
 # Per-card labels.
 GAP_CONFIDENCE_LABEL = "Confidence: {confidence}"
+# Two witnesses (ADR 0008): a cell an author-stated limitation corroborates.
+GAP_FLAGGED_BY_AUTHORS = "Also flagged by authors: {groups}"
+GAP_LIMITATION_BUCKET = "Limitation type: {bucket}"
 GAP_CELL_COUNT_LABEL = "Papers in this cell: {count} of {total}."
 GAP_EVIDENCE_HEADING = "Evidence"
 GAP_EVIDENCE_SOURCE = "{citation_key} — {section}"
@@ -544,6 +547,15 @@ GAP_WHY_LIMITATION = (
   "addressed it."
 )
 GAP_TIER_JUSTIFICATION_LABEL = "Why this is a candidate: Evidence"
+# Written by the detect stage's review (ADR 0008 §3), not at view time. The
+# Minimal Study is a suggestion: a real gap does not imply a feasible study.
+GAP_AUDIT_BASIS_HEADING = "Audit Basis"
+GAP_AUDIT_BASIS_EVIDENCE = "Rests on: {ids}"
+GAP_MINIMAL_STUDY_HEADING = "Minimal Study (a suggestion)"
+GAP_MINIMAL_STUDY_CAVEAT = (
+  "A starting design proposed by the review; it is not a claim that the study "
+  "is feasible or would close the gap."
+)
 GAP_TIER_DATA_LABEL = "Show the data"
 GAP_SOURCE_PAPERS_GROUP = "Source Papers"
 GAP_DATA_PAPERS_HEADING = "Papers in each category"
@@ -553,6 +565,16 @@ GAP_DATA_NEIGHBOURS_HEADING = "Neighbouring cells"
 GAP_DATA_NEIGHBOUR = "- {row} × {column}: {count} Paper(s)"
 GAP_DATA_NO_NEIGHBOURS = "No neighbouring cells in this Coverage Matrix."
 GAP_DATA_NEIGHBOURS_MORE = "…and {count} more neighbouring cells."
+# Bridges (ADR 0008): categories linking both sides, strongest first.
+GAP_DATA_BRIDGES_HEADING = "Bridging categories"
+GAP_DATA_BRIDGE = (
+  "- {label} ({axis}): shares {row_count} Papers with one side and "
+  "{column_count} with the other"
+)
+GAP_DATA_BRIDGES_ORDER = (
+  "Strongest first: a category that co-occurs with fewer others links the two "
+  "sides more specifically."
+)
 GAP_DATA_SCORE_HEADING = "Score and reasons"
 # L1 is a ranking score (ADR 0008 §1): this label is the one place gap text may
 # name a significance test, and only to say the score is not one.
@@ -628,6 +650,29 @@ GAP_FILTER_SUMMARY = (
   "Showing {shown} of {total} candidate gaps; {hidden} hidden by the filters."
 )
 GAP_FILTER_NO_MATCH = "No candidate gaps match these filters."
+# "Demote, never delete" (ADR 0008 §5, issue #109): a candidate a detection
+# layer rejected leaves the main list but stays listed, with the layer and its
+# reason, and the researcher can still accept it (their verdict outranks it).
+GAP_REVIEW_HIDDEN_NOTE = (
+  "{count} more candidate gap(s) were rejected by review; they are listed, "
+  "with the reason, under \u201cRejected by review\u201d below."
+)
+GAP_REVIEW_SECTION_LABEL = "Rejected by review ({count})"
+GAP_REVIEW_SECTION_INTRO = (
+  "Candidates a detection layer rejected or lowered, with that layer and its "
+  "reason. Nothing here is deleted: accept a rejected one and it returns to the "
+  "list above, because your judgment outranks the filter."
+)
+GAP_REVIEW_REJECTED = "Rejected by {layer}: {reason}"
+GAP_REVIEW_LOWERED = "Lowered to {level} by {layer}: {reason}"
+GAP_REVIEW_ACCEPTED_NOTE = (
+  "You accepted this gap over the review's rejection; it is shown in the list above."
+)
+GAP_REVIEW_LAYER_LABELS: dict[str, str] = {
+  "l1": "the expected-vs-observed score",
+  "heuristic": "the sparse-cell heuristic",
+  "taxonomy_roll_up": "the taxonomy roll-up",
+}
 GAP_NEXT_UNDECIDED_BUTTON = "Next undecided"
 GAP_NO_UNDECIDED_SHOWN = "No undecided gaps among the cards shown."
 GAP_FOCUS_HEADING = "Current gap"
@@ -721,6 +766,17 @@ GAP_SATURATION_UNAVAILABLE_HEADING = "Hits marked unavailable"
 
 # How each Candidate Gap's kind and confidence read to the researcher; kept here
 # so the dashboard never imports the detect stage's labels (ADR 0002).
+LIMITATION_BUCKET_LABELS: dict[str, str] = {
+  "study_design": "Study design",
+  "population": "Population",
+  "setting_data": "Setting / data",
+  "sample_size": "Sample size",
+  "measurement": "Measurement",
+  "follow_up": "Follow-up",
+  "analysis": "Analysis",
+  "open_question": "Open question",
+  "other": "Other",
+}
 GAP_TYPE_LABELS: dict[str, str] = {
   "knowledge_gap": "Knowledge Gap",
   "coverage_gap": "Coverage Gap",
