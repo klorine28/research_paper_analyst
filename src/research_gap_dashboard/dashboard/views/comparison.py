@@ -18,6 +18,7 @@ from research_gap_dashboard.dashboard.comparison import (
   FieldComparison,
   build_comparison,
   comparison_preselection,
+  field_rows,
   selection_error,
 )
 from research_gap_dashboard.dashboard.views.run_controls import (
@@ -136,11 +137,15 @@ def _render_axis_comparison(axis: AxisComparison) -> None:
 def _render_field_comparison(field: FieldComparison) -> None:
   """Render one field's statements, one column per compared unit."""
   st.markdown(f"**{field.label}**")
-  columns = st.columns(len(field.units))
-  for column, unit in zip(columns, field.units, strict=True):
-    column.caption(unit.label)
-    if not unit.statements:
-      column.markdown(text.COMPARISON_NO_STATEMENTS)
-      continue
-    for statement in unit.statements:
-      column.markdown(f"- {statement}")
+  rows = field_rows(field.units)
+  # A short last row keeps the full row's column width, so widths never shrink.
+  width = len(rows[0]) if rows else 0
+  for row in rows:
+    columns = st.columns(width)
+    for column, unit in zip(columns, row, strict=False):
+      column.caption(unit.label)
+      if not unit.statements:
+        column.markdown(text.COMPARISON_NO_STATEMENTS)
+        continue
+      for statement in unit.statements:
+        column.markdown(f"- {statement}")

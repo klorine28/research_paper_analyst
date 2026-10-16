@@ -31,10 +31,12 @@ from research_gap_dashboard.dashboard.artifacts import (
   load_normalized_facts,
 )
 from research_gap_dashboard.dashboard.comparison import (
+  MAX_COLUMNS,
   MAX_SELECTION,
   SelectionError,
   build_comparison,
   chunk_selection,
+  field_rows,
   selection_error,
 )
 from research_gap_dashboard.extract import (
@@ -375,3 +377,64 @@ def test_comparison_page_renders_a_selection(
   subheaders = [element.value for element in app.subheader]
   assert "Field by field" in subheaders
   assert any("none of the selection covers" in value for value in subheaders)
+
+
+# -- Legibility past four Papers (issue #104) ------------------------------
+
+
+def test_field_rows_wrap_units_so_no_row_is_wider_than_the_cap() -> None:
+  """Units wrap into rows of at most MAX_COLUMNS, order kept, none dropped."""
+  units = list("abcde")
+  rows = field_rows(units)
+  assert all(len(row) <= MAX_COLUMNS for row in rows)
+  assert [item for row in rows for item in row] == units
+  assert field_rows(list("ab")) == [["a", "b"]]
+
+
+def _large_corpus(
+  root: Path, count: int, monkeypatch: pytest.MonkeyPatch
+) -> tuple[Path, list[str]]:
+  """Write a Corpus of `count` Papers, cycling the six fixture placements."""
+  keys = [f"p{index:02d}" for index in range(1, count + 1)]
+  base = list(_PLACEMENTS)
+  for index, key in enumerate(keys):
+    if key in _PLACEMENTS:
+      continue
+    # setitem is undone after the test, so other tests keep the six-Paper Corpus.
+    monkeypatch.setitem(_PLACEMENTS, key, _PLACEMENTS[base[index % len(base)]])
+    monkeypatch.setitem(
+      _STATEMENTS,
+      key,
+      {field: said.replace("p01", key) for field, said in _STATEMENTS["p01"].items()},
+    )
+  return _write_corpus(root, keys), keys
+
+
+@pytest.mark.parametrize("count", [5, MAX_SELECTION])
+def test_comparison_page_keeps_columns_readable_for_a_large_selection(
+  tmp_path: Path, monkeypatch: pytest.MonkeyPatch, count: int
+) -> None:
+  """At 5 and at 15 Papers no field-by-field column is narrower than the cap."""
+  from streamlit.testing.v1 import AppTest
+
+  corpus, keys = _large_corpus(tmp_path / "corpus", count, monkeypatch)
+  acknowledge_denominator(corpus)
+  monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
+  app_path = Path(dashboard_pkg.__file__).parent / "app.py"
+  app = AppTest.from_file(str(app_path), default_timeout=60).run()
+  open_page(app, "Paper Comparison")
+
+  app.multiselect[0].set_value(keys).run()
+  assert not app.exception
+  assert "Field by field" in [element.value for element in app.subheader]
+  # Only the field-by-field columns: each opens with its unit's label caption.
+  widths = [
+    column.weight
+    for column in app.main.columns
+    if any(c.value.startswith(("Study p", "Set ")) for c in column.caption)
+  ]
+  assert widths, "the field-by-field comparison renders in columns"
+  assert min(widths) >= 1 / MAX_COLUMNS - 1e-9
+  # Every Paper's statement is still shown, none dropped by the wrapping.
+  shown = " ".join(element.value for element in app.main.markdown)
+  assert all(f"{key} used a study design." in shown for key in keys)
