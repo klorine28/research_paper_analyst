@@ -50,6 +50,13 @@ description = "..."               # optional scope note
 - **`alias_sources`** records where an alias came from, keyed by the alias;
   `aliases promote` fills it. Every key must be one of the Topic's aliases.
 - **`parent`** builds a shallow hierarchy; it must name another Topic's `id`.
+  When it is missing, the parent is derived from the Topic in the same file
+  whose `mesh_tree` is the longest whole-segment prefix of this Topic's
+  (`C14.280.238` is the parent of `C14.280.238.906`). Aggregate records the
+  hierarchy in the NormalizedFacts artifact, and detect's taxonomy roll-up
+  (ADR 0008 L2) rejects a category paired with its own ancestor and lowers a
+  gap that a Paper placed only on a broader category may cover. A file with
+  neither `parent` nor `mesh_tree` is flat, and the roll-up does nothing.
 - **Unknown keys are errors.** A typo like `alias` instead of `aliases` is
   reported, not silently dropped.
 
