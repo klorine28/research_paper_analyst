@@ -162,6 +162,9 @@ class GapCardsData(BaseModel):
 
   cards: list[GapCard]
   corpus_paper_count: int
+  # (High, Medium): the smallest equal category sizes at which an empty cell
+  # ranks each level at this Corpus size; None for an artifact written before L1.
+  l1_smallest_margins: tuple[int | None, int | None] | None = None
 
   @property
   def gap_count(self) -> int:
@@ -591,7 +594,12 @@ def build_gap_cards(
     )
     for record in artifact.gaps
   ]
-  return GapCardsData(cards=cards, corpus_paper_count=artifact.corpus_paper_count)
+  margins = artifact.l1_smallest_margins
+  return GapCardsData(
+    cards=cards,
+    corpus_paper_count=artifact.corpus_paper_count,
+    l1_smallest_margins=(margins.high, margins.medium) if margins else None,
+  )
 
 
 # The triage filter's names for a card's judgment state; "undecided" stands for a

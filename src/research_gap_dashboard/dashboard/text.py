@@ -58,10 +58,62 @@ SCOPE_MISSING_PROMPT = (
 SCOPE_ADD_EXPANDER = "Add a scope statement"
 SCOPE_SAVE_BUTTON = "Save scope"
 CORPUS_HAS_NO_PAPERS = (
-  "This Corpus has no ingested Papers yet. Put its PDFs in `{papers_dir}` and "
-  "its paper list (a `.bib` file or `dois.txt`) in `{root}`, then run ingest."
+  "This Corpus has no ingested Papers yet. Upload its PDFs and its paper list "
+  "below, fix any pairing problems, then ingest."
 )
-RUN_INGEST_BUTTON = "Run ingest"
+
+# Uploading Papers and checking how they pair up before ingest (issue #75).
+UPLOAD_HEADING = "Add Papers"
+UPLOAD_INTRO = (
+  "Upload the Papers' PDFs and a paper list: a BibTeX file (`.bib`) or a DOI "
+  "list (`.txt`, one DOI per line). A Paper without a DOI (a preprint, a thesis) "
+  "needs a BibTeX entry whose citation key appears in its PDF's file name. A "
+  "paper list is added to the Corpus's own, skipping entries already listed; a "
+  "PDF with the same name as one already uploaded replaces it."
+)
+UPLOAD_PDFS_LABEL = "PDFs"
+UPLOAD_PAPER_LIST_LABEL = "Paper list (.bib or DOI list)"
+UPLOAD_SUBMIT = "Upload"
+UPLOAD_NOTHING = "Choose at least one PDF or a paper list to upload."
+UPLOAD_PDFS_ADDED = "Added {count} PDF(s) to `papers/`."
+UPLOAD_PDFS_REPLACED = "Replaced {count} PDF(s) already in `papers/`: {names}."
+UPLOAD_PDF_REFUSED = "Not uploaded: `{name}`, because {reason}."
+UPLOAD_LIST_ADDED = "Added {count} entr(ies) to the paper list `{name}`."
+UPLOAD_LIST_ALREADY = "Already in the paper list, so skipped: {keys}."
+PAIRING_HEADING = "Pairing check"
+PAIRING_INTRO = (
+  "How the paper list and the PDFs pair up. Only a paper-list entry with a PDF "
+  "becomes a Paper; nothing has been ingested yet."
+)
+PAIRING_PAIRED = "**{count} Paper(s)** have both a paper-list entry and a PDF."
+PAIRING_UNMATCHED = (
+  "**{count} paper-list entr(ies) have no PDF.** Upload a PDF whose file name "
+  "contains the entry's DOI or citation key:"
+)
+PAIRING_UNMATCHED_ROW = "- `{key}`{doi}{title}"
+PAIRING_ORPHANS = (
+  "**{count} PDF(s) have no paper-list entry.** Upload a paper list with an "
+  "entry for each, or re-upload the PDF under a name that contains its DOI or "
+  "citation key:"
+)
+PAIRING_ORPHAN_ROW = "- `{name}`"
+PAIRING_READY = (
+  "Within the {low}\u2013{high} Paper range v1 supports: ready to ingest {count} "
+  "Paper(s)."
+)
+PAIRING_REFUSED = (
+  "**Not ready to ingest.** This Corpus would have {count} Paper(s), and v1 "
+  "supports {low}\u2013{high}. {advice} Ingest is refused until it is in range."
+)
+PAIRING_TOO_FEW = (
+  "Add Papers (PDF and paper-list entry), or fix the pairing problems above."
+)
+PAIRING_TOO_MANY = "Split the search into narrower Corpora."
+PAIRING_FAILED = "The pairing check could not run: {reason}"
+PAIRING_LOCKED = "Another run is in progress on this Corpus; check again when it ends."
+PAIRING_NOT_CHECKED = "Upload Papers, or check the files already in this Corpus."
+PAIRING_CHECK_BUTTON = "Check pairing"
+INGEST_UPLOADED_BUTTON = "\u25b6 Ingest the Corpus"
 NAV_LABEL = "Page"
 PAGE_OVERVIEW = "Corpus Overview"
 PAGE_GAP_CARDS = "Gap Cards"
@@ -419,8 +471,14 @@ GAP_DATA_NEIGHBOURS_MORE = "…and {count} more neighbouring cells."
 GAP_DATA_SCORE_HEADING = "Score and reasons"
 GAP_DATA_SCORE = (
   "Expected about {expected:.1f} Papers in this cell if its categories were "
-  "independent across the {total} Papers; {observed} observed. This is a ranking "
-  "score, not a significance test."
+  "independent across the {total} Papers; {observed} observed. The level ranks "
+  "candidates against each other; it does not prove a gap."
+)
+# What L1 can rank at this Corpus size (ADR 0008 §4), for two equal-sized
+# categories with no Paper combining them.
+GAP_L1_MARGINS = (
+  "At {total} Papers, an empty cell ranks High only when both of its categories "
+  "cover at least {high} Papers each, and Medium from {medium} each."
 )
 # Evidence-window expansion (issue #47): the anchor quote shown in its paragraph.
 EVIDENCE_POINTERS_LABEL = "Points to: {pointers}"
@@ -1020,3 +1078,44 @@ RUN_CONFIRM_PROMPT = (
 )
 RUN_CONFIRM_BUTTON = "Run anyway"
 RUN_CANCEL_BUTTON = "Cancel"
+
+# Exporting the write-up (issue #82): the narrative as Markdown, a BibTeX file of
+# the Corpus Papers it cites, and the scope-and-limits statement. The exported
+# text states no export time, so the same judgments export byte-identical files.
+EXPORT_HEADING = "Export the write-up"
+EXPORT_INTRO = (
+  "Download the narrative as Markdown, a BibTeX file of the Corpus Papers it "
+  "cites, and the scope-and-limits statement, for your thesis or grant."
+)
+EXPORT_MARKDOWN_BUTTON = "Download narrative (Markdown)"
+EXPORT_BIBTEX_BUTTON = "Download cited Papers (BibTeX)"
+EXPORT_SCOPE_BUTTON = "Download scope statement"
+EXPORT_TITLE = "Gaps in the literature: {corpus}"
+EXPORT_REFERENCES_HEADING = "Cited Corpus Papers"
+EXPORT_NO_REFERENCES = "This narrative cites no Corpus Paper."
+EXPORT_DROPPED_NOTE = (
+  "Note: {count} citation(s) in the generated text did not resolve to a Corpus "
+  "Paper and were dropped: {papers}."
+)
+EXPORT_SCOPE_HEADING = "Scope and limits"
+EXPORT_SCOPE_RECORDED = (
+  "Research question: {question}\n\nField: {field}\n\nWhat was searched: {searched}"
+)
+EXPORT_SCOPE_NOT_RECORDED = (
+  "Research question, field and what was searched: not recorded for this Corpus."
+)
+EXPORT_SCOPE_DENOMINATOR = (
+  "This write-up covers {accepted} accepted Candidate Gap(s) over {papers} "
+  "Papers in the Corpus ({years}). Excluded: {rejected} rejected and "
+  "{undecided} undecided gap(s)."
+)
+EXPORT_SCOPE_YEARS_UNKNOWN = "publication years unknown"
+EXPORT_SCOPE_LIMITS = (
+  "The Corpus could not place {unmatched} unmatched paper-list entry(ies) and "
+  "{orphans} PDF(s) without a paper-list entry; they are not part of this "
+  "analysis."
+)
+EXPORT_SCOPE_CAVEAT = (
+  "Every gap here was computed only over the Papers in this Corpus, not the "
+  "whole literature. The gaps are candidates for human judgment, not verdicts."
+)

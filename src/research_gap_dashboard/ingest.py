@@ -81,6 +81,42 @@ class CorpusManifest(BaseModel):
   orphan_pdfs: list[Path]
 
 
+class PairingCheck(BaseModel):
+  """
+  How the paper list and the PDFs pair up, checked before ingesting.
+
+  The same pairing ingest would do, with nothing written, so a researcher can
+  fix unmatched entries and orphan PDFs, and learn that the Corpus is outside
+  the envelope, before running ingest at all.
+  """
+
+  paired: list[str]
+  unmatched_entries: list[UnmatchedEntry]
+  orphan_pdfs: list[Path]
+  min_papers: int = MIN_PAPERS
+  max_papers: int = MAX_PAPERS
+  within_envelope: bool
+  refusal: str | None = None
+
+
+def check_corpus(root: Path) -> PairingCheck:
+  """Pair a corpus directory's paper list with its PDFs, writing nothing."""
+  manifest = _pair(root)
+  try:
+    _check_envelope(manifest)
+  except CorpusSizeError as error:
+    refusal: str | None = str(error)
+  else:
+    refusal = None
+  return PairingCheck(
+    paired=[paper.citation_key for paper in manifest.papers],
+    unmatched_entries=manifest.unmatched_entries,
+    orphan_pdfs=manifest.orphan_pdfs,
+    within_envelope=refusal is None,
+    refusal=refusal,
+  )
+
+
 def ingest_corpus(root: Path, adapter: SourceAdapter | None = None) -> CorpusManifest:
   """
   Build the CorpusManifest for a corpus directory and write it to artifacts/.
@@ -88,20 +124,12 @@ def ingest_corpus(root: Path, adapter: SourceAdapter | None = None) -> CorpusMan
   When an `adapter` is given, each Paper's DOI is resolved to canonical
   metadata; without one, Papers keep the metadata read from the paper list.
   """
-  report = inspect_corpus_layout(root)
-  if report.paper_list_path is None:
-    raise CorpusLayoutError(
-      "\n".join(problem.message for problem in report.problems)
-      or f"Corpus directory '{root}' has no paper list."
-    )
-
-  entries = _read_paper_list(report.paper_list_path)
-  manifest = _match(root, entries, report.pdf_paths)
+  manifest = _pair(root)
   if adapter is not None:
     _resolve(manifest, adapter)
   _check_envelope(manifest)
 
-  artifact_path = report.layout.artifacts_dir / MANIFEST_NAME
+  artifact_path = inspect_corpus_layout(root).layout.artifacts_dir / MANIFEST_NAME
   artifact_path.parent.mkdir(parents=True, exist_ok=True)
   artifact_path.write_text(manifest.model_dump_json(indent=2), encoding="utf-8")
   logger.info(
@@ -112,6 +140,18 @@ def ingest_corpus(root: Path, adapter: SourceAdapter | None = None) -> CorpusMan
     artifact_path,
   )
   return manifest
+
+
+def _pair(root: Path) -> CorpusManifest:
+  """Read the paper list and pair it with the PDFs in `papers/`."""
+  report = inspect_corpus_layout(root)
+  if report.paper_list_path is None:
+    raise CorpusLayoutError(
+      "\n".join(problem.message for problem in report.problems)
+      or f"Corpus directory '{root}' has no paper list."
+    )
+  entries = _read_paper_list(report.paper_list_path)
+  return _match(root, entries, report.pdf_paths)
 
 
 def _resolve(manifest: CorpusManifest, adapter: SourceAdapter) -> None:

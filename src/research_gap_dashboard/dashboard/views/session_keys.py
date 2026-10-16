@@ -49,3 +49,12 @@ COMPARISON_PAPERS_KEY = "comparison_paper_keys"
 # gives the widget a new identity and throws the researcher's later choice away.
 EXPLAINER_PICKER_KEY = "explainer_paper_picker"
 COMPARISON_PICKER_KEY = "comparison_paper_picker"
+# The last generated narrative summary, as (corpus root, the accepted-gaps scope
+# it was generated over, narrative), so it and its export buttons survive the
+# rerun a download click triggers, and are dropped once the judgments change
+# (issue #82).
+NARRATIVE_KEY = "narrative_summary"
+# The Add Papers panel keeps what its last upload placed and the pairing check
+# that followed, so both stay on screen across the rerun the upload triggers
+# (issue #75).
+UPLOAD_STATE_KEY = "paper_upload_state"

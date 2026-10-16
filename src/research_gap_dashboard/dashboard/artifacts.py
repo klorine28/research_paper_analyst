@@ -115,6 +115,8 @@ class CandidateGapRecord(_ReadModel):
   corpus_paper_count: int
   # Cell gaps: each layer's verdict in order; empty in pre-trail artifacts.
   trail: list[LayerStepRecord] = []
+  # Cell gaps: the L1 ranking score; None in pre-L1 artifacts.
+  l1_probability: float | None = None
   cell_count: int | None = None
   source_citation_keys: list[str] = []
   evidence: list[GapEvidenceRecord] = []
@@ -190,12 +192,23 @@ class LimitationGroupRecord(_ReadModel):
   notes: list[str] = []
 
 
+class L1MarginsRecord(_ReadModel):
+  """The smallest equal category sizes at which an empty cell ranks each level."""
+
+  high: int | None = None
+  medium: int | None = None
+
+
 class CandidateGapsArtifact(_ReadModel):
   """The CandidateGaps artifact, projected onto what the Gap Cards view shows."""
 
   corpus_root: Path
   corpus_paper_count: int = 0
   extracted_paper_count: int = 0
+  # Which cells became candidates, and what L1 can rank High at this size;
+  # empty / None in artifacts written before L1.
+  candidate_rule: str = ""
+  l1_smallest_margins: L1MarginsRecord | None = None
   matrices: list[CoverageMatrixRecord] = []
   limitation_groups: list[LimitationGroupRecord] = []
   gaps: list[CandidateGapRecord] = []
