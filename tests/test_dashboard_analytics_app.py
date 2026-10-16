@@ -15,6 +15,7 @@ import pytest
 from conftest import StubLlmClient, open_page
 from test_detect import _PLACEMENTS, _write_corpus
 
+from research_gap_dashboard.dashboard.trust_gate import acknowledge_denominator
 import research_gap_dashboard.analytics as analytics_module
 import research_gap_dashboard.dashboard as dashboard_pkg
 from research_gap_dashboard.dashboard.artifacts import load_candidate_gaps
@@ -60,6 +61,8 @@ def _run_analytics(
 
   stub = client or StubLlmClient({"answer": answer, "citations": []})
   monkeypatch.setattr(analytics_module, "build_analytics_client", lambda _dir: stub)
+  # Past the soft Trust gate (#77): this fixture Corpus is partial.
+  acknowledge_denominator(corpus)
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
@@ -184,6 +187,8 @@ def _run_with_narrative(corpus: Path, monkeypatch: pytest.MonkeyPatch):
 
   stub = _Capturing({"paragraphs": ["A grounded summary."], "citations": ["p01"]})
   monkeypatch.setattr(analytics_module, "build_analytics_client", lambda _dir: stub)
+  # Past the soft Trust gate (#77): this fixture Corpus is partial.
+  acknowledge_denominator(corpus)
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()

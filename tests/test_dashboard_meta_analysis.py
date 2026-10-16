@@ -13,6 +13,7 @@ the incomplete-Corpus caveat.
 from conftest import open_page
 import plotly.graph_objects as go
 
+from research_gap_dashboard.dashboard.trust_gate import acknowledge_denominator
 from research_gap_dashboard.dashboard.artifacts import (
   AssignmentRecord,
   ManifestArtifact,
@@ -539,6 +540,8 @@ def test_meta_page_shows_the_six_graphs_as_gallery_tiles(tmp_path, monkeypatch):
 
   root = _write_corpus(tmp_path / "corpus", _PLACEMENTS)
   detect_corpus(root, StubLlmClient({}))
+  # Past the soft Trust gate (#77): this fixture Corpus is partial.
+  acknowledge_denominator(root)
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(root.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=60).run()
