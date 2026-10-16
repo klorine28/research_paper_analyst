@@ -1,4 +1,9 @@
-"""The Corpus Overview page: counts, completeness gauge, chart gallery, exclusions."""
+"""
+The Corpus Overview page.
+
+Counts, completeness gauge, chart gallery, how the Corpus was assembled (its
+entry log and timeline), and exclusions.
+"""
 
 from pathlib import Path
 
@@ -15,6 +20,10 @@ from research_gap_dashboard.dashboard.artifacts import (
 )
 from research_gap_dashboard.dashboard.attention import (
   build_attention,
+)
+from research_gap_dashboard.dashboard.entry_log import (
+  EntryLogView,
+  reconcile_entry_log,
 )
 from research_gap_dashboard.dashboard.overview import (
   AxisFrequency,
@@ -53,12 +62,14 @@ def render_page(chosen: CorpusChoice) -> None:
   normalized = load_normalized_facts(root) if has_normalized_facts(root) else None
   extractions = load_extractions(root) if has_extractions(root) else None
   completeness = build_attention(root).banner
+  manifest = load_manifest(root)
   render_overview(
     build_overview(
-      load_manifest(root),
+      manifest,
       normalized=normalized,
       extractions=extractions,
       completeness=completeness,
+      entry_log=reconcile_entry_log(root, manifest),
     ),
     root,
   )
@@ -77,6 +88,8 @@ def render_overview(overview: OverviewData, corpus_root: Path) -> None:
 
   _render_completeness(overview.completeness, corpus_root)
   _render_overview_gallery(overview, corpus_root)
+  if overview.entry_log is not None:
+    _render_entry_log(overview.entry_log)
 
   st.subheader(text.EXCLUSIONS_HEADING)
   if not overview.has_exclusions:
@@ -93,6 +106,55 @@ def render_overview(overview: OverviewData, corpus_root: Path) -> None:
   if overview.orphan_pdfs:
     st.caption(text.ORPHAN_PDFS_LABEL)
     st.table([{text.COLUMN_FILE: name} for name in overview.orphan_pdfs])
+
+
+def _render_entry_log(log: EntryLogView) -> None:
+  """Render how the Corpus grew: route summary, timeline, Papers, unavailable."""
+  st.subheader(text.ENTRY_LOG_HEADING)
+  if log.papers:
+    st.markdown(
+      text.ENTRY_LOG_SUMMARY.format(total=len(log.papers), summary=log.summary)
+    )
+  if log.grown_beyond_import:
+    st.warning(text.ENTRY_LOG_GROWN_CAVEAT)
+  st.caption(text.ENTRY_LOG_TIMELINE_LABEL)
+  st.table(
+    [
+      {
+        text.COLUMN_DATE: step.day.isoformat(),
+        text.COLUMN_ROUTE: text.ENTRY_ROUTE_LABEL[step.route.value],
+        text.COLUMN_ADDED: step.count,
+        text.COLUMN_CORPUS_SIZE: step.corpus_size,
+      }
+      for step in log.timeline
+    ]
+  )
+  if log.unavailable:
+    st.caption(text.ENTRY_LOG_UNAVAILABLE_LABEL.format(count=len(log.unavailable)))
+    st.table(
+      [
+        {
+          text.COLUMN_TITLE: item.title,
+          text.COLUMN_DOI: item.doi,
+          text.COLUMN_ROUTE: text.ENTRY_ROUTE_LABEL[item.route.value],
+          text.COLUMN_DATE: item.marked_at.date().isoformat(),
+          text.COLUMN_REASON: item.reason,
+        }
+        for item in log.unavailable
+      ]
+    )
+  with st.expander(text.ENTRY_LOG_PAPERS_LABEL):
+    st.caption(text.ENTRY_LOG_DATES_NOTE)
+    st.table(
+      [
+        {
+          text.COLUMN_PAPER: paper.label,
+          text.COLUMN_ROUTE: text.ENTRY_ROUTE_LABEL[paper.route.value],
+          text.COLUMN_DATE: paper.entered_at.date().isoformat(),
+        }
+        for paper in log.papers
+      ]
+    )
 
 
 def _render_completeness(gauge: CompletenessGauge | None, corpus_root: Path) -> None:

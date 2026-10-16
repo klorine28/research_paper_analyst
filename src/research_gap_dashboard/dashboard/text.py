@@ -373,6 +373,51 @@ COLUMN_ENTRY = "Entry"
 COLUMN_REASON = "Reason"
 COLUMN_FILE = "File"
 
+# The Corpus entry log (ADR 0010 §4, issue #92): how and when each Paper
+# entered the Corpus. A Corpus grown from the tool's own suggestions is not a
+# searched one, so the summary sits with the scope and the Overview keeps the
+# timeline. Keyed by the entry route's value.
+ENTRY_ROUTE_SUMMARY = {
+  "imported": "{count} imported",
+  "uploaded": "{count} added by upload",
+  "retrieval_suggestion": "{count} from retrieval suggestions",
+  "saturation_hit": "{count} from saturation checks",
+}
+ENTRY_ROUTE_LABEL = {
+  "imported": "Imported",
+  "uploaded": "Added by upload",
+  "retrieval_suggestion": "Retrieval suggestion",
+  "saturation_hit": "Saturation check hit",
+}
+ENTRY_LOG_HEADING = "How the Corpus was assembled"
+ENTRY_LOG_SUMMARY = "**How these {total} Papers entered the Corpus:** {summary}."
+ENTRY_LOG_GROWN_CAVEAT = (
+  "Some Papers were added after the initial import, by following the tool's "
+  "own suggestions or by later uploads. A Corpus grown this way is not the same "
+  "as one built from a single search."
+)
+ENTRY_LOG_TIMELINE_LABEL = "Timeline: when Papers entered the Corpus"
+ENTRY_LOG_PAPERS_LABEL = "Each Paper's entry route and date"
+ENTRY_LOG_DATES_NOTE = (
+  "Papers already in the Corpus before the entry log existed are recorded as "
+  "imported, dated by the ingest that first listed them."
+)
+ENTRY_LOG_UNAVAILABLE_LABEL = (
+  "Suggested papers marked unavailable ({count}): they could not be obtained, "
+  "so they are not in the Corpus and nothing here is computed over them."
+)
+ENTRY_LOG_UNAVAILABLE_SCOPE = (
+  "{count} suggested paper(s) could not be obtained and are not in the Corpus."
+)
+COLUMN_DATE = "Date"
+COLUMN_ROUTE = "Route"
+COLUMN_ADDED = "Papers added"
+COLUMN_CORPUS_SIZE = "Corpus size after"
+COLUMN_PAPER = "Paper"
+COLUMN_DOI = "DOI"
+COLUMN_TITLE = "Title"
+EXPORT_SCOPE_ENTRY_LOG = "How the Papers entered the Corpus: {summary}."
+
 # Gap Cards page. Every card is a Candidate Gap: a signal for human judgment,
 # never a verdict (CONTEXT.md > Candidate Gap; CODING_STANDARDS.md > Research
 # integrity).

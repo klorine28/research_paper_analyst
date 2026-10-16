@@ -25,7 +25,12 @@ from bibtexparser.model import Field
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from research_gap_dashboard.dashboard import pipeline_runner
-from research_gap_dashboard.dashboard.artifacts import PAPERS_DIR
+from research_gap_dashboard.dashboard.artifacts import PAPERS_DIR, has_manifest
+from research_gap_dashboard.dashboard.entry_log import (
+  EntryRoute,
+  PaperIdentity,
+  record_entries,
+)
 from research_gap_dashboard.dashboard.pipeline_runner import RunOutcome, RunResult
 
 logger = logging.getLogger(__name__)
@@ -161,6 +166,9 @@ def place_paper_list(
   Entries already listed (same citation key or DOI) are skipped, not repeated.
   An upload of the other kind than the existing list is refused: a `.bib` next
   to `dois.txt` would silently replace it, as BibTeX wins.
+
+  The newly listed entries are written to the Corpus entry log: as the initial
+  import while the Corpus has never been ingested, as added by upload after.
   """
   try:
     text = content.decode("utf-8")
@@ -179,15 +187,19 @@ def place_paper_list(
       f"This Corpus's paper list ({existing.name}) is {kind}; upload the same "
       "kind of list to add to it."
     )
+  route = EntryRoute.UPLOADED if has_manifest(corpus_root) else EntryRoute.IMPORTED
   if suffix == ".bib":
-    return _place_bibtex(corpus_root, existing, name, text)
-  return _place_doi_list(corpus_root, existing, name, text)
+    placement, fresh = _place_bibtex(corpus_root, existing, name, text)
+  else:
+    placement, fresh = _place_doi_list(corpus_root, existing, name, text)
+  record_entries(corpus_root, fresh, route)
+  return placement
 
 
 def _place_bibtex(
   corpus_root: Path, existing: Path | None, name: str, text: str
-) -> PaperListPlacement:
-  """Append the uploaded BibTeX entries that are not listed yet."""
+) -> tuple[PaperListPlacement, list[PaperIdentity]]:
+  """Append the uploaded BibTeX entries that are not listed yet, and name them."""
   uploaded = parse_string(text)
   if uploaded.failed_blocks:
     first = (uploaded.failed_blocks[0].raw or "").strip().splitlines()[:1]
@@ -207,6 +219,7 @@ def _place_bibtex(
       dois.add(_doi_of(entry.fields_dict))
   dois.discard("")
   fresh: list[str] = []
+  identities: list[PaperIdentity] = []
   already: list[str] = []
   for entry in uploaded.entries:
     doi = _doi_of(entry.fields_dict)
@@ -217,8 +230,10 @@ def _place_bibtex(
     if doi:
       dois.add(doi)
     fresh.append((entry.raw or "").strip())
+    identities.append(PaperIdentity(citation_key=entry.key, doi=doi))
   _append(target, "\n\n".join(fresh), blank_line=True)
-  return PaperListPlacement(path=target, added=len(fresh), already_listed=already)
+  placement = PaperListPlacement(path=target, added=len(fresh), already_listed=already)
+  return placement, identities
 
 
 def _doi_of(fields: dict[str, Field]) -> str:
@@ -228,8 +243,8 @@ def _doi_of(fields: dict[str, Field]) -> str:
 
 def _place_doi_list(
   corpus_root: Path, existing: Path | None, name: str, text: str
-) -> PaperListPlacement:
-  """Append the uploaded DOIs that are not listed yet."""
+) -> tuple[PaperListPlacement, list[PaperIdentity]]:
+  """Append the uploaded DOIs that are not listed yet, and name them."""
   uploaded = _doi_lines(text)
   if not uploaded:
     raise UploadError(f"'{name}' holds no DOIs.")
@@ -248,7 +263,8 @@ def _place_doi_list(
     listed.add(doi.lower())
     fresh.append(doi)
   _append(target, "\n".join(fresh), blank_line=False)
-  return PaperListPlacement(path=target, added=len(fresh), already_listed=already)
+  placement = PaperListPlacement(path=target, added=len(fresh), already_listed=already)
+  return placement, [PaperIdentity(doi=doi) for doi in fresh]
 
 
 def _doi_lines(text: str) -> list[str]:
