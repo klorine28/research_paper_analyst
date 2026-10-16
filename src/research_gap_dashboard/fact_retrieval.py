@@ -6,10 +6,9 @@ with their Evidence), yet without them it can't answer "what methods did Templin
 use?". So each question pulls in only the facts relevant to it, under a size
 budget, and the model answers from those plus the Corpus list.
 
-Matching is deterministic keyword matching over each fact's statement, its
-verbatim Evidence passage, and the taxonomy categories its phrases were
-normalized onto (spec #67: no embeddings and no new dependency until research
-ticket #60 says otherwise). Three cues decide relevance:
+By default matching is deterministic keyword matching over each fact's
+statement, its verbatim Evidence passage, and the taxonomy categories its
+phrases were normalized onto. Three cues decide relevance:
 
 - **Paper names.** A question naming a Paper (its citation key, the key's name
   part, or its first author's surname) is restricted to that Paper's facts.
@@ -25,14 +24,26 @@ never padded with unrelated ones, so an out-of-Corpus question reaches the model
 with nothing to lean on and it says so. Ties are broken by Paper order, then
 field order, so the same question always yields the same context and the LLM
 cache stays warm (CODING_STANDARDS.md > Stages are reproducible).
+
+When an `Embedder` is injected (the optional `embeddings` extra, spec #112),
+facts are ranked by meaning as well: the cosine between the question and the
+fact's statement or its Evidence passage, whichever is closer, is added to the
+scaled keyword score (`_fused_scores`). A fact is relevant when a keyword cue
+hits it or its cosine reaches `SIMILARITY_FLOOR`, so a paraphrase sharing no
+word with a fact still finds it, while an out-of-Corpus question still
+retrieves nothing. Paper names keep restricting the pool either way. The model
+is pinned to a revision, so the same question still yields the same context.
 """
 
 import math
+import operator
 import re
 import unicodedata
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 
 from pydantic import BaseModel
+
+from research_gap_dashboard.embeddings import Embedder, Vector
 
 # Extraction fields in the order an Extraction lists them (mirrors
 # `extract._FIELD_NAMES`); ties break this way.
@@ -57,6 +68,15 @@ PASSAGE_CLIP_CHARS = 400
 # Equal to the weight of a content word found in about 58% of facts, so a rare
 # keyword hit outranks a bare field match while a common one doesn't.
 FIELD_CUE_WEIGHT = 1.0
+
+# Cosine at or above which a fact no keyword cue hits is still relevant to a
+# question, under the default PubMedBERT model. Calibrated on takotsubo-15: the
+# closest fact to an out-of-Corpus question ("capital of France", "mRNA
+# vaccines in children") sits at 0.30-0.39, while a paraphrase's target fact
+# sits at 0.40 and above. Similarities are rounded so float noise between runs
+# can't reorder facts.
+SIMILARITY_FLOOR = 0.40
+_SIMILARITY_DIGITS = 4
 
 # Words that point at an Extraction field. They steer the field choice and are
 # still matched as content, since "registry" is also something a fact can say.
@@ -225,43 +245,126 @@ def _field_rank(field: str) -> int:
   return FIELD_ORDER.index(field) if field in FIELD_ORDER else len(FIELD_ORDER)
 
 
-def retrieve_facts(
+def retrieve_facts(  # pylint: disable=too-many-arguments
   question: str,
   pool: list[ExtractedFact],
   aliases: Mapping[str, set[str]],
   *,
   follow_up_of: str = "",
   budget_chars: int = DEFAULT_BUDGET_CHARS,
+  embedder: Embedder | None = None,
 ) -> list[ExtractedFact]:
   """
   Select the facts relevant to one question, most relevant first, within budget.
 
   `aliases` maps each citation key to the words that name it (`paper_aliases`).
   `follow_up_of` is the researcher's previous question: when this one names no
-  Paper ("and what did they find?"), the Papers named there carry over. The
-  rendered selection (`render_fact` lines) never exceeds `budget_chars`.
+  Paper ("and what did they find?"), the Papers named there carry over. With an
+  `embedder`, similarity to the question joins the keyword score in ranking, and
+  a close enough fact counts as relevant without a keyword hit. The rendered selection
+  (`render_fact` lines) never exceeds `budget_chars`.
   """
-  words = _tokens(question)
   named = named_papers(question, aliases, follow_up_of=follow_up_of)
-  fields = {
-    field for field, cues in _CUE_STEMS.items() if any(word in cues for word in words)
-  }
-  content = _content_words(words, aliases)
-  fact_words = [_fact_words(fact) for fact in pool]
-  weights = _rarity_weights(content, fact_words)
-
-  scored = [
-    (_score(fact, fact_words[position], fields, weights), position, fact)
+  candidates = [
+    (position, fact)
     for position, fact in enumerate(pool)
     if not named or fact.citation_key in named
+  ]
+  keyword = _keyword_scores(question, pool, aliases, candidates)
+  if embedder is None:
+    ranks = keyword
+    relevant = [score > 0 for score in keyword]
+  else:
+    cosines = _similarities(question, [fact for _, fact in candidates], embedder)
+    relevant = [
+      score > 0 or cosine >= SIMILARITY_FLOOR
+      for score, cosine in zip(keyword, cosines, strict=True)
+    ]
+    ranks = _fused_scores(keyword, cosines)
+  scored = [
+    (rank, position, fact)
+    for rank, (position, fact) in zip(ranks, candidates, strict=True)
   ]
 
   # A named Paper with nothing matching the cues still brings its facts, so the
   # model can say what that Paper does report instead of seeing nothing at all.
-  if not named or any(score for score, _, _ in scored):
-    scored = [item for item in scored if item[0] > 0]
+  if not named or any(relevant):
+    scored = [item for item, keep in zip(scored, relevant, strict=True) if keep]
 
   return _fit_budget(_interleave(scored, pool), budget_chars)
+
+
+def _keyword_scores(
+  question: str,
+  pool: list[ExtractedFact],
+  aliases: Mapping[str, set[str]],
+  candidates: list[tuple[int, ExtractedFact]],
+) -> list[float]:
+  """Score each candidate fact on the question's keyword and field cues."""
+  words = _tokens(question)
+  fields = {
+    field for field, cues in _CUE_STEMS.items() if any(word in cues for word in words)
+  }
+  # Rarity is measured over the whole pool, not just the named Papers' facts.
+  fact_words = [_fact_words(fact) for fact in pool]
+  weights = _rarity_weights(_content_words(words, aliases), fact_words)
+  return [
+    _score(fact, fact_words[position], fields, weights) for position, fact in candidates
+  ]
+
+
+def _similarities(
+  question: str, facts: Sequence[ExtractedFact], embedder: Embedder
+) -> list[float]:
+  """
+  Return each fact's cosine to the question: its statement's or passage's, the higher.
+
+  The question and every text go to the embedder in one call; a fact without
+  a passage is compared on its statement alone.
+  """
+  if not facts:
+    return []
+  passages = [fact.passage.strip() for fact in facts]
+  texts = [question, *(fact.statement for fact in facts), *filter(None, passages)]
+  vectors = [_unit(vector) for vector in embedder.embed(texts)]
+  query, rest = vectors[0], iter(vectors[1:])
+  statement_vectors = [next(rest) for _ in facts]
+  result: list[float] = []
+  for statement_vector, passage in zip(statement_vectors, passages, strict=True):
+    similarity = _cosine(query, statement_vector)
+    if passage:
+      similarity = max(similarity, _cosine(query, next(rest)))
+    result.append(round(similarity, _SIMILARITY_DIGITS))
+  return result
+
+
+def _fused_scores(keyword: Sequence[float], cosines: Sequence[float]) -> list[float]:
+  """
+  Combine keyword scores and cosines into one ranking score per fact.
+
+  The keyword score is scaled by the question's best one, so it spans 0 to 1 like
+  a cosine of related texts, and the two are added with equal weight. Ranking by
+  cosine alone lets loosely related facts crowd a strong keyword hit out of
+  the budget (on takotsubo-15, "Which papers used cardiac MRI, and what did it
+  show?" lost the oedema passage); the sum keeps a fact both signals favour on
+  top, and still lifts a fact only meaning finds above unrelated ones.
+  """
+  best = max(keyword, default=0.0) or 1.0
+  return [
+    round(score / best + cosine, _SIMILARITY_DIGITS)
+    for score, cosine in zip(keyword, cosines, strict=True)
+  ]
+
+
+def _unit(vector: Vector) -> Vector:
+  """Scale a vector to length 1 so a dot product is its cosine."""
+  norm = math.sqrt(math.fsum(value * value for value in vector))
+  return [value / norm for value in vector] if norm else list(vector)
+
+
+def _cosine(left: Vector, right: Vector) -> float:
+  """Return the cosine of two unit vectors."""
+  return math.fsum(map(operator.mul, left, right))
 
 
 def _content_words(words: list[str], aliases: Mapping[str, set[str]]) -> list[str]:

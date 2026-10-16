@@ -46,8 +46,11 @@ reads:
 local biomedical embedding model (PubMedBERT, downloaded from Hugging Face on
 first use). `detect` then gives limitation grouping the cross-Paper statement
 pairs whose embeddings are close as merge hints, and records the model id,
-revision, threshold, and every hint in `candidate_gaps.json`. Without the extra,
-grouping runs LLM-only and nothing fails.
+revision, threshold, and every hint in `candidate_gaps.json`. The Analytics
+chat also retrieves each question's extracted facts by meaning as well as by
+keywords, so a question worded differently from the Papers still finds the
+facts it needs. Without the extra, grouping runs LLM-only, chat uses keyword
+retrieval, and nothing fails.
 
 | Variable | Default | Why |
 | --- | --- | --- |

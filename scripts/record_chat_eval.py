@@ -14,7 +14,9 @@ manual, explicit step that talks to the live model (needs `ANTHROPIC_API_KEY`).
   and isn't churned by gap detection). Re-record afterwards.
 - `--live CORPUS --cases FILE` runs a cases file against a real Corpus with the
   context the Analytics page builds (gaps included), logs the verdicts, and
-  writes nothing: the end-to-end acceptance check.
+  writes nothing: the end-to-end acceptance check. It retrieves by meaning
+  when the `embeddings` extra is installed, as the page does; the recorded set
+  is always replayed with keyword retrieval.
 """
 
 import argparse
@@ -24,7 +26,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from research_gap_dashboard.analytics import GroundingContext
+from research_gap_dashboard.analytics import GroundingContext, build_chat_embedder
 from research_gap_dashboard.chat_eval import (
   ChatEvalCase,
   EvalReport,
@@ -37,6 +39,7 @@ from research_gap_dashboard.dashboard.artifacts import (
   load_manifest,
 )
 from research_gap_dashboard.dashboard.fact_pool import corpus_grounding_context
+from research_gap_dashboard.embeddings import Embedder
 from research_gap_dashboard.env import load_env
 from research_gap_dashboard.llm import (
   AnthropicClient,
@@ -77,12 +80,15 @@ class _RecordingClient:  # pylint: disable=too-few-public-methods
 
 
 def _log_report(
-  report: EvalReport, cases: list[ChatEvalCase], context: GroundingContext
+  report: EvalReport,
+  cases: list[ChatEvalCase],
+  context: GroundingContext,
+  embedder: Embedder | None = None,
 ) -> None:
   """Log each case's retrieval size, answer, citations, and verdict."""
   by_id = {case.id: case for case in cases}
   for verdict in report.verdicts:
-    grounded = grounded_context_for(by_id[verdict.case_id], context)
+    grounded = grounded_context_for(by_id[verdict.case_id], context, embedder)
     status = "PASS" if verdict.passed else "FAIL"
     logger.info(
       "%s %s (%d facts retrieved): cited %s",
@@ -142,8 +148,15 @@ def _live(corpus: Path, cases_path: Path) -> EvalReport:
     len(context.fact_pool),
     len(context.gaps),
   )
-  report = run_eval(cases, context, AnthropicClient(LlmConfig.from_env()))
-  _log_report(report, cases, context)
+  # As the Analytics page does: by meaning when the `embeddings` extra is
+  # installed, by keywords otherwise.
+  embedder = build_chat_embedder()
+  logger.info(
+    "retrieval: %s",
+    f"embeddings ({embedder.model_id})" if embedder is not None else "keywords",
+  )
+  report = run_eval(cases, context, AnthropicClient(LlmConfig.from_env()), embedder)
+  _log_report(report, cases, context, embedder)
   return report
 
 

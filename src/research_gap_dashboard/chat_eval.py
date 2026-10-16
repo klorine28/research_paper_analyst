@@ -40,6 +40,7 @@ from research_gap_dashboard.analytics import (
   answer_question,
   previous_question,
 )
+from research_gap_dashboard.embeddings import Embedder
 from research_gap_dashboard.llm import LlmClient, LlmResponseError
 
 RERECORD_HINT = (
@@ -119,17 +120,28 @@ def load_eval_set(root: Path) -> ChatEvalSet:
 
 
 def grounded_context_for(
-  case: ChatEvalCase, context: GroundingContext
+  case: ChatEvalCase,
+  context: GroundingContext,
+  embedder: Embedder | None = None,
 ) -> GroundingContext:
   """Return the context the model is shown for this case's question."""
-  return context.for_question(case.question, previous_question(case.history))
+  return context.for_question(
+    case.question, previous_question(case.history), embedder=embedder
+  )
 
 
 def evaluate_answer(
-  case: ChatEvalCase, answer: GroundedChatAnswer, context: GroundingContext
+  case: ChatEvalCase,
+  answer: GroundedChatAnswer,
+  context: GroundingContext,
+  embedder: Embedder | None = None,
 ) -> CaseVerdict:
-  """Judge one chat answer against its case and the Corpus context it came from."""
-  grounded = grounded_context_for(case, context)
+  """
+  Judge one chat answer against its case and the Corpus context it came from.
+
+  `embedder` must be the one the answer was retrieved with (None for keywords).
+  """
+  grounded = grounded_context_for(case, context, embedder)
   failures = _citation_failures(answer, grounded)
   if case.abstain:
     failures += _abstention_failures(answer)
@@ -144,17 +156,27 @@ def evaluate_answer(
 
 
 def run_eval(
-  cases: list[ChatEvalCase], context: GroundingContext, client: LlmClient
+  cases: list[ChatEvalCase],
+  context: GroundingContext,
+  client: LlmClient,
+  embedder: Embedder | None = None,
 ) -> EvalReport:
-  """Answer every case through the chat and judge each answer."""
+  """
+  Answer every case through the chat and judge each answer.
+
+  The recorded set is replayed with keyword retrieval (no `embedder`); an
+  embedder changes the retrieved facts, so the prompts, so the recordings.
+  """
   verdicts: list[CaseVerdict] = []
   for case in cases:
     try:
-      answer = answer_question(case.question, context, client, history=case.history)
+      answer = answer_question(
+        case.question, context, client, history=case.history, embedder=embedder
+      )
     except LlmResponseError:
       verdicts.append(CaseVerdict(case_id=case.id, failures=[RERECORD_HINT]))
       continue
-    verdicts.append(evaluate_answer(case, answer, context))
+    verdicts.append(evaluate_answer(case, answer, context, embedder))
   return EvalReport(verdicts=verdicts)
 
 

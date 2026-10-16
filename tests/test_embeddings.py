@@ -194,6 +194,39 @@ def test_default_embedder_loads_the_configured_model_and_revision(
   assert embedder.embed([]) == []
 
 
+def test_default_embedder_encodes_each_text_only_once(
+  monkeypatch: pytest.MonkeyPatch,
+) -> None:
+  """Chat embeds the whole fact pool per question; a repeat text isn't re-encoded."""
+  encoded: list[str] = []
+
+  class FakeSentenceTransformer:  # pylint: disable=too-few-public-methods
+    """Stand-in for `sentence_transformers.SentenceTransformer`."""
+
+    def __init__(self, *_: Any, **__: Any):
+      pass
+
+    def encode(self, texts: list[str], **_: Any) -> list[list[float]]:
+      """Record what is encoded; encode each text as its length."""
+      encoded.extend(texts)
+      return [[float(len(text))] for text in texts]
+
+  monkeypatch.setitem(
+    sys.modules,
+    "sentence_transformers",
+    SimpleNamespace(SentenceTransformer=FakeSentenceTransformer),
+  )
+  embedder = build_embedder(EmbeddingConfig())
+  assert embedder is not None
+
+  first = embedder.embed(["question one", "a fact", "a fact"])
+  second = embedder.embed(["question two!", "a fact"])
+
+  assert first == [[12.0], [6.0], [6.0]]
+  assert second == [[13.0], [6.0]]
+  assert encoded == ["question one", "a fact", "question two!"]
+
+
 def test_recorded_embedder_fails_on_an_unrecorded_text() -> None:
   """A text with no recorded vector is an error, never a made-up vector."""
   with pytest.raises(LookupError):

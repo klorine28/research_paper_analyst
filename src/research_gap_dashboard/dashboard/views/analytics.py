@@ -6,6 +6,7 @@ import streamlit as st
 
 from research_gap_dashboard import analytics as analytics_api
 from research_gap_dashboard.analytics import (
+  Embedder,
   GroundedChatAnswer,
   GroundedNarrative,
   GroundingContext,
@@ -65,6 +66,17 @@ LLM_CACHE_DIR = ".llm-cache"
 # Which conversation thread the Analytics page is showing. Persisted threads live
 # on disk (issue #50); this only remembers the researcher's current selection.
 ACTIVE_CONVERSATION_KEY = "active_conversation_id"
+
+
+@st.cache_resource(show_spinner=False)
+def _chat_embedder() -> Embedder | None:
+  """
+  Load the chat's embedder once per server, or None without the extra.
+
+  Loading the model takes seconds, and the embedder remembers the fact vectors
+  it has computed, so keeping it across reruns keeps each question fast.
+  """
+  return analytics_api.build_chat_embedder()
 
 
 def render_page(chosen: CorpusChoice) -> None:
@@ -388,7 +400,9 @@ def _render_conversation(
   transcript = [f"{turn.role}: {turn.content}" for turn in conversation.turns]
   convo.append_turn(corpus_root, conversation.conversation_id, "user", question)
   with st.spinner(text.ANALYTICS_THINKING):
-    answer = answer_question(question, context, client, history=transcript)
+    answer = answer_question(
+      question, context, client, history=transcript, embedder=_chat_embedder()
+    )
   convo.append_turn(
     corpus_root,
     conversation.conversation_id,
