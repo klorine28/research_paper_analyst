@@ -422,6 +422,14 @@ EVIDENCE_SHOW_FULL_SECTION = "Show full section"
 # to that gap's source Papers and Evidence, over on the Conversational Analytics
 # page. It stays a Candidate Gap, never a verdict.
 GAP_DISCUSS_BUTTON = "\U0001f4ac Discuss this gap"
+# Links from a card to the Explainer and Comparison for its Papers (issue #80).
+GAP_EXPLAIN_PICKER_LABEL = "Explain one of this gap's Papers"
+GAP_EXPLAIN_BUTTON = "Open in Explainer"
+GAP_COMPARE_BUTTON = "Compare this gap's {count} Papers"
+GAP_COMPARE_TOO_FEW = "Comparison needs at least two Papers; this gap rests on one."
+GAP_COMPARE_LIMIT = (
+  "The Comparison opens with the first {shown} of this gap's {total} Papers."
+)
 GAP_STATUS_ACCEPTED = "Accepted"
 GAP_STATUS_REJECTED = "Rejected"
 GAP_STATUS_UNDECIDED = "Undecided"
