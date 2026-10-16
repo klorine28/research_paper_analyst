@@ -20,10 +20,17 @@ value models (`CorpusPaper`, `GapFact`) that the layout layer maps its artifact
 read models onto, so this module has no dependency back on the dashboard.
 """
 
+import logging
 from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from research_gap_dashboard.embeddings import (
+  Embedder,
+  EmbeddingConfig,
+  EmbeddingConfigError,
+  build_embedder,
+)
 from research_gap_dashboard.fact_retrieval import (
   ExtractedFact,
   named_papers,
@@ -38,6 +45,8 @@ from research_gap_dashboard.llm import (
   build_llm_client,
   complete_model,
 )
+
+logger = logging.getLogger(__name__)
 
 # Bump when a prompt or output shape changes: these key the LLM cache (ADR 0001),
 # so a bump regenerates answers instead of serving stale ones.
@@ -129,14 +138,20 @@ class GroundingContext(BaseModel):
     return {paper.citation_key for paper in self.papers}
 
   def for_question(
-    self, question: str, previous_question: str = ""
+    self,
+    question: str,
+    previous_question: str = "",
+    *,
+    embedder: Embedder | None = None,
   ) -> "GroundingContext":
     """
     Return this context with the facts relevant to one question retrieved in.
 
-    With no fact pool (a gap-scoped thread, or a Corpus not yet extracted) the
-    context is returned unchanged. When the pool holds facts but none match, the
-    model is told so, rather than left to guess from the Corpus list.
+    With an `embedder` (the `embeddings` extra) facts are ranked by meaning;
+    without one, by keywords (`fact_retrieval.retrieve_facts`). With no fact
+    pool (a gap-scoped thread, or a Corpus not yet extracted) the context is
+    returned unchanged. When the pool holds facts but none match, the model is
+    told so, rather than left to guess from the Corpus list.
     """
     if not self.fact_pool:
       return self
@@ -145,7 +160,11 @@ class GroundingContext(BaseModel):
       for paper in self.papers
     }
     facts = retrieve_facts(
-      question, self.fact_pool, aliases, follow_up_of=previous_question
+      question,
+      self.fact_pool,
+      aliases,
+      follow_up_of=previous_question,
+      embedder=embedder,
     )
     notes = list(self.notes)
     extracted = {fact.citation_key for fact in self.fact_pool}
@@ -272,6 +291,21 @@ def build_analytics_client(cache_dir: Path) -> LlmClient | None:
     return None
 
 
+def build_chat_embedder() -> Embedder | None:
+  """
+  Build the embedder chat retrieval ranks facts with, or None to use keywords.
+
+  None when the optional `embeddings` extra is absent, and when its settings are
+  invalid: chat then keeps keyword retrieval, and the reason is logged, so a
+  bad embedding setting never takes the chat down with it.
+  """
+  try:
+    return build_embedder(EmbeddingConfig.from_env())
+  except EmbeddingConfigError as error:
+    logger.error("Chat retrieval falls back to keywords: %s", error)
+    return None
+
+
 def _ground_citations(
   citations: list[str], allowed: set[str]
 ) -> tuple[list[str], list[str]]:
@@ -296,16 +330,22 @@ def answer_question(  # pylint: disable=too-many-arguments
   history: list[str] | None = None,
   prompt_version: str = CHAT_PROMPT_VERSION,
   tier: ModelTier = "default",
+  embedder: Embedder | None = None,
 ) -> GroundedChatAnswer:
   """
   Answer one question grounded in the Corpus, citing only Corpus Papers.
+
+  `embedder`, when given, retrieves the question's facts by meaning rather than
+  by keywords (`GroundingContext.for_question`).
 
   The model may cite only Papers in the grounded context; any citation it returns
   that does not resolve to a Corpus Paper is dropped from the answer and surfaced
   as flagged rather than shown (CODING_STANDARDS.md > Research integrity).
   """
   history = history or []
-  grounded = context.for_question(question, previous_question(history))
+  grounded = context.for_question(
+    question, previous_question(history), embedder=embedder
+  )
   completion = complete_model(
     client,
     _build_chat_prompt(question, grounded, history),

@@ -12,7 +12,8 @@ The model id and revision come from configuration and travel with the embedder,
 so the stage that uses it can record them in its artifact's provenance. What
 deliberately isn't here: what a stage does with the vectors (each stage owns
 its use and its threshold) and any on-disk cache (the model runs locally and
-is pinned to a revision, so a rerun reproduces the same vectors).
+is pinned to a revision, so a rerun reproduces the same vectors). The default
+embedder only remembers, in memory, the vectors it has already computed.
 """
 
 import importlib
@@ -107,13 +108,19 @@ class SentenceTransformerEmbedder:  # pylint: disable=too-few-public-methods
     self.revision = config.revision
     logger.info("Loading embedding model %s@%s", self.model_id, self.revision)
     self._model = module.SentenceTransformer(self.model_id, revision=self.revision)
+    # Vectors already computed, by text. Chat retrieval embeds the whole fact
+    # pool with every question; the pinned revision makes a remembered vector
+    # the same one a fresh encode would give.
+    self._memo: dict[str, Vector] = {}
 
   def embed(self, texts: Sequence[str]) -> list[Vector]:
-    """Encode every text and return plain-float vectors."""
-    if not texts:
-      return []
-    encoded = self._model.encode(list(texts), show_progress_bar=False)
-    return [[float(value) for value in row] for row in encoded]
+    """Encode every text not seen before and return plain-float vectors."""
+    unseen = list(dict.fromkeys(text for text in texts if text not in self._memo))
+    if unseen:
+      encoded = self._model.encode(unseen, show_progress_bar=False)
+      for text, row in zip(unseen, encoded, strict=True):
+        self._memo[text] = [float(value) for value in row]
+    return [list(self._memo[text]) for text in texts]
 
 
 class RecordedEmbedder:  # pylint: disable=too-few-public-methods
