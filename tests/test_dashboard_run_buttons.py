@@ -40,6 +40,9 @@ def fake_run_fixture(monkeypatch: pytest.MonkeyPatch) -> _FakeRun:
   fake = _FakeRun()
   monkeypatch.setattr(pipeline_runner.subprocess, "run", fake)
   monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+  # These tests check which stage each button runs, not the cost confirmation
+  # (#70), so no estimate is high enough to ask first; one test below lowers it.
+  monkeypatch.setenv("LLM_COST_CONFIRM_ABOVE", "1000000")
   return fake
 
 
@@ -210,3 +213,24 @@ def test_no_dashboard_string_sends_the_researcher_to_a_terminal():
   terminal = re.compile(r"`[a-z-]+`|--[a-z]|command[- ]line|terminal", re.IGNORECASE)
   offenders = [string for string in strings if terminal.search(string)]
   assert not offenders
+
+
+def test_a_page_run_button_asks_before_an_expensive_run(
+  ingested: Path, monkeypatch: pytest.MonkeyPatch, fake_run: _FakeRun
+):
+  """A guard-state button goes through the same cost confirmation as the panel."""
+  monkeypatch.setenv("LLM_COST_CONFIRM_ABOVE", "0")
+  app = _open(ingested.parent, monkeypatch, text.PAGE_VERIFY)
+
+  _click(app, _run("extract"))
+
+  assert not app.exception
+  assert not fake_run.calls
+  assert text.RUN_CONFIRM_PROMPT.format(stage="extract") in [
+    w.value for w in app.warning
+  ]
+
+  _click(app, text.RUN_CONFIRM_BUTTON)
+
+  assert not app.exception
+  assert _launched(fake_run) == ["extract"]

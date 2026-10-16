@@ -36,3 +36,6 @@ LAST_RUN_KEY = "last_pipeline_run"
 # is built, as with PENDING_NAV_KEY (issue #74).
 CORPUS_PICKER_KEY = "corpus_picker"
 PENDING_CORPUS_KEY = "pending_corpus"
+# A run whose estimated cost is above LLM_COST_CONFIRM_ABOVE waits here, as
+# (corpus root, stage), until the researcher confirms or cancels it (issue #70).
+PENDING_RUN_KEY = "pending_pipeline_run"

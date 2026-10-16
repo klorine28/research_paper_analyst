@@ -39,7 +39,13 @@ from research_gap_dashboard.ingest import (
   CorpusSizeError,
   ingest_corpus,
 )
-from research_gap_dashboard.llm import LlmConfigError, build_llm_client
+from research_gap_dashboard.llm import (
+  LlmClient,
+  LlmConfigError,
+  LlmUsage,
+  build_llm_client,
+  write_usage,
+)
 from research_gap_dashboard.parsing import parse_corpus
 from research_gap_dashboard.promote_gold import (
   default_gold_path,
@@ -84,6 +90,11 @@ from research_gap_dashboard.vocabulary import (
 )
 
 LLM_CACHE_DIR = ".llm-cache"
+# Each LLM stage's last run's calls and tokens, read by the dashboard's Run
+# details to report what a run actually cost (issue #70).
+LLM_USAGE_PATH = Path("artifacts") / "llm-usage.json"
+# The commands whose LLM usage is recorded.
+_LLM_COMMANDS = frozenset({"extract", "explain", "aggregate", "detect"})
 
 logger = logging.getLogger("research_gap_dashboard")
 
@@ -292,7 +303,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     "taxonomy": _run_taxonomy,
     "aliases": _run_aliases,
   }
-  return runners[arguments.command](arguments)
+  if arguments.command not in _LLM_COMMANDS:
+    return runners[arguments.command](arguments)
+  arguments.llm_usage = LlmUsage()
+  try:
+    return runners[arguments.command](arguments)
+  finally:
+    usage: LlmUsage = arguments.llm_usage
+    # A run that never reached the LLM (bad config, missing input) leaves the
+    # previous run's record in place rather than overwriting it with nothing.
+    if usage.calls or usage.cached_calls:
+      write_usage(arguments.corpus / LLM_USAGE_PATH, arguments.command, usage)
+
+
+def _llm_client(arguments: argparse.Namespace) -> LlmClient:
+  """Build the stage's cached LLM client, tallying its usage for the run."""
+  return build_llm_client(
+    cache_dir=arguments.corpus / LLM_CACHE_DIR, usage=arguments.llm_usage
+  )
 
 
 def _run_ingest(arguments: argparse.Namespace) -> int:
@@ -432,7 +460,7 @@ def _run_apply_parse_corrections(arguments: argparse.Namespace) -> int:
 def _run_extract(arguments: argparse.Namespace) -> int:
   """LLM-extract structured facts with verified Evidence into the artifact."""
   try:
-    client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
+    client = _llm_client(arguments)
   except LlmConfigError as error:
     logger.error("%s", error)
     return EXIT_ERROR
@@ -464,7 +492,7 @@ def _run_extract(arguments: argparse.Namespace) -> int:
 def _run_explain(arguments: argparse.Namespace) -> int:
   """LLM-explain each Paper's experiment in domain and lay language."""
   try:
-    client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
+    client = _llm_client(arguments)
   except LlmConfigError as error:
     logger.error("%s", error)
     return EXIT_ERROR
@@ -497,7 +525,7 @@ def _run_aggregate(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   try:
-    client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
+    client = _llm_client(arguments)
   except LlmConfigError as error:
     logger.error("%s", error)
     return EXIT_ERROR
@@ -521,7 +549,7 @@ def _run_aggregate(arguments: argparse.Namespace) -> int:
 def _run_detect(arguments: argparse.Namespace) -> int:
   """Find the Corpus's Candidate Gaps and write the CandidateGaps artifact."""
   try:
-    client = build_llm_client(cache_dir=arguments.corpus / LLM_CACHE_DIR)
+    client = _llm_client(arguments)
     embedding_config = EmbeddingConfig.from_env()
   except (LlmConfigError, EmbeddingConfigError) as error:
     logger.error("%s", error)

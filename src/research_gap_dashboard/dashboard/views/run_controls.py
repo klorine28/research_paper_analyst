@@ -5,8 +5,14 @@ The page renders a button; clicking it runs the stage via `pipeline_runner`
 (a blocking subprocess, ADR 0007) and keeps the result in session state across
 the rerun that follows, so the page redraws with the new artifact while the
 outcome and the captured output stay on screen.
+
+A run whose estimated cost is above `LLM_COST_CONFIRM_ABOVE` is not launched on
+the first click: the button records it as pending and the next rerun asks the
+researcher to confirm or cancel. The prompt names no amount; the estimate itself
+is only in the pipeline panel's collapsed Run details (issue #70).
 """
 
+import os
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -14,7 +20,16 @@ import streamlit as st
 
 from research_gap_dashboard.dashboard import pipeline_runner, text
 from research_gap_dashboard.dashboard.pipeline_runner import RunOutcome, RunResult
-from research_gap_dashboard.dashboard.views.session_keys import LAST_RUN_KEY
+from research_gap_dashboard.dashboard.run_cost import (
+  CostConfigError,
+  cost_confirm_threshold,
+  estimate_stage_cost,
+  needs_confirmation,
+)
+from research_gap_dashboard.dashboard.views.session_keys import (
+  LAST_RUN_KEY,
+  PENDING_RUN_KEY,
+)
 
 
 def render_run_button(
@@ -29,11 +44,61 @@ def render_run_button(
   Render a button that runs `stage` on the Corpus, then redraws the page.
 
   `key` tells apart two buttons for the same stage on one page (e.g. one per
-  Corpus, or one per empty chart); it defaults to the stage name.
+  Corpus, or one per empty chart); it defaults to the stage name. Every button
+  goes through the cost confirmation, wherever it sits.
   """
   label = label or text.run_stage_button(stage)
-  if not st.button(label, key=key or f"run-{stage}", type="primary"):
+  button_key = key or f"run-{stage}"
+  pending = (str(corpus_root), stage, button_key, tuple(args))
+  if st.session_state.get(PENDING_RUN_KEY) == pending:
+    _render_confirmation(corpus_root, stage, args, button_key)
     return
+  if not st.button(label, key=button_key, type="primary"):
+    return
+  if _must_confirm(corpus_root, stage):
+    st.session_state[PENDING_RUN_KEY] = pending
+    st.rerun()
+  _launch(corpus_root, stage, args)
+
+
+def _render_confirmation(
+  corpus_root: Path, stage: str, args: Sequence[str], button_key: str
+) -> None:
+  """Ask whether to launch a run whose estimate is above the threshold."""
+  st.warning(text.RUN_CONFIRM_PROMPT.format(stage=stage))
+  confirm, cancel = st.columns(2)
+  if confirm.button(
+    text.RUN_CONFIRM_BUTTON, key=f"confirm-{button_key}", type="primary"
+  ):
+    st.session_state.pop(PENDING_RUN_KEY, None)
+    _launch(corpus_root, stage, args)
+  if cancel.button(text.RUN_CANCEL_BUTTON, key=f"cancel-{button_key}"):
+    st.session_state.pop(PENDING_RUN_KEY, None)
+    st.rerun()
+
+
+def _must_confirm(corpus_root: Path, stage: str) -> bool:
+  """
+  Whether this run's estimate needs the researcher's confirmation.
+
+  A stage that will be refused for a missing key launches nothing, so it isn't
+  worth confirming. An unreadable threshold is shown and treated as zero, so a
+  misconfiguration asks too often rather than never.
+  """
+  if pipeline_runner.needs_api_key(stage) and not os.environ.get(
+    pipeline_runner.API_KEY_ENV
+  ):
+    return False
+  try:
+    threshold = cost_confirm_threshold()
+  except CostConfigError as error:
+    st.error(str(error))
+    threshold = 0.0
+  return needs_confirmation(estimate_stage_cost(corpus_root, stage), threshold)
+
+
+def _launch(corpus_root: Path, stage: str, args: Sequence[str] = ()) -> None:
+  """Run the stage now, keep its result for the redraw, and redraw."""
   with st.spinner(text.RUN_IN_PROGRESS.format(stage=stage)):
     # Looked up on the module at call time so tests can patch the subprocess.
     result = pipeline_runner.run_stage(corpus_root, stage, args=args)
@@ -56,7 +121,7 @@ def render_last_run(corpus_root: Path) -> None:
     st.error(message)
   if result.outcome in (RunOutcome.LOCKED, RunOutcome.MISSING_KEY):
     return
-  with st.expander(text.RUN_DETAILS_LABEL):
+  with st.expander(text.RUN_OUTPUT_LABEL):
     st.caption(
       text.RUN_COMMAND_LABEL.format(
         command=" ".join(result.command),

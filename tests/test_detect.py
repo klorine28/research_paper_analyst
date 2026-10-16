@@ -311,6 +311,21 @@ def test_cli_detect_writes_the_artifact(tmp_path: Path, monkeypatch) -> None:
   assert (root / "artifacts" / "candidate_gaps.json").is_file()
 
 
+def test_cli_detect_records_the_run_llm_usage(tmp_path: Path, monkeypatch) -> None:
+  """The detect command records what it spent on the LLM in the usage log."""
+  root = _write_corpus(tmp_path, _PLACEMENTS)
+
+  def _client(**kwargs):
+    kwargs["usage"].record("model-x", {"input_tokens": 5, "output_tokens": 7})
+    return StubLlmClient({})
+
+  monkeypatch.setattr(cli, "build_llm_client", _client)
+
+  assert main(["detect", str(root)]) == EXIT_OK
+  recorded = json.loads((root / "artifacts" / "llm-usage.json").read_text())
+  assert recorded["detect"]["by_model"]["model-x"]["output_tokens"] == 7
+
+
 def test_cli_detect_before_aggregate_fails_clearly(tmp_path: Path, monkeypatch) -> None:
   """Without the NormalizedFacts artifact the command exits with an error."""
   root = _write_corpus(tmp_path, _PLACEMENTS)

@@ -73,6 +73,7 @@ PAGE_COMPARISON = "Paper Comparison"
 PAGE_ANALYTICS = "Conversational Analytics"
 PAGE_VERIFY = "Verify Extractions"
 PAGE_ATTENTION = "Needs Attention"
+PAGE_PIPELINE = "Pipeline"
 
 # Needs-Attention page and the corpus-wide incompleteness banner (issue #46
 # Step 3). The banner states the denominator research integrity demands so a
@@ -354,7 +355,7 @@ RUN_MISSING_KEY = (
   "`{stage}` needs an Anthropic API key and was not started. Set "
   "ANTHROPIC_API_KEY in your .env (see .env.example), then reload."
 )
-RUN_DETAILS_LABEL = "Run details"
+RUN_OUTPUT_LABEL = "Run output"
 RUN_COMMAND_LABEL = "Command: `{command}`  \u00b7  exit code {exit_code}"
 RUN_STDOUT_LABEL = "Standard output"
 RUN_STDERR_LABEL = "Standard error"
@@ -914,3 +915,44 @@ ANALYTICS_SCOPED_INTRO = (
   "it?' from just that slice. It remains a candidate for human judgment, not a "
   "verdict, and this conversation is saved so you can return to it."
 )
+
+# Pipeline status panel (ADR 0007, issue #70). Status is read from which
+# artifacts exist and when they were written; re-run is always offered. Cost
+# appears only inside the collapsed Run details, so it never distracts.
+PIPELINE_HEADING = "Pipeline"
+PIPELINE_INTRO = (
+  "Each stage writes an artifact. A stage is **stale** when one of its inputs "
+  "changed after it last ran; re-run it to bring it up to date. Any stage can be "
+  "re-run at any time: unchanged work is served from the cache."
+)
+STAGE_STATE_LABELS = {
+  "done": "\u2705 Done",
+  "not_run": "\u26aa Not run",
+  "stale": "\U0001f7e0 Stale",
+}
+STAGE_ROW = "**{stage}** \u00b7 {state} \u00b7 writes `{artifact}`"
+STAGE_LAST_RUN = "Last written {when:%Y-%m-%d %H:%M}."
+STAGE_NEWER_INPUTS = "Changed since: {inputs}"
+STAGE_NEWER_INPUTS_MORE = " and {count} more"
+RUN_STAGE_BUTTON = "\u25b6 Run {stage}"
+RERUN_STAGE_BUTTON = "\u21bb Re-run {stage}"
+RUN_DETAILS_LABEL = "Run details"
+RUN_DETAILS_INTRO = (
+  "Estimates are a rough upper bound: Papers in the Corpus ({papers}) times a "
+  "per-Paper token allowance at `{model}` list prices, as if nothing were "
+  "cached. Re-runs usually cost far less. A run estimated above "
+  "{threshold} (LLM_COST_CONFIRM_ABOVE) asks for confirmation first."
+)
+RUN_COST_HEADER = (
+  "| Stage | Estimated (upper bound) | Last run | Calls (cached) |\n|---|---|---|---|"
+)
+RUN_COST_ROW = "| {stage} | {estimate} | {actual} | {calls} |"
+RUN_COST_UNPRICED = "unknown (no price for this model)"
+RUN_COST_NOT_RECORDED = "not recorded"
+RUN_COST_NOT_APPLICABLE = "\u2014"
+RUN_CONFIRM_PROMPT = (
+  "`{stage}`'s estimated cost is above your confirmation threshold "
+  "(LLM_COST_CONFIRM_ABOVE). Open Run details for the estimate. Run it anyway?"
+)
+RUN_CONFIRM_BUTTON = "Run anyway"
+RUN_CANCEL_BUTTON = "Cancel"
