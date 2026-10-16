@@ -24,6 +24,7 @@ from research_gap_dashboard.dashboard import pipeline_runner, text
 from research_gap_dashboard.dashboard.pipeline_runner import RunOutcome, RunResult
 from research_gap_dashboard.dashboard.run_cost import (
   CostConfigError,
+  CostEstimate,
   cost_confirm_threshold,
   estimate_stage_cost,
   needs_confirmation,
@@ -44,6 +45,7 @@ def render_run_button(  # pylint: disable=too-many-arguments
   primary: bool = True,
   then: Sequence[str] = (),
   stage_args: Mapping[str, Sequence[str]] | None = None,
+  estimate: CostEstimate | None = None,
 ) -> None:
   """
   Render a button that runs `stage` on the Corpus, then redraws the page.
@@ -53,14 +55,18 @@ def render_run_button(  # pylint: disable=too-many-arguments
   goes through the cost confirmation, wherever it sits. `primary=False` draws
   a quieter button, for one repeated on every card. `then` chains commands
   after the stage under the same lock, with any options of their own in
-  `stage_args` (detect, then `saturate --auto`).
+  `stage_args` (detect, then `saturate --auto`). `estimate` replaces the
+  stage's own estimate when the run's size isn't the Corpus's (e.g. a check of
+  every accepted gap).
   """
   label = label or text.run_stage_button(stage)
   button_key = key or f"run-{stage}"
   if render_pending_confirmation(corpus_root, button_key):
     return
   if st.button(label, key=button_key, type="primary" if primary else "secondary"):
-    request_run(corpus_root, [stage, *then], button_key, args, stage_args)
+    request_run(
+      corpus_root, [stage, *then], button_key, args, stage_args, estimate=estimate
+    )
 
 
 def request_run(
@@ -69,15 +75,18 @@ def request_run(
   button_key: str,
   args: Sequence[str] = (),
   stage_args: Mapping[str, Sequence[str]] | None = None,
+  *,
+  estimate: CostEstimate | None = None,
 ) -> None:
   """
   Launch a run now, or park it for confirmation if its estimate is too high.
 
   A parked run is shown by `render_pending_confirmation` under the button
-  `button_key` names, on the next rerun.
+  `button_key` names, on the next rerun. `estimate`, when given, is the whole
+  run's estimate and is used instead of each stage's.
   """
   extra = {stage: tuple(options) for stage, options in (stage_args or {}).items()}
-  if any(_must_confirm(corpus_root, stage) for stage in stages):
+  if any(_must_confirm(corpus_root, stage, estimate) for stage in stages):
     st.session_state[PENDING_RUN_KEY] = (
       str(corpus_root),
       tuple(stages),
@@ -108,24 +117,28 @@ def render_pending_confirmation(corpus_root: Path, button_key: str) -> bool:
   return True
 
 
-def _must_confirm(corpus_root: Path, stage: str) -> bool:
+def _must_confirm(
+  corpus_root: Path, stage: str, estimate: CostEstimate | None = None
+) -> bool:
   """
   Whether this run's estimate needs the researcher's confirmation.
 
-  A stage that will be refused for a missing key launches nothing, so it isn't
-  worth confirming. An unreadable threshold is shown and treated as zero, so a
-  misconfiguration asks too often rather than never.
+  Without the API key no LLM call can be billed: a stage that needs the key is
+  refused and launches nothing, and one that only may use the LLM (`saturate`)
+  runs without it. Neither is worth confirming. An unreadable threshold is
+  shown and treated as zero, so a misconfiguration asks too often rather than
+  never.
   """
-  if pipeline_runner.needs_api_key(stage) and not os.environ.get(
-    pipeline_runner.API_KEY_ENV
-  ):
+  if not os.environ.get(pipeline_runner.API_KEY_ENV):
     return False
   try:
     threshold = cost_confirm_threshold()
   except CostConfigError as error:
     st.error(str(error))
     threshold = 0.0
-  return needs_confirmation(estimate_stage_cost(corpus_root, stage), threshold)
+  if estimate is None or estimate.stage != stage:
+    estimate = estimate_stage_cost(corpus_root, stage)
+  return needs_confirmation(estimate, threshold)
 
 
 def _launch(

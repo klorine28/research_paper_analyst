@@ -572,6 +572,27 @@ GAP_SATURATION_BADGES: dict[str, str] = {
   "not_run": "Wider literature: check not run ({date})",
 }
 GAP_SATURATION_BUTTON = "\U0001f50e Check wider literature"
+# "Check all accepted" and the "possibly addressed" filter (issue #90).
+GAP_FILTER_POSSIBLY_ADDRESSED_LABEL = "Possibly addressed only"
+GAP_FILTER_POSSIBLY_ADDRESSED_HELP = (
+  "Show only gaps whose latest wider-literature check found out-of-corpus work "
+  "that may close them, to review them together."
+)
+GAP_FILTER_POSSIBLY_ADDRESSED_HIDDEN = (
+  "{hidden} gap(s) hidden because the wider literature check has not found "
+  "possibly closing work for them."
+)
+GAP_CHECK_ALL_ACCEPTED_BUTTON = (
+  "\U0001f50e Check all accepted gaps against the wider literature ({count})"
+)
+GAP_CHECK_ALL_ACCEPTED_FRESH = (
+  "{count} accepted gap(s) checked in the last 30 days keep their result and "
+  "are not searched again; re-check one from its card."
+)
+GAP_CHECK_ALL_ACCEPTED_NONE_DUE = (
+  "Every accepted gap was checked against the wider literature in the last 30 "
+  "days; re-check one from its card."
+)
 GAP_SATURATION_HEADING = "Wider literature check"
 GAP_SATURATION_OUT_OF_CORPUS = (
   "Out-of-corpus works: found by searching the wider literature, not Papers in "

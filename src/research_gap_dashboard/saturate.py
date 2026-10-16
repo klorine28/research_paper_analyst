@@ -55,7 +55,14 @@ asking a source that is offline or rate-limited, so the run still completes with
 its checks "not run (reason)". `SATURATE_AUTO=off` switches it off. Each run is
 logged in the same artifact. A manual check always searches live.
 
-Not here yet (later tickets of the spec): the "accepted" mode.
+
+"Check all accepted" (`saturate_accepted`) runs the check on every gap the
+researcher accepted on the Gap Cards page, in the CandidateGaps artifact's
+order. It honours the 30-day freshness window (`CHECK_FRESHNESS`): an accepted
+gap whose latest check ran within it is not searched again, and its existing
+snapshot stands. A check that did not run (offline) is never fresh. A manual
+check of one gap (`saturate_gap`) always searches live (ADR 0009 §9).
+
 """
 
 import logging
@@ -74,6 +81,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from research_gap_dashboard.aggregate import AggregateReport, read_normalized_facts
 from research_gap_dashboard.corpus_layout import inspect_corpus_layout
+from research_gap_dashboard.dashboard.judgments import load_judgments
 from research_gap_dashboard.detect import (
   CellGap,
   UnansweredLimitationGap,
@@ -138,6 +146,9 @@ LIMITATION_SCREENING_METHOD = (
   "earlier than the limitation was stated"
 )
 
+# How long a check stays fresh for "check all accepted": within it, the existing
+# snapshot is reused instead of searching again (ADR 0009 §2).
+CHECK_FRESHNESS = timedelta(days=30)
 SaturationStatus = Literal["possibly_addressed", "no_closing_work_found", "not_run"]
 ScreeningVerdict = Literal["mentions_both", "missing_concept", "predates_statement"]
 LlmVerdict = Literal["addresses", "partial", "no"]
@@ -156,9 +167,9 @@ HTTP_SERVER_ERROR = 500
 # Which attempt ran a search or found a hit: the vocabulary-built base queries,
 # or the LLM-rephrased second attempt run only when the base found nothing.
 Attempt = Literal["base", "llm_variant"]
-# What launched a check: a researcher (card button, CLI `--gap`) or the
-# automatic run chained after detect.
-Trigger = Literal["manual", "auto"]
+# What launched a check: a researcher (card button, CLI `--gap`), the automatic
+# run chained after detect, or "check all accepted".
+Trigger = Literal["manual", "auto", "accepted"]
 TermOrigin = Literal["label", "alias", "corpus_term", "llm_variant"]
 
 # The pseudo-axis of a limitation's key-phrase concept: its terms come from the
@@ -511,6 +522,17 @@ class SaturationCheck(BaseModel):
     return sum(1 for hit in self.hits if hit.counts)
 
 
+class AcceptedChecksRun(BaseModel):
+  """What "check all accepted" did with each accepted gap."""
+
+  # Checks this run searched for and appended.
+  checked: list[SaturationCheck] = []
+  # Accepted gaps not searched again: their latest check is still fresh.
+  fresh: list[SaturationCheck] = []
+  # Accepted gaps that cannot be checked, with why.
+  skipped: dict[str, str] = {}
+
+
 AutoOutcome = Literal["checked", "cached", "left_for_on_demand", "not_checkable"]
 
 
@@ -572,6 +594,7 @@ def saturate_gap(  # pylint: disable=too-many-arguments
   screener: HitScreener | None = None,
   now: Callable[[], datetime] = _utc_now,
   query_variants: QueryVariantModel | None = None,
+  trigger: Trigger = "manual",
 ) -> SaturationCheck:
   """
   Search every source for work closing one gap; append the dated result.
@@ -598,7 +621,7 @@ def saturate_gap(  # pylint: disable=too-many-arguments
     screener=screener,
     now=now,
     query_variants=query_variants,
-    trigger="manual",
+    trigger=trigger,
   )
 
 
@@ -927,6 +950,82 @@ def _source_wide(error: httpx.HTTPError) -> bool:
     code = error.response.status_code
     return code == HTTP_TOO_MANY_REQUESTS or code >= HTTP_SERVER_ERROR
   return isinstance(error, httpx.TransportError)
+
+
+def saturate_accepted(  # pylint: disable=too-many-arguments
+  root: Path,
+  sources: Sequence[TopicSearchSource],
+  taxonomies: Sequence[Taxonomy],
+  *,
+  limit: int = DEFAULT_SEARCH_LIMIT,
+  screener: HitScreener | None = None,
+  now: Callable[[], datetime] = _utc_now,
+  query_variants: QueryVariantModel | None = None,
+  freshness: timedelta = CHECK_FRESHNESS,
+) -> AcceptedChecksRun:
+  """
+  Check every gap the researcher accepted, reusing checks that are still fresh.
+
+  Gaps run in the CandidateGaps artifact's order. An accepted gap whose latest
+  check ran within `freshness` and did not fail is not searched again. An
+  accepted gap that cannot be checked (a Retrieval Gap, a gap no longer in the
+  artifact, a limitation with nothing searchable) is skipped with the reason,
+  so one bad gap never stops the others.
+  """
+  run = AcceptedChecksRun()
+  for gap_id in accepted_gap_ids(root):
+    fresh = fresh_check(read_saturation_checks(root), gap_id, now(), freshness)
+    if fresh is not None:
+      run.fresh.append(fresh)
+      continue
+    try:
+      check = saturate_gap(
+        root,
+        gap_id,
+        sources,
+        taxonomies,
+        limit=limit,
+        screener=screener,
+        now=now,
+        query_variants=query_variants,
+        trigger="accepted",
+      )
+    except SaturationError as error:
+      run.skipped[gap_id] = str(error)
+      continue
+    run.checked.append(check)
+  return run
+
+
+def accepted_gap_ids(root: Path) -> list[str]:
+  """
+  List the gaps accepted on the Gap Cards page, in the artifact's order.
+
+  The judgments are the dashboard's overlay (ADR 0003); an accepted id the
+  artifact no longer holds comes last, so the run can say why it was skipped.
+  """
+  accepted = {
+    gap_id
+    for gap_id, judgment in load_judgments(root).by_gap_id().items()
+    if judgment.decision == "accepted"
+  }
+  ordered = [g.gap_id for g in read_candidate_gaps(root).gaps if g.gap_id in accepted]
+  return [*ordered, *sorted(accepted - set(ordered))]
+
+
+def fresh_check(
+  report: SaturationChecksReport,
+  gap_id: str,
+  moment: datetime,
+  freshness: timedelta = CHECK_FRESHNESS,
+) -> SaturationCheck | None:
+  """Return the gap's latest check if it ran within `freshness` of `moment`."""
+  latest = next((c for c in reversed(report.checks) if c.gap_id == gap_id), None)
+  if latest is None or latest.status == "not_run":
+    return None
+  if moment - latest.checked_at > freshness:
+    return None
+  return latest
 
 
 def read_saturation_checks(root: Path) -> SaturationChecksReport:

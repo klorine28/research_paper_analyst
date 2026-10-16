@@ -69,9 +69,12 @@ from research_gap_dashboard.saturate import (
   AUTO_FRESHNESS,
   HitScreener,
   QueryVariantModel,
+  AcceptedChecksRun,
+  SaturationCheck,
   SaturationError,
   auto_checks_enabled,
   saturate_auto,
+  saturate_accepted,
   saturate_gap,
 )
 from research_gap_dashboard.sources import (
@@ -469,6 +472,16 @@ def _run_saturate(arguments: argparse.Namespace) -> int:
     return _run_saturate_auto(arguments, taxonomies)
 
   try:
+    if arguments.accepted:
+      run = saturate_accepted(
+        arguments.corpus,
+        _build_search_sources(),
+        taxonomies,
+        limit=SATURATE_SEARCH_LIMIT,
+        screener=_hit_screener(arguments),
+        query_variants=_query_variant_model(arguments),
+      )
+      return _report_accepted_run(run)
     check = saturate_gap(
       arguments.corpus,
       arguments.gap,
@@ -485,6 +498,41 @@ def _run_saturate(arguments: argparse.Namespace) -> int:
     logger.error("Run `ingest` and `detect` first: %s", error)
     return EXIT_ERROR
 
+  _report_check(check)
+  # Offline or rate-limited: the run completes, but the check did not happen
+  # (ADR 0009: surface, don't block).
+  return EXIT_INCOMPLETE if check.status == "not_run" else EXIT_OK
+
+
+def _report_accepted_run(run: AcceptedChecksRun) -> int:
+  """Log what "check all accepted" did with each gap; incomplete if any failed."""
+  if not (run.checked or run.fresh or run.skipped):
+    logger.info("No accepted gaps to check; accept gaps on the Gap Cards page.")
+    return EXIT_OK
+  for check in run.checked:
+    logger.info("%s:", check.gap_id)
+    _report_check(check)
+  for check in run.fresh:
+    logger.info(
+      "%s: checked on %s, still fresh; not searched again. %s",
+      check.gap_id,
+      check.checked_at.date().isoformat(),
+      check.status_reason,
+    )
+  for gap_id, reason in run.skipped.items():
+    logger.warning("%s: not checked: %s", gap_id, reason)
+  logger.info(
+    "Checked %d accepted gap(s), %d still fresh, %d skipped.",
+    len(run.checked),
+    len(run.fresh),
+    len(run.skipped),
+  )
+  failed = [check for check in run.checked if check.status == "not_run"]
+  return EXIT_INCOMPLETE if failed else EXIT_OK
+
+
+def _report_check(check: SaturationCheck) -> None:
+  """Log one check's searches, screening, second attempt and result."""
   for search in check.searches:
     logger.info("  %s (%s): %s", search.source, search.attempt, search.query)
     if search.error:
@@ -494,9 +542,6 @@ def _run_saturate(arguments: argparse.Namespace) -> int:
   if check.second_attempt is not None and check.second_attempt.note:
     logger.info("Second attempt: %s", check.second_attempt.note)
   logger.info("%s", check.status_reason)
-  # Offline or rate-limited: the run completes, but the check did not happen
-  # (ADR 0009: surface, don't block).
-  return EXIT_INCOMPLETE if check.status == "not_run" else EXIT_OK
 
 
 def _run_saturate_auto(
@@ -807,7 +852,7 @@ def _run_taxonomy(arguments: argparse.Namespace) -> int:
 
 
 def _add_saturate_parser(subcommands) -> None:
-  """Add the `saturate` command: one gap (`--gap`) or the automatic run."""
+  """Add the `saturate` command: one gap, every accepted gap, or the auto run."""
   saturate = subcommands.add_parser(
     "saturate",
     help=(
@@ -822,6 +867,14 @@ def _add_saturate_parser(subcommands) -> None:
     help=(
       "Gap id to check, e.g. topicxtopic:heart-failure:myocardial-ischemia or "
       "limitation:limitation-group-01."
+    ),
+  )
+  mode.add_argument(
+    "--accepted",
+    action="store_true",
+    help=(
+      "Check every gap accepted on the Gap Cards page; a gap checked within the "
+      "last 30 days keeps its result and is not searched again."
     ),
   )
   mode.add_argument(

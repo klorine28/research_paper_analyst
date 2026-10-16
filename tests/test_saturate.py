@@ -13,7 +13,7 @@ replays completions recorded live by `scripts/record_saturation_screening.py`.
 
 import json
 import shutil
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +28,7 @@ from research_gap_dashboard.aggregate import (
   NormalizedFacts,
   load_pipeline_taxonomies,
 )
+from research_gap_dashboard.dashboard.judgments import record_judgment
 from research_gap_dashboard.detect import StatementEvidence, UnansweredLimitationGap
 from research_gap_dashboard.extract import Evidence
 from research_gap_dashboard.cli import EXIT_ERROR, EXIT_INCOMPLETE, EXIT_OK, main
@@ -51,6 +52,7 @@ from research_gap_dashboard.saturate import (
   build_query,
   limitation_concepts,
   read_saturation_checks,
+  saturate_accepted,
   saturate_gap,
   screen,
 )
@@ -982,3 +984,105 @@ def test_a_second_attempt_keeps_every_concept_it_did_not_rephrase():
 
   assert [c.terms for c in query] == [["a2"], ["b"], ["s"]]
   assert [c.terms for c in screening] == [["a2", "a"], ["b"], ["s"]]
+
+
+# --- "Check all accepted" (issue #90) -------------------------------------------
+
+
+def _accept(corpus: Path, *gap_ids: str) -> None:
+  """Accept gaps the way the Gap Cards page does."""
+  for gap_id in gap_ids:
+    record_judgment(corpus, gap_id, "accepted")
+
+
+def _check_accepted(corpus: Path, sources: list[Any] | None = None, **kwargs):
+  """Run "check all accepted" on the fixture with the recorded sources."""
+  return saturate_accepted(
+    corpus,
+    _recorded_sources() if sources is None else sources,
+    TAXONOMIES,
+    limit=SEARCH_LIMIT,
+    **kwargs,
+  )
+
+
+def test_check_all_accepted_checks_only_accepted_gaps(corpus: Path):
+  """Every accepted gap is checked, in artifact order; others are left alone."""
+  _accept(corpus, CONTROL_GAP, FILLED_GAP)
+  record_judgment(corpus, FILLED_LIMITATION, "rejected")
+
+  run = _check_accepted(corpus)
+
+  assert [c.gap_id for c in run.checked] == [FILLED_GAP, CONTROL_GAP]
+  assert [c.status for c in run.checked] == [
+    "possibly_addressed",
+    "no_closing_work_found",
+  ]
+  log = read_saturation_checks(corpus)
+  assert {c.gap_id for c in log.checks} == {FILLED_GAP, CONTROL_GAP}
+  assert all(c.trigger == "accepted" for c in log.checks)
+
+
+def test_check_all_accepted_reuses_a_fresh_check(corpus: Path):
+  """A gap checked within 30 days keeps its snapshot and is not searched again."""
+  _accept(corpus, FILLED_GAP)
+  first = datetime(2026, 1, 1, tzinfo=UTC)
+  _check(corpus, FILLED_GAP, now=lambda: first)
+  offline = [OpenAlexAdapter(fetch=_offline)]
+
+  run = _check_accepted(corpus, offline, now=lambda: first + timedelta(days=29))
+
+  assert not run.checked
+  assert [c.checked_at for c in run.fresh] == [first]
+  assert len(read_saturation_checks(corpus).checks) == 1
+
+
+def test_check_all_accepted_rechecks_a_stale_or_failed_check(corpus: Path):
+  """Older than 30 days, or a check that never ran, is searched again."""
+  _accept(corpus, FILLED_GAP, CONTROL_GAP)
+  first = datetime(2026, 1, 1, tzinfo=UTC)
+  _check(corpus, FILLED_GAP, now=lambda: first)
+  _check(corpus, CONTROL_GAP, [OpenAlexAdapter(fetch=_offline)], now=lambda: first)
+
+  run = _check_accepted(corpus, now=lambda: first + timedelta(days=31))
+
+  assert [c.gap_id for c in run.checked] == [FILLED_GAP, CONTROL_GAP]
+  assert not run.fresh
+
+
+def test_check_all_accepted_skips_a_gap_it_cannot_check(corpus: Path):
+  """An accepted id no longer in the artifact is skipped with why; others run."""
+  _accept(corpus, "topicxtopic:gone:away", CONTROL_GAP)
+
+  run = _check_accepted(corpus)
+
+  assert [c.gap_id for c in run.checked] == [CONTROL_GAP]
+  assert "No Candidate Gap" in run.skipped["topicxtopic:gone:away"]
+
+
+def test_cli_saturate_accepted(corpus: Path, monkeypatch: pytest.MonkeyPatch):
+  """`saturate --accepted` checks the accepted gaps; offline is incomplete."""
+  monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+  monkeypatch.setattr(cli, "SATURATE_SEARCH_LIMIT", SEARCH_LIMIT)
+  monkeypatch.setattr(cli, "_build_search_sources", _recorded_sources)
+  assert main(["saturate", str(corpus), "--accepted"]) == EXIT_OK
+  assert not read_saturation_checks(corpus).checks
+
+  _accept(corpus, FILLED_GAP, CONTROL_GAP)
+  assert main(["saturate", str(corpus), "--accepted"]) == EXIT_OK
+  assert len(read_saturation_checks(corpus).checks) == 2
+
+  monkeypatch.setattr(
+    cli, "_build_search_sources", lambda: [OpenAlexAdapter(fetch=_offline)]
+  )
+  _accept(corpus, FILLED_LIMITATION)
+  assert main(["saturate", str(corpus), "--accepted"]) == EXIT_INCOMPLETE
+  assert len(read_saturation_checks(corpus).checks) == 3
+
+
+def test_cli_saturate_needs_a_gap_or_accepted(corpus: Path):
+  """`--gap` and `--accepted` are alternatives; one of them is required."""
+  with pytest.raises(SystemExit):
+    main(["saturate", str(corpus)])
+  with pytest.raises(SystemExit):
+    main(["saturate", str(corpus), "--accepted", "--gap", FILLED_GAP])
