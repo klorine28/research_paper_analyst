@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import StubLlmClient
+from conftest import StubLlmClient, open_page
 
 import research_gap_dashboard.dashboard as dashboard_pkg
 
@@ -127,7 +127,7 @@ def test_app_renders_the_explainer_page(corpus: Path, monkeypatch) -> None:
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()
-  app.sidebar.radio[0].set_value(PAGE_EXPLAINER).run()
+  open_page(app, PAGE_EXPLAINER)
 
   assert not app.exception
   body = " ".join(block.value for block in app.markdown).lower()
