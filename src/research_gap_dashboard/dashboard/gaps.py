@@ -10,6 +10,7 @@ lists gaps the same way.
 """
 
 from collections.abc import Collection, Iterable, Sequence
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
@@ -26,8 +27,10 @@ from research_gap_dashboard.dashboard.artifacts import (
   CandidateGapRecord,
   CandidateGapsArtifact,
   CoverageMatrixRecord,
+  RetrievalGapsArtifact,
   SaturationCheckRecord,
   SaturationChecksArtifact,
+  SaturationHitRecord,
 )
 from research_gap_dashboard.dashboard.evidence_context import (
   EvidenceExpander,
@@ -38,6 +41,14 @@ from research_gap_dashboard.dashboard.judgments import (
   GapKey,
   JudgmentLog,
   gap_key,
+)
+from research_gap_dashboard.dashboard.suggestions import (
+  SuggestedPapersRecord,
+  Suggestion,
+  SuggestionState,
+  lookup_overlap,
+  retrieval_overlaps,
+  suggestion_state,
 )
 
 Status = Decision | None
@@ -106,6 +117,14 @@ class SaturationHitView(BaseModel):
   llm_reason: str = ""
   second_attempt: bool = Field(
     default=False, description="Found only by the LLM-rephrased second attempt."
+  )
+  suggestion: Suggestion | None = Field(
+    default=None, description="How to add it to the Corpus (the Grow path)."
+  )
+  state: SuggestionState = SuggestionState()
+  retrieval_overlap: int = Field(
+    default=0,
+    description="Corpus Papers citing it, when it is also a Retrieval Gap candidate.",
   )
 
 
@@ -393,8 +412,52 @@ def _hit_details(hit_sources: list[str], year: int | None, venue: str, ref: str)
   return " \u00b7 ".join(part for part in parts if part)
 
 
+@dataclass(frozen=True)
+class _GrowContext:
+  """What a hit needs to offer the Grow path and show the double signal."""
+
+  suggested: SuggestedPapersRecord = field(default_factory=SuggestedPapersRecord)
+  overlaps: dict[str, int] = field(default_factory=dict)
+
+
+def _hit_view(hit: SaturationHitRecord, grow: _GrowContext) -> SaturationHitView:
+  """One hit as Tier 3 lists it, with its Grow-path state and double signal."""
+  suggestion = Suggestion(
+    route="saturation",
+    doi=hit.doi,
+    pmid=hit.pmid,
+    openalex_id=hit.openalex_id,
+    title=hit.title,
+    year=hit.year,
+  )
+  ids = suggestion.ids()
+  return SaturationHitView(
+    title=hit.title or hit.work_id,
+    details=_hit_details(
+      hit.sources,
+      hit.year,
+      hit.venue,
+      f"DOI {hit.doi}" if hit.doi else f"PMID {hit.pmid}" if hit.pmid else "",
+    ),
+    screened=hit.counts,
+    reason=hit.reason,
+    llm_verdict=(
+      text.GAP_SATURATION_LLM_VERDICTS.get(hit.llm_verdict, hit.llm_verdict)
+      if hit.llm_verdict
+      else ""
+    ),
+    llm_reason=hit.llm_reason,
+    second_attempt=hit.attempt == "llm_variant",
+    suggestion=suggestion if ids else None,
+    state=suggestion_state(grow.suggested, ids),
+    retrieval_overlap=lookup_overlap(ids, grow.overlaps),
+  )
+
+
 def _saturation(
-  record: CandidateGapRecord, checks: list[SaturationCheckRecord]
+  record: CandidateGapRecord,
+  checks: list[SaturationCheckRecord],
+  grow: _GrowContext,
 ) -> SaturationView:
   """Build a card's wider-literature view from its checks, latest last."""
   checkable = record.gap_type in CHECKABLE_GAP_TYPES
@@ -422,27 +485,7 @@ def _saturation(
       )
       for search in latest.searches
     ],
-    hits=[
-      SaturationHitView(
-        title=hit.title or hit.work_id,
-        details=_hit_details(
-          hit.sources,
-          hit.year,
-          hit.venue,
-          f"DOI {hit.doi}" if hit.doi else f"PMID {hit.pmid}" if hit.pmid else "",
-        ),
-        screened=hit.counts,
-        reason=hit.reason,
-        llm_verdict=(
-          text.GAP_SATURATION_LLM_VERDICTS.get(hit.llm_verdict, hit.llm_verdict)
-          if hit.llm_verdict
-          else ""
-        ),
-        llm_reason=hit.llm_reason,
-        second_attempt=hit.attempt == "llm_variant",
-      )
-      for hit in latest.hits
-    ],
+    hits=[_hit_view(hit, grow) for hit in latest.hits],
     screened_count=sum(1 for hit in latest.hits if hit.counts),
     llm_screening=_llm_screening(latest),
     history=[
@@ -484,6 +527,7 @@ def _card(  # pylint: disable=too-many-arguments,too-many-positional-arguments
   expander: EvidenceExpander,
   matrices: list[CoverageMatrixRecord],
   checks: list[SaturationCheckRecord],
+  grow: _GrowContext,
 ) -> GapCard:
   """Assemble one display card from an artifact record and its judgment."""
   return GapCard(
@@ -520,7 +564,7 @@ def _card(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     ],
     data=_data(record, matrices),
     status=status,
-    saturation=_saturation(record, checks),
+    saturation=_saturation(record, checks, grow),
   )
 
 
@@ -608,11 +652,14 @@ def _expanded_passage(passage: EvidencePassage) -> str:
   return passage.passage
 
 
-def build_gap_cards(
+def build_gap_cards(  # pylint: disable=too-many-arguments
   artifact: CandidateGapsArtifact,
   judgments: JudgmentLog,
   corpus_root: Path | None = None,
   saturation: SaturationChecksArtifact | None = None,
+  *,
+  suggested: SuggestedPapersRecord | None = None,
+  retrieval: RetrievalGapsArtifact | None = None,
 ) -> GapCardsData:
   """
   Merge the Candidate Gaps with the researcher's saved accept/reject state.
@@ -622,7 +669,13 @@ def build_gap_cards(
   situ; without one the passages stay bare, keeping this callable in unit tests
   that have no parsed text on disk. `saturation`, the check log, gives each card
   its wider-literature badge; without it every card reads "not checked".
+  `suggested` gives each hit its Grow-path state, and `retrieval` marks the
+  hits that are also Retrieval Gap candidates (ADR 0009 §11).
   """
+  grow = _GrowContext(
+    suggested=suggested or SuggestedPapersRecord(),
+    overlaps=retrieval_overlaps(retrieval),
+  )
   expander = EvidenceExpander(corpus_root)
   checks_by_gap: dict[str, list[SaturationCheckRecord]] = {}
   for check in (saturation or SaturationChecksArtifact()).checks:
@@ -634,6 +687,7 @@ def build_gap_cards(
       expander,
       artifact.matrices,
       checks_by_gap.get(record.gap_id, []),
+      grow,
     )
     for record in artifact.gaps
   ]

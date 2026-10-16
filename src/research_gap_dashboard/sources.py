@@ -36,6 +36,10 @@ JsonFetch = Callable[[str], dict[str, Any] | None]
 # the only E-utility that returns abstracts, answers in XML.
 TextFetch = Callable[[str], str | None]
 
+# A binary fetch, for downloading an open-access PDF: given a URL, return the
+# body, or None when there is no such resource.
+BytesFetch = Callable[[str], bytes | None]
+
 # Default page size for a topic search: enough to screen, cheap to fetch.
 DEFAULT_SEARCH_LIMIT = 25
 
@@ -53,6 +57,13 @@ class WorkRecord(BaseModel):
   openalex_id: str = ""
   referenced_works: list[str] = []
   cited_by_count: int = 0
+
+
+class OpenAccessWork(BaseModel):
+  """A work's canonical record and where its open-access full text may be."""
+
+  record: WorkRecord
+  pdf_urls: list[str] = []
 
 
 class SourceIdentity(BaseModel):
@@ -113,6 +124,12 @@ class OpenAlexAdapter:
     "primary_location,cited_by_count,abstract_inverted_index"
   )
 
+  # Adding a suggested Paper needs its metadata and every open-access location.
+  _OPEN_ACCESS_SELECT = (
+    "id,doi,ids,title,publication_year,authorships,primary_location,"
+    "best_oa_location,locations,open_access"
+  )
+
   def __init__(self, fetch: JsonFetch | None = None, mailto: str | None = None):
     """Wrap OpenAlex; pass `mailto` to join the polite pool, or a fake `fetch`."""
     self._fetch = fetch or _httpx_fetch
@@ -139,6 +156,36 @@ class OpenAlexAdapter:
     if payload is None:
       return None
     return _work_record_from_openalex(payload)
+
+  def open_access(self, work_ref: str) -> OpenAccessWork | None:
+    """
+    Look a work up for the Grow path: its record and open-access PDF URLs.
+
+    `work_ref` is `doi:<doi>`, `pmid:<pmid>` or a bare OpenAlex id. URLs come
+    best location first, then every other open-access location, then the
+    work's `oa_url`, which may be a landing page: the caller checks that what
+    it downloads really is a PDF.
+    """
+    url = f"{OPENALEX_BASE_URL}/works/{work_ref}?select={self._OPEN_ACCESS_SELECT}"
+    if self._mailto:
+      url = f"{url}&{urlencode({'mailto': self._mailto})}"
+    payload = self._fetch(url)
+    if payload is None:
+      return None
+    best = payload.get("best_oa_location") or {}
+    candidates = [
+      best.get("pdf_url"),
+      *(
+        location.get("pdf_url")
+        for location in payload.get("locations") or []
+        if location.get("is_oa")
+      ),
+      (payload.get("open_access") or {}).get("oa_url"),
+    ]
+    return OpenAccessWork(
+      record=_work_record_from_openalex(payload),
+      pdf_urls=list(dict.fromkeys(url for url in candidates if url)),
+    )
 
   def search(self, query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[WorkRecord]:
     """Search OpenAlex works by relevance to `query` (title, abstract, full text)."""
@@ -367,3 +414,12 @@ def _httpx_fetch_text(url: str) -> str | None:
     return None
   response.raise_for_status()
   return response.text
+
+
+def httpx_fetch_bytes(url: str) -> bytes | None:
+  """Download a URL's body, treating 404 as 'no such resource'."""
+  response = httpx.get(url, follow_redirects=True, timeout=60.0)
+  if response.status_code == httpx.codes.NOT_FOUND:
+    return None
+  response.raise_for_status()
+  return response.content

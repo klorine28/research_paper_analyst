@@ -5,6 +5,8 @@ The CLI only parses arguments, configures logging, and turns stage errors
 into exit codes; all behavior lives in the stage modules.
 """
 
+# pylint: disable=too-many-lines
+
 import argparse
 import logging
 import sys
@@ -35,6 +37,12 @@ from research_gap_dashboard.embeddings import (
 from research_gap_dashboard.env import load_env
 from research_gap_dashboard.explain import explain_corpus
 from research_gap_dashboard.extract import extract_corpus
+from research_gap_dashboard.grow import (
+  GrowError,
+  WorkRef,
+  add_suggested_paper,
+  mark_unavailable,
+)
 from research_gap_dashboard.ingest import (
   CorpusLayoutError,
   CorpusSizeError,
@@ -83,6 +91,7 @@ from research_gap_dashboard.sources import (
   PubMedAdapter,
   SourceIdentity,
   TopicSearchSource,
+  httpx_fetch_bytes,
 )
 from research_gap_dashboard.taxonomy import (
   CARDIOLOGY_SEED_PATH,
@@ -270,6 +279,7 @@ def build_parser() -> argparse.ArgumentParser:
     ),
   )
   _add_saturate_parser(subcommands)
+  _add_grow_parsers(subcommands)
   promote = subcommands.add_parser(
     "promote-gold",
     help="Turn a reviewed Extraction plus its overlay into a Gold Extraction fixture.",
@@ -317,6 +327,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     "detect": _run_detect,
     "retrieve": _run_retrieve,
     "saturate": _run_saturate,
+    "add-suggested": _run_add_suggested,
+    "mark-unavailable": _run_mark_unavailable,
     "promote-gold": _run_promote_gold,
     "taxonomy": _run_taxonomy,
     "aliases": lambda arguments: run_aliases(arguments, _alias_suggestion_model),
@@ -601,6 +613,114 @@ def _hit_screener(arguments: argparse.Namespace) -> HitScreener | None:
     return None
   model = LlmConfig.from_env().model_for(arguments.tier)
   return HitScreener(client, model=model, tier=arguments.tier)
+
+
+def _add_grow_parsers(subcommands) -> None:
+  """Add the Grow path's commands: add a suggested Paper, mark it unavailable."""
+  add = subcommands.add_parser(
+    "add-suggested",
+    help=(
+      "Add a Retrieval Gap or saturation hit to the Corpus: fetch its open-access "
+      "PDF (needs network) or take an uploaded one; prints the outcome as JSON."
+    ),
+  )
+  unavailable = subcommands.add_parser(
+    "mark-unavailable",
+    help="Record that a suggested paper cannot be obtained, with the reason.",
+  )
+  for parser in (add, unavailable):
+    parser.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+    parser.add_argument("--doi", default="", help="The suggested work's DOI.")
+    parser.add_argument("--pmid", default="", help="The suggested work's PMID.")
+    parser.add_argument(
+      "--openalex-id", default="", help="The suggested work's OpenAlex id."
+    )
+    parser.add_argument(
+      "--route",
+      choices=["retrieval", "saturation"],
+      required=True,
+      help="Where the suggestion came from: a Retrieval Gap or a saturation hit.",
+    )
+    parser.add_argument(
+      "--title", default="", help="Title to record if OpenAlex cannot be reached."
+    )
+    parser.add_argument(
+      "--year", type=int, default=None, help="Year to record likewise."
+    )
+  add.add_argument(
+    "--upload",
+    type=Path,
+    default=None,
+    help="A PDF of the paper to add instead of fetching an open-access copy.",
+  )
+  add.add_argument(
+    "--mailto",
+    default=None,
+    help="Contact email for OpenAlex's polite pool (default: OPENALEX_MAILTO).",
+  )
+  unavailable.add_argument(
+    "--reason", required=True, help="Why the paper cannot be obtained."
+  )
+
+
+def _work_ref(arguments: argparse.Namespace) -> WorkRef:
+  return WorkRef(
+    doi=arguments.doi, pmid=arguments.pmid, openalex_id=arguments.openalex_id
+  )
+
+
+def _run_add_suggested(arguments: argparse.Namespace) -> int:
+  """
+  Add one suggested Paper; print the outcome as JSON on stdout.
+
+  Added exits 0. Pending (no PDF yet) exits 2: the run completed, but the
+  researcher still has to upload the PDF or mark the paper unavailable.
+  """
+  upload = None
+  if arguments.upload is not None:
+    try:
+      upload = arguments.upload.read_bytes()
+    except OSError as error:
+      logger.error("Could not read the uploaded PDF: %s", error)
+      return EXIT_ERROR
+  try:
+    outcome = add_suggested_paper(
+      arguments.corpus,
+      _work_ref(arguments),
+      arguments.route,
+      openalex=OpenAlexAdapter(mailto=_openalex_mailto(arguments)),
+      download=httpx_fetch_bytes,
+      upload=upload,
+      title=arguments.title,
+      year=arguments.year,
+    )
+  except GrowError as error:
+    logger.error("%s", error)
+    return EXIT_ERROR
+  sys.stdout.write(outcome.model_dump_json(indent=2) + "\n")
+  if outcome.status == "already_in_corpus":
+    logger.error("%s", outcome.message)
+    return EXIT_ERROR
+  logger.info("%s", outcome.message)
+  return EXIT_INCOMPLETE if outcome.status == "pending" else EXIT_OK
+
+
+def _run_mark_unavailable(arguments: argparse.Namespace) -> int:
+  """Record a suggested paper as unavailable, with its reason and date."""
+  try:
+    record = mark_unavailable(
+      arguments.corpus,
+      _work_ref(arguments),
+      arguments.route,
+      arguments.reason,
+      title=arguments.title,
+      year=arguments.year,
+    )
+  except GrowError as error:
+    logger.error("%s", error)
+    return EXIT_ERROR
+  logger.info("Marked unavailable: %s (%s)", record.title or record.doi, record.reason)
+  return EXIT_OK
 
 
 def _run_parse(arguments: argparse.Namespace) -> int:

@@ -9,6 +9,11 @@ view keeps the artifact's out-of-corpus label so the layout layer can state,
 verbally and visually, that these are candidates for improving the search, not
 evidence-linked gaps (CODING_STANDARDS.md > Research integrity). Candidates keep
 the artifact's ranked order.
+
+Each candidate can be added to the Corpus through the shared Grow path
+(`dashboard.suggestions`); one that a saturation check also returned says so,
+and one marked unavailable is no longer offered but kept apart, with its reason
+(ADR 0009 §11-12).
 """
 
 from pydantic import BaseModel
@@ -16,6 +21,15 @@ from pydantic import BaseModel
 from research_gap_dashboard.dashboard.artifacts import (
   RetrievalCandidateRecord,
   RetrievalGapsArtifact,
+  SaturationChecksArtifact,
+)
+from research_gap_dashboard.dashboard.suggestions import (
+  SuggestedPapersRecord,
+  Suggestion,
+  SuggestionState,
+  lookup_gaps,
+  saturation_hit_gaps,
+  suggestion_state,
 )
 
 
@@ -31,6 +45,9 @@ class RetrievalCandidateView(BaseModel):
   cited_by_count: int
   citation_overlap: int
   citing_citation_keys: list[str]
+  suggestion: Suggestion
+  state: SuggestionState = SuggestionState()
+  saturation_gap_ids: list[str] = []
 
 
 class RetrievalGapsData(BaseModel):
@@ -43,16 +60,31 @@ class RetrievalGapsData(BaseModel):
   no_doi_paper_count: int
   min_overlap: int
   candidates: list[RetrievalCandidateView]
+  unavailable: list[RetrievalCandidateView] = []
 
   @property
   def candidate_count(self) -> int:
     """How many out-of-corpus candidates the Corpus produced."""
-    return len(self.candidates)
+    return len(self.candidates) + len(self.unavailable)
 
 
-def _candidate(record: RetrievalCandidateRecord) -> RetrievalCandidateView:
+def _candidate(
+  record: RetrievalCandidateRecord,
+  suggested: SuggestedPapersRecord,
+  hit_gaps: dict[str, list[str]],
+) -> RetrievalCandidateView:
   """Assemble one display candidate from an artifact record."""
+  suggestion = Suggestion(
+    route="retrieval",
+    doi=record.doi,
+    openalex_id=record.openalex_id,
+    title=record.title,
+    year=record.year,
+  )
   return RetrievalCandidateView(
+    suggestion=suggestion,
+    state=suggestion_state(suggested, suggestion.ids()),
+    saturation_gap_ids=lookup_gaps(suggestion.ids(), hit_gaps),
     openalex_id=record.openalex_id,
     doi=record.doi,
     title=record.title,
@@ -65,8 +97,20 @@ def _candidate(record: RetrievalCandidateRecord) -> RetrievalCandidateView:
   )
 
 
-def build_retrieval_gaps(artifact: RetrievalGapsArtifact) -> RetrievalGapsData:
-  """Assemble the Retrieval Gaps view from the RetrievalGaps artifact."""
+def build_retrieval_gaps(
+  artifact: RetrievalGapsArtifact,
+  checks: SaturationChecksArtifact | None = None,
+  suggested: SuggestedPapersRecord | None = None,
+) -> RetrievalGapsData:
+  """
+  Assemble the Retrieval Gaps view from the RetrievalGaps artifact.
+
+  `checks` marks candidates a saturation check also returned; `suggested`
+  gives each candidate's Grow-path state and keeps unavailable ones apart.
+  """
+  hit_gaps = saturation_hit_gaps(checks or SaturationChecksArtifact())
+  suggested = suggested or SuggestedPapersRecord()
+  views = [_candidate(record, suggested, hit_gaps) for record in artifact.candidates]
   return RetrievalGapsData(
     label=artifact.label,
     source=artifact.source,
@@ -74,5 +118,6 @@ def build_retrieval_gaps(artifact: RetrievalGapsArtifact) -> RetrievalGapsData:
     coupled_paper_count=artifact.coupled_paper_count,
     no_doi_paper_count=artifact.no_doi_paper_count,
     min_overlap=artifact.min_overlap,
-    candidates=[_candidate(record) for record in artifact.candidates],
+    candidates=[view for view in views if not view.state.unavailable],
+    unavailable=[view for view in views if view.state.unavailable],
   )

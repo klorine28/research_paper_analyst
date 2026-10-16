@@ -636,6 +636,16 @@ GAP_SATURATION_SECOND_ATTEMPT_PROVENANCE = (
 GAP_SATURATION_UNKNOWN_MODEL = "an unrecorded model"
 GAP_SATURATION_SECOND_ATTEMPT_MARKER = " [second attempt]"
 GAP_SATURATION_HISTORY_ENTRY = "- {date}: {badge}"
+GAP_SATURATION_ALSO_RETRIEVAL = (
+  " \U0001f501 also a Retrieval Gap candidate (cited by {count} Corpus Paper(s))"
+)
+GAP_SATURATION_STATE_MARKERS: dict[str, str] = {
+  "pending": " \u23f3 pending: no PDF yet",
+  "added": " \u2705 added to the Corpus",
+}
+GAP_SATURATION_ADD_HEADING = "Add a hit to the Corpus"
+GAP_SATURATION_ADD_PICKER = "Hit to add"
+GAP_SATURATION_UNAVAILABLE_HEADING = "Hits marked unavailable"
 
 # How each Candidate Gap's kind and confidence read to the researcher; kept here
 # so the dashboard never imports the detect stage's labels (ADR 0002).
@@ -950,6 +960,49 @@ RETRIEVAL_YEAR_PART = " \u00b7 {year}"
 RETRIEVAL_CITED_BY_PART = " \u00b7 cited by {count} works"
 RETRIEVAL_AUTHORS_LABEL = "{authors}"
 RETRIEVAL_DOI_LABEL = "DOI: {doi}"
+RETRIEVAL_ALSO_HIT = (
+  "\U0001f501 Also returned by the wider-literature check of {count} gap(s): {gaps}."
+)
+RETRIEVAL_UNAVAILABLE_HEADING = "Marked unavailable ({count})"
+
+# The Grow path (issue #91, ADR 0009 \u00a711-12): add a Retrieval Gap candidate or
+# a saturation hit to the Corpus. Its open-access PDF is fetched when there is
+# one; otherwise the researcher uploads it or marks it unavailable.
+SUGGEST_ADD_BUTTON = "\u2795 Add to Corpus"
+SUGGEST_ADD_HELP = (
+  "Fetches the open-access PDF when there is one, adds the paper, and re-runs "
+  "the pipeline. Without a PDF the paper stays pending, outside the Corpus."
+)
+SUGGEST_UPLOAD_LABEL = "Upload this paper's PDF"
+SUGGEST_UPLOAD_SUBMIT = "Add with this PDF"
+SUGGEST_UPLOAD_MISSING = "Choose the PDF to upload first."
+SUGGEST_UNAVAILABLE_LABEL = "Can't get it? Say why"
+SUGGEST_UNAVAILABLE_SUBMIT = "Mark unavailable"
+SUGGEST_UNAVAILABLE_NO_REASON = (
+  "Give a reason: it is recorded and disclosed in the Corpus's scope."
+)
+SUGGEST_STATE_ADDED = "\u2705 Added to the Corpus on {date} as `{key}`."
+SUGGEST_STATE_PENDING = (
+  "\u23f3 Pending since {date}: no PDF yet ({reason}). A pending paper is not in "
+  "the Corpus and counts in no denominator. Upload the PDF or mark it unavailable."
+)
+SUGGEST_STATE_UNAVAILABLE = (
+  "\u26d4 Marked unavailable on {date}: {reason}. It is no longer suggested; "
+  "upload the PDF to add it after all."
+)
+SUGGEST_ADDED = "Added to the Corpus: {message}"
+SUGGEST_ALREADY = "Already in the Corpus; it was not added twice."
+SUGGEST_PENDING = "Not added yet: {message}"
+SUGGEST_FAILED = "Could not add the paper: {reason}"
+SUGGEST_MARKED = "Marked unavailable."
+SUGGEST_MARK_FAILED = "Could not mark the paper unavailable: {reason}"
+SUGGEST_LOCKED = "Another run is using this Corpus; try again when it finishes."
+SUGGEST_IN_PROGRESS = "Looking for an open-access PDF\u2026"
+OVERVIEW_UNAVAILABLE_DISCLOSURE = (
+  "{count} relevant paper(s) suggested from outside the Corpus could not be "
+  "included: they are marked unavailable (see the Retrieval Gaps page and the gap "
+  "cards' wider-literature checks)."
+)
 
 # Paper Explainer page. Each Paper's experiment explained in two registers,
 # grounded in the Paper's own text (see `explain`).

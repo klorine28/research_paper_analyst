@@ -313,6 +313,7 @@ _PIPELINE_MODULES = {
   "llm",
   "promote_gold",
   "saturate",
+  "grow",
 }
 
 
