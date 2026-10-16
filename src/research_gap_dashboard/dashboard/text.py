@@ -617,6 +617,29 @@ GAP_FILTER_SUMMARY = (
   "Showing {shown} of {total} candidate gaps; {hidden} hidden by the filters."
 )
 GAP_FILTER_NO_MATCH = "No candidate gaps match these filters."
+# "Demote, never delete" (ADR 0008 §5, issue #109): a candidate a detection
+# layer rejected leaves the main list but stays listed, with the layer and its
+# reason, and the researcher can still accept it (their verdict outranks it).
+GAP_REVIEW_HIDDEN_NOTE = (
+  "{count} more candidate gap(s) were rejected by review; they are listed, "
+  "with the reason, under \u201cRejected by review\u201d below."
+)
+GAP_REVIEW_SECTION_LABEL = "Rejected by review ({count})"
+GAP_REVIEW_SECTION_INTRO = (
+  "Candidates a detection layer rejected or lowered, with that layer and its "
+  "reason. Nothing here is deleted: accept a rejected one and it returns to the "
+  "list above, because your judgment outranks the filter."
+)
+GAP_REVIEW_REJECTED = "Rejected by {layer}: {reason}"
+GAP_REVIEW_LOWERED = "Lowered to {level} by {layer}: {reason}"
+GAP_REVIEW_ACCEPTED_NOTE = (
+  "You accepted this gap over the review's rejection; it is shown in the list above."
+)
+GAP_REVIEW_LAYER_LABELS: dict[str, str] = {
+  "l1": "the expected-vs-observed score",
+  "heuristic": "the sparse-cell heuristic",
+  "taxonomy_roll_up": "the taxonomy roll-up",
+}
 GAP_NEXT_UNDECIDED_BUTTON = "Next undecided"
 GAP_NO_UNDECIDED_SHOWN = "No undecided gaps among the cards shown."
 GAP_FOCUS_HEADING = "Current gap"

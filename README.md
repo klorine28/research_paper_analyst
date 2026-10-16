@@ -158,7 +158,12 @@ The Gap Cards page shows one card per
 Candidate Gap: its Gap Type, explanation, confidence, cell count, and the
 verbatim Evidence passages with their source Papers. Accept or reject each
 card; judgments persist to JSON under the corpus's `judgments/` directory and
-are restored when you reopen the corpus, so a review can span months. Before
+are restored when you reopen the corpus, so a review can span months. A
+candidate a detection layer rejected (say, a taxonomy roll-up artifact) leaves
+the list but is never deleted: a collapsed **Rejected by review (N)** section
+lists every rejected or lowered candidate with the layer and its reason, and
+accepting one there returns it to the list and records which layer you
+overrode. Before
 `detect` has run, the page offers a **Run detect** button that runs
 `uv run research-gap-dashboard detect <corpus>` as a blocking subprocess (the
 app must be launched from the project directory). It refuses to start without

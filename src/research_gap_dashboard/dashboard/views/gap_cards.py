@@ -113,9 +113,15 @@ def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
   _render_check_all_accepted(data, corpus_root)
   _render_l1_margins(data)
   shown = _render_filters(data)
-  if not shown.cards:
+  if shown.cards:
+    _render_shown_cards(shown, corpus_root)
+  else:
     st.info(text.GAP_FILTER_NO_MATCH)
-    return
+  _render_rejected_by_review(data, corpus_root)
+
+
+def _render_shown_cards(shown: FilteredGapCards, corpus_root: Path) -> None:
+  """Render the filtered cards, the one in focus first."""
   focus_id = _render_next_undecided(shown.cards)
   focused = [card for card in shown.cards if card.gap_id == focus_id]
   others = [card for card in shown.cards if card.gap_id != focus_id]
@@ -209,6 +215,8 @@ def _render_filters(data: GapCardsData) -> FilteredGapCards:
       shown=len(shown.cards), total=data.gap_count, hidden=shown.hidden_count
     )
   )
+  if shown.review_hidden_count:
+    st.caption(text.GAP_REVIEW_HIDDEN_NOTE.format(count=shown.review_hidden_count))
   if possibly_addressed_only:
     without = filter_gap_cards(
       data,
@@ -525,14 +533,82 @@ def _render_searches(searches: list[SaturationSearchView]) -> None:
       st.caption(text.GAP_SATURATION_IN_CORPUS.format(count=search.in_corpus_count))
 
 
+def _render_rejected_by_review(data: GapCardsData, corpus_root: Path) -> None:
+  """
+  List every rejected or lowered candidate, collapsed (ADR 0008 "demote").
+
+  Each entry names the layer and its reason; Accept outranks a rejection and
+  is recorded with the layer it overrode. Lowered candidates stay in the list
+  above too, at their lowered level. Widget keys carry a `review-` prefix so
+  they never clash with the same card's controls in the list above.
+  """
+  reviewed = data.reviewed_cards
+  if not reviewed:
+    return
+  with st.expander(text.GAP_REVIEW_SECTION_LABEL.format(count=len(reviewed))):
+    st.caption(text.GAP_REVIEW_SECTION_INTRO)
+    for card in reviewed:
+      with st.container(border=True):
+        st.markdown(f"**{card.gap_type_label}** \u2014 {card.title}")
+        st.caption(
+          text.GAP_CONFIDENCE_LABEL.format(confidence=card.confidence_label)
+          + "  \u00b7  "
+          + _card_status_label(card)
+        )
+        for step in card.review:
+          st.write(step.label)
+        if card.rejected_by_review and card.status == "accepted":
+          st.caption(text.GAP_REVIEW_ACCEPTED_NOTE)
+        _render_review_controls(card, corpus_root)
+
+
+def _render_review_controls(card: GapCard, corpus_root: Path) -> None:
+  """Accept, reject or reset one entry of the "Rejected by review" section."""
+  accept_col, reject_col, clear_col = st.columns(3)
+  if accept_col.button(
+    text.GAP_ACCEPT_BUTTON,
+    key=f"review-accept-{card.gap_id}",
+    width="stretch",
+    disabled=card.status == "accepted",
+  ):
+    _accept(card, corpus_root)
+  if reject_col.button(
+    text.GAP_REJECT_BUTTON,
+    key=f"review-reject-{card.gap_id}",
+    width="stretch",
+    disabled=card.status == "rejected",
+  ):
+    record_judgment(corpus_root, card.key, "rejected", title=card.title)
+    st.rerun()
+  if clear_col.button(
+    text.GAP_CLEAR_BUTTON,
+    key=f"review-clear-{card.gap_id}",
+    width="stretch",
+    disabled=card.status is None,
+  ):
+    clear_judgment(corpus_root, card.key)
+    st.rerun()
+
+
+def _accept(card: GapCard, corpus_root: Path) -> None:
+  """Record an acceptance, naming any review rejection it outranks, and rerun."""
+  record_judgment(
+    corpus_root,
+    card.key,
+    "accepted",
+    title=card.title,
+    overrode_review=card.review_layer,
+  )
+  st.rerun()
+
+
 def _render_controls(card: GapCard, corpus_root: Path) -> None:
   """Accept, reject, reset, the Paper links, and the "Discuss" chat, on every card."""
   accept_col, reject_col, clear_col = st.columns(3)
   if accept_col.button(
     text.GAP_ACCEPT_BUTTON, key=f"accept-{card.gap_id}", width="stretch"
   ):
-    record_judgment(corpus_root, card.key, "accepted", title=card.title)
-    st.rerun()
+    _accept(card, corpus_root)
   if reject_col.button(
     text.GAP_REJECT_BUTTON, key=f"reject-{card.gap_id}", width="stretch"
   ):

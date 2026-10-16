@@ -19,6 +19,8 @@ from conftest import StubLlmClient, open_page
 from test_detect import (
   _BRIDGES,
   _PLACEMENTS,
+  _ROLL_UP,
+  _ROLL_UP_PARENTS,
   _WITNESS_EXTRACTIONS,
   _WITNESS_GROUPING,
   RoutedLlmClient,
@@ -934,3 +936,124 @@ def test_tier_two_shows_the_audit_basis_and_a_labelled_minimal_study(
   assert "suggestion" in text.GAP_MINIMAL_STUDY_HEADING
   captions = " ".join(c.value for tier in justification for c in tier.caption)
   assert text.GAP_MINIMAL_STUDY_CAVEAT in captions
+
+
+# "Rejected by review" (ADR 0008 §5, issue #109). The roll-up Corpus's hierarchy
+# makes the taxonomy roll-up reject one cell and lower another, so the artifact
+# detect writes carries real review verdicts.
+_REJECTED_ID = "topicxtopic:cardiomyopathies:takotsubo"
+_LOWERED_ID = "topicxmethod:takotsubo:rct"
+_UNREVIEWED_ID = "topicxmethod:heart-failure:retrospective"
+_ALL_LEVELS = ["high", "medium", "low"]
+
+
+@pytest.fixture(name="reviewed")
+def reviewed_fixture(tmp_path: Path) -> Path:
+  """Write a Corpus whose CandidateGaps artifact rejects one cell and lowers one."""
+  root = _write_corpus(tmp_path / "corpus", _ROLL_UP, parents=_ROLL_UP_PARENTS)
+  detect_corpus(root, StubLlmClient({}))
+  return root
+
+
+def _reviewed_cards(corpus: Path):
+  """Build the Gap Cards data for a corpus, judgments included."""
+  return build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+
+
+def test_each_card_carries_its_review_verdicts(reviewed: Path):
+  """A rejected or lowered card names the layer and its reason; others none."""
+  by_id = {card.gap_id: card for card in _reviewed_cards(reviewed).cards}
+
+  rejected = by_id[_REJECTED_ID]
+  assert [(s.layer, s.effect) for s in rejected.review] == [
+    ("taxonomy_roll_up", "reject")
+  ]
+  assert rejected.rejected_by_review
+  assert "taxonomy artifact" in rejected.review[0].label
+  assert "taxonomy roll-up" in rejected.review[0].label
+
+  lowered = by_id[_LOWERED_ID]
+  assert [(s.layer, s.effect, s.level_after) for s in lowered.review] == [
+    ("taxonomy_roll_up", "lower", "low")
+  ]
+  assert not lowered.rejected_by_review
+  assert "c1" in lowered.review[0].label
+
+  assert by_id[_UNREVIEWED_ID].review == []
+
+
+def test_rejected_candidates_leave_the_list_but_are_never_deleted(reviewed: Path):
+  """A rejected card is kept and listed under review, counted apart from filters."""
+  data = _reviewed_cards(reviewed)
+  shown = filter_gap_cards(data, confidence_levels=_ALL_LEVELS)
+
+  assert _REJECTED_ID in {card.gap_id for card in data.cards}
+  assert _REJECTED_ID not in {card.gap_id for card in shown.cards}
+  assert _LOWERED_ID in {card.gap_id for card in shown.cards}
+  assert shown.review_hidden_count == 1
+  assert shown.hidden_count == 0
+  reviewed_ids = [card.gap_id for card in data.reviewed_cards]
+  assert reviewed_ids[0] == _REJECTED_ID
+  assert _LOWERED_ID in reviewed_ids
+  assert _UNREVIEWED_ID not in reviewed_ids
+
+
+def test_a_rejected_candidate_stays_out_of_the_chat_context(reviewed: Path):
+  """The chat grounds in surfaced gaps only, so a rejected one is left out."""
+  data = _reviewed_cards(reviewed)
+  rejected = next(card for card in data.cards if card.gap_id == _REJECTED_ID)
+
+  context = surfaced_gap_context(data, _corpus_context(), _ALL_LEVELS)
+
+  assert rejected.title not in {gap.title for gap in context.gaps}
+
+
+def test_accepting_a_rejected_gap_surfaces_it_and_records_the_override(
+  reviewed: Path,
+):
+  """The researcher's acceptance outranks the review and is logged with its layer."""
+  record_judgment(
+    reviewed, _REJECTED_ID, "accepted", overrode_review="taxonomy_roll_up"
+  )
+
+  data = _reviewed_cards(reviewed)
+  shown = filter_gap_cards(data, confidence_levels=_ALL_LEVELS)
+
+  assert _REJECTED_ID in {card.gap_id for card in shown.cards}
+  assert shown.review_hidden_count == 0
+  assert _REJECTED_ID in {card.gap_id for card in data.reviewed_cards}
+  judgment = load_judgments(reviewed).by_gap_id()[_REJECTED_ID]
+  assert (judgment.decision, judgment.overrode_review) == (
+    "accepted",
+    "taxonomy_roll_up",
+  )
+
+
+def test_the_page_lists_rejected_gaps_collapsed_and_accepts_one(
+  reviewed: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """'Rejected by review (N)' lists every verdict; Accept there is recorded."""
+  app = _run_gap_cards_app(reviewed, monkeypatch)
+  app.multiselect[0].set_value(_ALL_LEVELS).run()
+  count = len(_reviewed_cards(reviewed).reviewed_cards)
+
+  assert not app.exception
+  label = text.GAP_REVIEW_SECTION_LABEL.format(count=count)
+  section = next(e for e in app.expander if e.label == label)
+  assert not section.proto.expanded
+  section_text = " ".join(block.value for block in section.markdown)
+  assert "taxonomy artifact" in section_text
+  assert f"accept-{_REJECTED_ID}" not in {button.key for button in app.button}
+  assert any(
+    text.GAP_REVIEW_HIDDEN_NOTE.format(count=1) == c.value for c in app.caption
+  )
+
+  app.button(key=f"review-accept-{_REJECTED_ID}").click().run()
+
+  assert not app.exception
+  judgment = load_judgments(reviewed).by_gap_id()[_REJECTED_ID]
+  assert (judgment.decision, judgment.overrode_review) == (
+    "accepted",
+    "taxonomy_roll_up",
+  )
+  assert f"accept-{_REJECTED_ID}" in {button.key for button in app.button}
