@@ -181,6 +181,31 @@ uv run research-gap-dashboard aliases promote path/to/corpus topic cardiomyopath
   provenance in `alias_sources`, and re-validates the file; it then applies to
   every Corpus. A promoted alias is removed by editing that file.
 
+### Promoting recurring unmapped terms
+
+The Corpus's own unmapped terms are the other source. After `extract` and
+`aggregate`:
+
+```shell
+uv run research-gap-dashboard aliases suggest-unmapped path/to/corpus
+uv run research-gap-dashboard aliases approve-unmapped path/to/corpus topic nervous-system-diseases "neurologic disorders"
+```
+
+- `suggest-unmapped` offers a term only if (1) the phrase occurs in the
+  **verified Evidence** passage of one of that Paper's facts on the axis, so a
+  phrase the model invented is never offered; (2) that holds in **at least 2
+  Papers**; and (3) it passes a deterministic **stoplist**: no numbers, units,
+  dosages, statistics, citation fragments, author names, generic words
+  ("patients", "study", "results"), stopword-heavy phrases, or phrases longer
+  than 8 words. A term the taxonomy (with the Corpus's approved aliases)
+  already resolves is not offered. Every other term is tallied by the reason it
+  was set aside, so the filter can be audited. Nothing is written.
+- `approve-unmapped` is the researcher's mapping of one offered term onto a
+  category. It is logged in the Alias Overlay as proposed then approved, with
+  the Papers it came from as provenance, and applies to this Corpus only.
+  `reject` reverses it (the term is offered again), and `promote` copies it to
+  the shared file like any approved alias.
+
 ## Validating a file
 
 The loader collects every problem it finds and reports them together, so a

@@ -1,5 +1,6 @@
 """Behavior of the detect stage: artifacts in, Candidate Gap cards out."""
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -618,3 +619,36 @@ def test_bracketed_ids_copied_from_the_prompt_still_resolve(tmp_path: Path) -> N
   assert sample.source_citation_keys == ["early1", "early2"]
   assert sample.notes == []
   assert [f.fact_id for f in sample.follow_ups] == ["later1:methods[0]"]
+
+
+def test_every_cell_candidate_carries_a_verdict_trail(tmp_path: Path) -> None:
+  """The heuristic is the trail's start step and the last step's level is final."""
+  report = _detect(_write_corpus(tmp_path, _PLACEMENTS))
+
+  cells = [gap for gap in report.gaps if isinstance(gap, CellGap)]
+  assert cells
+  for gap in cells:
+    assert gap.trail, gap.gap_id
+    start = gap.trail[0]
+    assert start.effect == "start"
+    assert start.layer == "heuristic"
+    assert start.reason == gap.confidence_reason
+    assert gap.trail[-1].level_after == gap.confidence
+
+
+def test_an_artifact_written_before_the_trail_still_reads(tmp_path: Path) -> None:
+  """An old artifact gains a one-step trail from its recorded confidence."""
+  root = _write_corpus(tmp_path, _PLACEMENTS)
+  _detect(root)
+  artifact = root / "artifacts" / "candidate_gaps.json"
+  data = json.loads(artifact.read_text(encoding="utf-8"))
+  for gap in data["gaps"]:
+    gap.pop("trail", None)
+  artifact.write_text(json.dumps(data), encoding="utf-8")
+
+  gap = _gap(read_candidate_gaps(root), "topicxmethod:takotsubo:rct")
+
+  assert [(s.layer, s.effect, s.level_after) for s in gap.trail] == [
+    ("heuristic", "start", gap.confidence)
+  ]
+  assert gap.trail[0].reason == gap.confidence_reason
