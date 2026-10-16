@@ -368,3 +368,19 @@ def test_a_cheap_run_launches_without_confirmation(
 
   assert not app.exception
   assert fake_run.calls[0][2:4] == ["research-gap-dashboard", "extract"]
+
+
+def test_running_detect_chains_the_automatic_saturation_checks(
+  ingested: Path, monkeypatch: pytest.MonkeyPatch, fake_run: _FakeRun
+):
+  """The panel's detect button runs detect, then `saturate --auto` (ADR 0009)."""
+  app = _open_pipeline(ingested, monkeypatch)
+  assert text.PIPELINE_AUTO_SATURATE_NOTE in [c.value for c in app.caption]
+
+  _button(app, text.RUN_STAGE_BUTTON.format(stage="detect")).click().run()
+
+  assert not app.exception
+  assert [call[3:4] + call[5:] for call in fake_run.calls] == [
+    ["detect"],
+    ["saturate", "--auto"],
+  ]

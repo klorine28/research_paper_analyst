@@ -64,9 +64,14 @@ from research_gap_dashboard.retrieval import (
   detect_retrieval_gaps,
 )
 from research_gap_dashboard.saturate import (
+  AUTO_CHECK_CAP,
+  AUTO_CHECKS_ENV,
+  AUTO_FRESHNESS,
   HitScreener,
   QueryVariantModel,
   SaturationError,
+  auto_checks_enabled,
+  saturate_auto,
   saturate_gap,
 )
 from research_gap_dashboard.sources import (
@@ -79,6 +84,7 @@ from research_gap_dashboard.sources import (
 from research_gap_dashboard.taxonomy import (
   CARDIOLOGY_SEED_PATH,
   SEED_PATHS,
+  Taxonomy,
   TaxonomyError,
   load_taxonomy,
 )
@@ -260,32 +266,7 @@ def build_parser() -> argparse.ArgumentParser:
       "(default: OPENALEX_MAILTO)."
     ),
   )
-  saturate = subcommands.add_parser(
-    "saturate",
-    help=(
-      "Search OpenAlex and PubMed for work that would close a gap "
-      "(saturation check, needs network)."
-    ),
-  )
-  saturate.add_argument("corpus", type=Path, help="Path to the corpus directory.")
-  saturate.add_argument(
-    "--gap",
-    required=True,
-    help=(
-      "Gap id to check, e.g. topicxtopic:heart-failure:myocardial-ischemia or "
-      "limitation:limitation-group-01."
-    ),
-  )
-  saturate.add_argument(
-    "--tier",
-    choices=["default", "cheap"],
-    default="cheap",
-    help=(
-      "Model tier to screen the top hits with (default: the cheap model). "
-      "Without ANTHROPIC_API_KEY, hits are screened by title/abstract only."
-    ),
-  )
-  add_taxonomy_option(saturate)
+  _add_saturate_parser(subcommands)
   promote = subcommands.add_parser(
     "promote-gold",
     help="Turn a reviewed Extraction plus its overlay into a Gold Extraction fixture.",
@@ -484,6 +465,8 @@ def _run_saturate(arguments: argparse.Namespace) -> int:
     for problem in error.problems:
       logger.error("  - %s", problem)
     return EXIT_ERROR
+  if arguments.auto:
+    return _run_saturate_auto(arguments, taxonomies)
 
   try:
     check = saturate_gap(
@@ -514,6 +497,48 @@ def _run_saturate(arguments: argparse.Namespace) -> int:
   # Offline or rate-limited: the run completes, but the check did not happen
   # (ADR 0009: surface, don't block).
   return EXIT_INCOMPLETE if check.status == "not_run" else EXIT_OK
+
+
+def _run_saturate_auto(
+  arguments: argparse.Namespace, taxonomies: list[Taxonomy]
+) -> int:
+  """
+  Check the high-confidence gaps after detect; log what was left for on-demand.
+
+  Offline or rate-limited, the run still completes (code 2, incomplete) with
+  its checks recorded as not run (ADR 0009: surface, don't block).
+  """
+  try:
+    if not auto_checks_enabled():
+      logger.info(
+        "Automatic saturation checks are switched off (%s=off).", AUTO_CHECKS_ENV
+      )
+      return EXIT_OK
+    run = saturate_auto(
+      arguments.corpus,
+      _build_search_sources(),
+      taxonomies,
+      cap=AUTO_CHECK_CAP,
+      limit=SATURATE_SEARCH_LIMIT,
+      screener=_hit_screener(arguments),
+      query_variants=_query_variant_model(arguments),
+    )
+  except SaturationError as error:
+    logger.error("%s", error)
+    return EXIT_ERROR
+  except FileNotFoundError as error:
+    logger.error("Run `ingest` and `detect` first: %s", error)
+    return EXIT_ERROR
+
+  not_run = [e for e in run.entries if e.outcome == "checked" and e.status == "not_run"]
+  if not_run:
+    logger.warning(
+      "%d check(s) not run: no source could be searched (offline or "
+      "rate-limited); see the reasons in saturation_checks.json.",
+      len(not_run),
+    )
+    return EXIT_INCOMPLETE
+  return EXIT_OK
 
 
 def _hit_screener(arguments: argparse.Namespace) -> HitScreener | None:
@@ -779,6 +804,45 @@ def _run_taxonomy(arguments: argparse.Namespace) -> int:
     taxonomy.meta.source,
   )
   return EXIT_OK
+
+
+def _add_saturate_parser(subcommands) -> None:
+  """Add the `saturate` command: one gap (`--gap`) or the automatic run."""
+  saturate = subcommands.add_parser(
+    "saturate",
+    help=(
+      "Search OpenAlex and PubMed for work that would close a gap "
+      "(saturation check, needs network)."
+    ),
+  )
+  saturate.add_argument("corpus", type=Path, help="Path to the corpus directory.")
+  mode = saturate.add_mutually_exclusive_group(required=True)
+  mode.add_argument(
+    "--gap",
+    help=(
+      "Gap id to check, e.g. topicxtopic:heart-failure:myocardial-ischemia or "
+      "limitation:limitation-group-01."
+    ),
+  )
+  mode.add_argument(
+    "--auto",
+    action="store_true",
+    help=(
+      f"Check the high-confidence gaps, strongest first, at most {AUTO_CHECK_CAP} "
+      f"per run, reusing checks younger than {AUTO_FRESHNESS.days} days; the "
+      f"rest are left for on-demand. {AUTO_CHECKS_ENV}=off switches it off."
+    ),
+  )
+  saturate.add_argument(
+    "--tier",
+    choices=["default", "cheap"],
+    default="cheap",
+    help=(
+      "Model tier to screen the top hits with (default: the cheap model). "
+      "Without ANTHROPIC_API_KEY, hits are screened by title/abstract only."
+    ),
+  )
+  add_taxonomy_option(saturate)
 
 
 if __name__ == "__main__":

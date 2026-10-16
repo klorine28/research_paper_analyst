@@ -223,6 +223,30 @@ def test_a_chain_checks_the_key_before_launching_anything(
   ]
 
 
+def test_a_chain_gives_each_stage_its_own_options(tmp_path: Path, fake_run: _FakeRun):
+  """Detect then `saturate --auto`: the option goes to saturate alone."""
+  run_stages(
+    tmp_path,
+    ["detect", "saturate"],
+    env=_KEY_ENV,
+    stage_args={"saturate": ["--auto"]},
+  )
+
+  assert [args[3:] for args, _ in fake_run.calls] == [
+    ["detect", str(tmp_path.resolve())],
+    ["saturate", str(tmp_path.resolve()), "--auto"],
+  ]
+
+
+def test_an_incomplete_detect_still_runs_the_checks(tmp_path: Path, fake_run: _FakeRun):
+  """Incomplete is not failure: the automatic checks still follow detect."""
+  fake_run.returncode = 2
+
+  results = run_stages(tmp_path, ["detect", "saturate"], env=_KEY_ENV)
+
+  assert [r.stage for r in results] == ["detect", "saturate"]
+
+
 def test_a_chain_holds_the_lock_throughout(tmp_path: Path, fake_run: _FakeRun):
   """No other run can slip in between the two commands of a chain."""
   nested: list[Any] = []

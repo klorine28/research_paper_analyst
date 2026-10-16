@@ -450,7 +450,8 @@ RUN_INCOMPLETE = (
 RUN_INCOMPLETE_BY_STAGE: dict[str, str] = {
   "saturate": (
     "`{stage}` completed, but no source could be searched (offline or "
-    "rate-limited). The check is recorded as not run; see the run output below."
+    "rate-limited). The affected checks are recorded as not run; see the run "
+    "output below."
   ),
 }
 RUN_FAILED = "`{stage}` failed. See the run output below for the reason."
@@ -1114,6 +1115,14 @@ STAGE_LAST_RUN = "Last written {when:%Y-%m-%d %H:%M}."
 STAGE_NEWER_INPUTS = "Changed since: {inputs}"
 STAGE_NEWER_INPUTS_MORE = " and {count} more"
 RUN_STAGE_BUTTON = "\u25b6 Run {stage}"
+# The cap and window restate saturate.AUTO_CHECK_CAP / AUTO_FRESHNESS (ADR 0009).
+PIPELINE_AUTO_SATURATE_NOTE = (
+  "After detect, its high-confidence gaps are checked against the wider "
+  "literature (OpenAlex, PubMed): strongest first, at most 20 per run, reusing "
+  "checks younger than 30 days. The rest are left for the gap cards' check "
+  "button. Offline, the checks are recorded as not run. Set SATURATE_AUTO=off "
+  "to switch this off."
+)
 RERUN_STAGE_BUTTON = "\u21bb Re-run {stage}"
 RUN_DETAILS_LABEL = "Run details"
 RUN_DETAILS_INTRO = (
