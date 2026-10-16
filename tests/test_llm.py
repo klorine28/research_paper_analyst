@@ -1,5 +1,6 @@
 """Behavior of the LLM seam: structured outputs, disk caching, and offline fakes."""
 
+import json
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -15,11 +16,13 @@ from research_gap_dashboard.llm import (
   LlmConfigError,
   LlmResponseError,
   LlmTruncatedError,
+  LlmUsage,
   RecordedLlmClient,
   build_llm_client,
   complete_model,
   content_hash,
   request_fingerprint,
+  write_usage,
 )
 
 
@@ -454,3 +457,66 @@ def test_a_response_error_after_an_empty_answer_is_what_gets_raised() -> None:
       attempts=2,
       accept=lambda ex: bool(ex.findings),
     )
+
+
+def test_the_anthropic_client_tallies_token_usage_per_model() -> None:
+  """Every billed call adds its input and output tokens to the usage tally."""
+  response = _tool_use_response({"research_question": "q", "findings": []})
+  response["usage"] = {"input_tokens": 1200, "output_tokens": 300}
+  usage = LlmUsage()
+  client = AnthropicClient(
+    LlmConfig(api_key="sk-test", default_model="sonnet-x"),
+    post=_RecordingPost(response),
+    usage=usage,
+  )
+
+  client.complete("p", Extraction.model_json_schema(), prompt_version="v1")
+  client.complete("q", Extraction.model_json_schema(), prompt_version="v1")
+
+  assert usage.calls == 2
+  assert usage.by_model["sonnet-x"].input_tokens == 2400
+  assert usage.by_model["sonnet-x"].output_tokens == 600
+
+
+def test_a_truncated_response_is_still_tallied() -> None:
+  """Output cut off at the budget was still billed, so it still counts."""
+  response = _tool_use_response({})
+  response["stop_reason"] = "max_tokens"
+  response["usage"] = {"input_tokens": 10, "output_tokens": 20}
+  usage = LlmUsage()
+  client = AnthropicClient(
+    LlmConfig(api_key="sk-test"), post=_RecordingPost(response), usage=usage
+  )
+
+  with pytest.raises(LlmTruncatedError):
+    client.complete("p", Extraction.model_json_schema(), prompt_version="v1")
+
+  assert usage.calls == 1
+
+
+def test_cache_hits_are_tallied_as_free_calls(tmp_path: Path) -> None:
+  """A completion served from the cache counts as cached, not as a billed call."""
+  usage = LlmUsage()
+  inner = _CountingClient({"research_question": "q", "findings": []})
+  client = CachingLlmClient(inner, DiskCache(tmp_path), usage=usage)
+  schema = Extraction.model_json_schema()
+
+  client.complete("prompt", schema, prompt_version="v1")
+  client.complete("prompt", schema, prompt_version="v1")
+
+  assert usage.cached_calls == 1
+
+
+def test_usage_is_recorded_per_stage_keeping_other_stages(tmp_path: Path) -> None:
+  """Recording one stage's usage replaces that stage's entry and keeps the rest."""
+  path = tmp_path / "artifacts" / "llm-usage.json"
+  first = LlmUsage(calls=1)
+  write_usage(path, "extract", first)
+  second = LlmUsage(cached_calls=4)
+  write_usage(path, "detect", second)
+  write_usage(path, "extract", LlmUsage(calls=7))
+
+  recorded = json.loads(path.read_text(encoding="utf-8"))
+
+  assert recorded["extract"]["calls"] == 7
+  assert recorded["detect"]["cached_calls"] == 4
