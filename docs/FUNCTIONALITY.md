@@ -59,7 +59,7 @@ A Corpus is one directory (see `docs/corpus-layout.md` and
 | Aggregate | `aggregate <corpus> [--taxonomy FILE ...] [--tier ...]` | extractions + taxonomies | `normalized_facts.json` | yes | yes (uncached) |
 | Detect | `detect <corpus> [--tier ...]` | manifest + extractions + normalized facts | `candidate_gaps.json` | yes (limitations only) | yes (uncached) |
 | Retrieve | `retrieve <corpus> [--limit N] [--min-overlap N] [--mailto EMAIL]` | manifest (needs `ingest --resolve`) | `retrieval_gaps.json` | no | yes (OpenAlex) |
-| Saturate | `saturate <corpus> --gap ID [--taxonomy FILE ...]` | candidate gaps + manifest + taxonomies (+ Alias Overlay) | appends to `saturation_checks.json` | no | yes (OpenAlex + PubMed) |
+| Saturate | `saturate <corpus> --gap ID [--taxonomy FILE ...]` | candidate gaps + manifest + taxonomies (+ Alias Overlay) | appends to `saturation_checks.json` | only on zero hits (query variants, cheap tier) | yes (OpenAlex + PubMed) |
 | Taxonomy | `taxonomy [FILE]` | a taxonomy file | — (validation only) | no | no |
 
 Every command exits `0` on success and `1` on a handled error; the CLI only
@@ -70,15 +70,22 @@ Tries to disprove one Knowledge or Coverage Gap against the wider literature
 (ADR 0009). Each concept of the cell is searched by its taxonomy label and
 aliases (MeSH inversions turned back, Corpus-approved aliases included) plus
 the Corpus's own mapped terms; PubMed also gets the MeSH heading. One boolean
-query per source, recorded verbatim. A hit counts only when its title or
+query per source, recorded verbatim; each term records its origin (label,
+alias, Corpus term). Only when the base queries find no closing work, the
+cheap-tier LLM proposes rephrased terms and a labelled adversarial second
+attempt runs (`attempt: "llm_variant"` on its searches and hits; model and
+prompt version on `second_attempt`; cached in `.llm-cache/` by inputs, model
+and prompt version). Without an API
+key or on an LLM error the check still completes and `second_attempt.note`
+says why. A hit counts only when its title or
 abstract mentions a term of both concepts (deterministic screening); works
 already in the Corpus are dropped. The result is `possibly_addressed`,
 `no_closing_work_found` (dated, with sources and queries) or `not_run` (no
 source reachable; exit code 2). Never confirms a gap, never changes confidence.
 Each run appends a dated snapshot; earlier snapshots are never rewritten. Hits
 are out-of-Corpus works: never cited, never Evidence. Public reader:
-`read_saturation_checks(root)`. Not yet: `--auto`, `--accepted`, the cache, LLM
-query variants and screening, Unanswered Limitations.
+`read_saturation_checks(root)`. Not yet: `--auto`, `--accepted`, the search
+cache, LLM screening, Unanswered Limitations.
 
 ### Ingest — `ingest.py`
 Pairs each paper-list entry with its PDF (by DOI, then citation key) and writes

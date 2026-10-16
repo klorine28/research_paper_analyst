@@ -20,10 +20,13 @@ import pytest
 from research_gap_dashboard.aggregate import load_pipeline_taxonomies
 from research_gap_dashboard.cli import EXIT_ERROR, EXIT_INCOMPLETE, EXIT_OK, main
 from research_gap_dashboard import cli
+from research_gap_dashboard.llm import CachingLlmClient, DiskCache, LlmResponseError
 from research_gap_dashboard.saturate import (
   OUT_OF_CORPUS_LABEL,
+  QUERY_VARIANT_PROMPT_VERSION,
   SATURATION_CHECKS_NAME,
   ConceptTerms,
+  QueryVariantModel,
   SaturationError,
   build_query,
   read_saturation_checks,
@@ -313,3 +316,257 @@ def test_a_work_two_sources_return_is_one_hit(corpus: Path):
   assert len(check.hits) == 1
   assert check.hits[0].sources == ["openalex", "pubmed"]
   assert check.hits[0].doi == "10.1/both"
+
+
+# --- The adversarial second attempt: LLM query variants on zero hits ------------
+
+
+class _FakeVariantLlm:  # pylint: disable=too-few-public-methods
+  """An LLM client that proposes fixed rephrasings and counts its calls."""
+
+  name = "fake"
+
+  def __init__(self, result: dict[str, Any] | Exception):
+    self._result = result
+    self.calls: list[dict[str, Any]] = []
+
+  def complete(  # pylint: disable=unused-argument
+    self,
+    prompt: str,
+    schema: dict[str, Any],
+    *,
+    prompt_version: str,
+    tier: str = "default",
+    refresh: bool = False,
+  ) -> dict[str, Any]:
+    """Record the call, then answer with the fixed result (or raise it)."""
+    self.calls.append({"prompt": prompt, "prompt_version": prompt_version})
+    if isinstance(self._result, Exception):
+      raise self._result
+    return self._result
+
+
+class _QuerySource:  # pylint: disable=too-few-public-methods
+  """A topic-search source answering by which phrase the query contains."""
+
+  def __init__(self, name: str, answers: dict[str, list[WorkRecord]]):
+    self.name = name
+    self._answers = answers
+    self.queries: list[str] = []
+
+  def search(self, query: str, limit: int = 25) -> list[WorkRecord]:
+    """Return the records of the first phrase found in the query."""
+    self.queries.append(query)
+    for phrase, records in self._answers.items():
+      if phrase in query:
+        return records[:limit]
+    return []
+
+
+VARIANTS = {
+  "first_concept_terms": ["carcinoid valve disease", "Carcinoid Heart Disease"],
+  "second_concept_terms": ["genetic instrumental variable analysis"],
+}
+VARIANT_HIT = WorkRecord(
+  doi="10.1/variant",
+  title="Genetic instrumental variable analysis of carcinoid valve disease",
+)
+
+
+def _variant_check(corpus: Path, llm: Any, answers: dict[str, list[WorkRecord]]):
+  """Check the control gap with fake sources and an LLM for the second attempt."""
+  sources = [_QuerySource("openalex", answers), _QuerySource("pubmed", answers)]
+  check = _check(
+    corpus,
+    CONTROL_GAP,
+    sources=sources,
+    query_variants=QueryVariantModel(client=llm, model="claude-test"),
+  )
+  return check, sources
+
+
+def test_zero_hits_triggers_a_labelled_llm_second_attempt(corpus: Path):
+  """With nothing found, LLM-rephrased queries run and are recorded verbatim."""
+  llm = _FakeVariantLlm(VARIANTS)
+
+  check, sources = _variant_check(
+    corpus, llm, {"carcinoid valve disease": [VARIANT_HIT]}
+  )
+
+  assert len(llm.calls) == 1
+  attempt = check.second_attempt
+  assert attempt is not None
+  assert attempt.model == "claude-test"
+  assert attempt.prompt_version == QUERY_VARIANT_PROMPT_VERSION
+  assert "second attempt" in attempt.label.lower()
+  # Terms already searched are not "variants".
+  assert attempt.concepts[0].terms == ["carcinoid valve disease"]
+  variant_searches = [s for s in check.searches if s.attempt == "llm_variant"]
+  assert {s.source for s in variant_searches} == {"openalex", "pubmed"}
+  for search in variant_searches:  # a rephrasing, not a repeat of the base terms
+    assert "carcinoid valve disease" in search.query
+    assert '"carcinoid heart"' not in search.query
+    assert "Carcinoid Heart Disease" not in search.query
+  for search in check.searches:  # every query sent is recorded, verbatim
+    assert search.query in {q for source in sources for q in source.queries}
+  assert len(check.searches) == sum(len(source.queries) for source in sources)
+  assert check.status == "possibly_addressed"
+  assert "second attempt" in check.status_reason
+  hit = next(h for h in check.hits if h.work_id == "10.1/variant")
+  assert hit.attempt == "llm_variant"
+  assert hit.verdict == "mentions_both"
+
+
+def test_a_second_attempt_that_finds_nothing_still_says_so(corpus: Path):
+  """No hits after both attempts is still only "no closing work found"."""
+  check, _ = _variant_check(corpus, _FakeVariantLlm(VARIANTS), {})
+
+  assert check.status == "no_closing_work_found"
+  assert "second attempt" in check.status_reason
+  assert "does not confirm" in check.status_reason
+
+
+def test_the_llm_is_not_called_when_the_base_finds_closing_work(corpus: Path):
+  """A gap the base queries already threaten never reaches the LLM."""
+  llm = _FakeVariantLlm(VARIANTS)
+
+  check = _check(
+    corpus, FILLED_GAP, query_variants=QueryVariantModel(client=llm, model="m")
+  )
+
+  assert check.status == "possibly_addressed"
+  assert not llm.calls
+  assert check.second_attempt is None
+  assert all(search.attempt == "base" for search in check.searches)
+
+
+def test_the_llm_is_not_called_when_offline(corpus: Path):
+  """When no source could be searched there is nothing to rephrase."""
+  llm = _FakeVariantLlm(VARIANTS)
+  sources = [OpenAlexAdapter(fetch=_offline)]
+
+  check = _check(
+    corpus,
+    CONTROL_GAP,
+    sources=sources,
+    query_variants=QueryVariantModel(client=llm, model="m"),
+  )
+
+  assert check.status == "not_run"
+  assert not llm.calls
+  assert check.second_attempt is None
+
+
+def test_without_an_llm_the_second_attempt_is_recorded_as_not_run(corpus: Path):
+  """No configured LLM: the check completes and says the attempt did not run."""
+  check = _check(corpus, CONTROL_GAP)
+
+  assert check.status == "no_closing_work_found"
+  assert check.second_attempt is not None
+  assert check.second_attempt.note
+  assert not check.second_attempt.concepts
+  assert all(search.attempt == "base" for search in check.searches)
+
+
+def test_a_failing_llm_leaves_the_base_result_with_a_note(corpus: Path):
+  """An LLM error is recorded on the attempt; the check still completes."""
+  llm = _FakeVariantLlm(LlmResponseError("no tool_use block"))
+
+  check, _ = _variant_check(corpus, llm, {})
+
+  assert check.status == "no_closing_work_found"
+  assert check.second_attempt is not None
+  assert "no tool_use block" in check.second_attempt.note
+  assert all(search.attempt == "base" for search in check.searches)
+
+
+def test_unusable_variants_run_no_search(corpus: Path):
+  """Repeats, empty strings and long descriptions are dropped, not searched."""
+  llm = _FakeVariantLlm(
+    {
+      "first_concept_terms": ["", "carcinoid heart", "a very long description of it"],
+      "second_concept_terms": ["Mendelian Randomization Analysis"],
+    }
+  )
+
+  check, _ = _variant_check(corpus, llm, {})
+
+  assert check.second_attempt is not None
+  assert check.second_attempt.note
+  assert all(search.attempt == "base" for search in check.searches)
+
+
+def test_variant_calls_are_cached_by_prompt_version(corpus: Path, tmp_path: Path):
+  """A re-check with the same inputs is served from the cache, not the API."""
+  inner = _FakeVariantLlm(VARIANTS)
+  cached = CachingLlmClient(inner, DiskCache(tmp_path / "cache"))
+
+  for _ in range(2):
+    _variant_check(corpus, cached, {})
+
+  assert len(inner.calls) == 1
+  assert inner.calls[0]["prompt_version"].startswith(QUERY_VARIANT_PROMPT_VERSION)
+
+
+def test_a_different_model_misses_the_variant_cache(corpus: Path, tmp_path: Path):
+  """The model is part of the cache key: another model's terms are never reused."""
+  inner = _FakeVariantLlm(VARIANTS)
+  cached = CachingLlmClient(inner, DiskCache(tmp_path / "cache"))
+  sources = [_QuerySource("openalex", {})]
+
+  for model in ("model-a", "model-b"):
+    check = _check(
+      corpus,
+      CONTROL_GAP,
+      sources=sources,
+      query_variants=QueryVariantModel(client=cached, model=model),
+    )
+    assert check.second_attempt is not None
+    assert check.second_attempt.model == model
+
+  assert len(inner.calls) == 2
+
+
+def test_concepts_record_where_each_term_came_from(corpus: Path):
+  """Each search term carries its origin: label, alias or Corpus term."""
+  check = _check(corpus, FILLED_GAP)
+
+  origins = check.concepts[0].term_origins
+  assert origins["Heart Failure"] == "label"
+  assert origins["Congestive Heart Failure"] == "alias"
+  assert origins["chronic heart failure"] == "corpus_term"
+
+
+def test_cli_saturate_runs_the_second_attempt_with_the_stage_llm(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """The CLI passes its cached LLM client and records the model it ran on."""
+  llm = _FakeVariantLlm(VARIANTS)
+  monkeypatch.setattr(
+    cli,
+    "_build_search_sources",
+    lambda: [_QuerySource("openalex", {"carcinoid valve disease": [VARIANT_HIT]})],
+  )
+  monkeypatch.setattr(cli, "_llm_client", lambda _arguments: llm)
+  monkeypatch.setenv("LLM_CHEAP_MODEL", "claude-cheap-test")
+
+  assert main(["saturate", str(corpus), "--gap", CONTROL_GAP]) == EXIT_OK
+  check = read_saturation_checks(corpus).checks[0]
+  assert check.status == "possibly_addressed"
+  assert check.second_attempt is not None
+  assert check.second_attempt.model == "claude-cheap-test"
+
+
+def test_cli_saturate_without_an_api_key_still_checks(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """No API key: the base check runs and the second attempt is noted as not run."""
+  monkeypatch.setattr(cli, "_build_search_sources", _recorded_sources)
+  monkeypatch.setattr(cli, "SATURATE_SEARCH_LIMIT", SEARCH_LIMIT)
+  monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+  assert main(["saturate", str(corpus), "--gap", CONTROL_GAP]) == EXIT_OK
+  check = read_saturation_checks(corpus).checks[0]
+  assert check.status == "no_closing_work_found"
+  assert check.second_attempt is not None
+  assert "ANTHROPIC_API_KEY" in check.second_attempt.note

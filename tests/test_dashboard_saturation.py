@@ -15,7 +15,16 @@ from typing import Any
 
 import pytest
 
-from test_saturate import CONTROL_GAP, FILLED_GAP, FIXTURE, _check
+from test_saturate import (
+  CONTROL_GAP,
+  FILLED_GAP,
+  FIXTURE,
+  VARIANT_HIT,
+  VARIANTS,
+  _check,
+  _FakeVariantLlm,
+  _variant_check,
+)
 
 import research_gap_dashboard.dashboard as dashboard_pkg
 from research_gap_dashboard.dashboard import pipeline_runner, text
@@ -25,6 +34,7 @@ from research_gap_dashboard.dashboard.artifacts import (
 )
 from research_gap_dashboard.dashboard.gaps import GapCard, build_gap_cards
 from research_gap_dashboard.dashboard.judgments import load_judgments
+from research_gap_dashboard.saturate import QUERY_VARIANT_PROMPT_VERSION
 
 
 @pytest.fixture(name="corpus")
@@ -166,3 +176,38 @@ def test_the_page_shows_the_badge_and_out_of_corpus_hits(
   assert all(search.query in codes for search in check.searches)
   markdown = "\n".join(block.value for block in app.markdown)
   assert check.hits[0].reason in markdown
+
+
+def test_the_second_attempt_is_labelled_with_its_model_and_queries(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """LLM-rephrased queries and their hits read as the adversarial second attempt."""
+  llm = _FakeVariantLlm(VARIANTS)
+  check, _ = _variant_check(corpus, llm, {"carcinoid valve disease": [VARIANT_HIT]})
+
+  view = _cards(corpus)[CONTROL_GAP].saturation
+
+  assert check.second_attempt is not None
+  assert view.second_attempt_label == check.second_attempt.label
+  assert "claude-test" in view.second_attempt_provenance
+  assert QUERY_VARIANT_PROMPT_VERSION in view.second_attempt_provenance
+  assert {s.attempt for s in view.searches} == {"base", "llm_variant"}
+  variant_hit = next(h for h in view.hits if h.screened)
+  assert variant_hit.second_attempt
+
+  app = _open_all_gap_cards(corpus, monkeypatch)
+  assert not app.exception
+  markdown = "\n".join(block.value for block in app.markdown)
+  assert check.second_attempt.label in markdown
+  codes = [block.value for block in app.code]
+  assert all(search.query in codes for search in check.searches)
+
+
+def test_a_second_attempt_that_did_not_run_says_why(corpus: Path):
+  """Without an LLM the card notes the attempt was not run, and why."""
+  check = _check(corpus, CONTROL_GAP)
+
+  view = _cards(corpus)[CONTROL_GAP].saturation
+
+  assert check.second_attempt is not None
+  assert view.second_attempt_note == check.second_attempt.note

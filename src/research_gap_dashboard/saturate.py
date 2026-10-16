@@ -10,10 +10,18 @@ source failed, e.g. offline). It never confirms a gap and never changes a gap's
 confidence (ADR 0009 §6).
 
 Queries come from controlled vocabulary: each concept's taxonomy label and
-aliases (Corpus-approved aliases included, ADR 0010), plus the Corpus's own
-terms that were mapped onto the category; PubMed also gets the category's MeSH
-heading. Screening is deterministic: a hit counts only when its title or
-abstract contains a term of each concept.
+aliases (Corpus-approved aliases included, so approved MeSH entry terms and
+child descriptors too, ADR 0010), plus the Corpus's own terms that were mapped
+onto the category; PubMed also gets the category's MeSH heading. Each term
+records where it came from. Screening is deterministic: a hit counts only when
+its title or abstract contains a term of each concept.
+
+Only when those base queries find no closing work does an LLM propose
+rephrased terms, run as a labelled adversarial second attempt (ADR 0009 §7):
+its queries are recorded verbatim beside the base ones, its call is cached by
+inputs, model and prompt version, and the model and prompt version are recorded
+with the attempt. Without an LLM (no API key) or when the call fails, the check
+still completes and the attempt records why it did not run.
 
 Hits are out-of-Corpus works. They are labelled as such, never cited and never
 Evidence; a work already in the Corpus is never a hit. Each run appends one
@@ -21,23 +29,30 @@ dated snapshot to `artifacts/saturation_checks.json` and never rewrites an
 earlier one, so the history of checks stays inspectable.
 
 Not here yet (later tickets of the spec): automatic and "accepted" modes, the
-30-day cache, LLM query variants and LLM screening, Unanswered Limitations.
+30-day cache, LLM screening, Unanswered Limitations.
 """
 
 import logging
 import re
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from research_gap_dashboard.corpus_layout import inspect_corpus_layout
 from research_gap_dashboard.detect import CellGap, read_candidate_gaps
 from research_gap_dashboard.ingest import read_manifest
+from research_gap_dashboard.llm import (
+  LlmClient,
+  LlmResponseError,
+  ModelTier,
+  complete_model,
+)
 from research_gap_dashboard.sources import (
   DEFAULT_SEARCH_LIMIT,
   TopicSearchSource,
@@ -57,8 +72,15 @@ MAX_CORPUS_TERM_WORDS = 4
 
 SCREENING_METHOD = "title/abstract co-presence of a term from each concept"
 
+# Bump when the variant prompt or its schema changes: it keys the LLM cache.
+QUERY_VARIANT_PROMPT_VERSION = "saturate-query-variants-v1"
+
 SaturationStatus = Literal["possibly_addressed", "no_closing_work_found", "not_run"]
 ScreeningVerdict = Literal["mentions_both", "missing_concept"]
+# Which attempt ran a search or found a hit: the vocabulary-built base queries,
+# or the LLM-rephrased second attempt run only when the base found nothing.
+Attempt = Literal["base", "llm_variant"]
+TermOrigin = Literal["label", "alias", "corpus_term", "llm_variant"]
 
 # Every consumer must show this, so no reader mistakes a hit for Evidence or a
 # Corpus Paper (CODING_STANDARDS > Research integrity).
@@ -82,6 +104,24 @@ _TEXT: dict[str, str] = {
     "No closing work found in {sources} for the recorded queries. This does not "
     "confirm the gap."
   ),
+  "possibly_addressed_variant": (
+    "Possibly addressed: {count} screened hit(s) in {sources} mention both "
+    "concepts, {variant_count} of them found only by the LLM-rephrased second "
+    "attempt. Review them before relying on this gap."
+  ),
+  "no_closing_work_found_variant": (
+    "No closing work found in {sources} for the recorded queries, including an "
+    "LLM-rephrased second attempt. This does not confirm the gap."
+  ),
+  "second_attempt_label": (
+    "Adversarial second attempt: LLM-rephrased queries, run because the base "
+    "queries found no closing work."
+  ),
+  "variant_no_llm": "Not run: no LLM is configured ({reason}).",
+  "variant_failed": "Not run: the LLM call failed ({error}).",
+  "variant_nothing_new": (
+    "Not run: the LLM proposed no usable terms beyond those already searched."
+  ),
   "mentions_both": "Title/abstract mentions {terms}.",
   "missing_concept": "Title/abstract does not mention {labels}.",
 }
@@ -99,6 +139,9 @@ class ConceptTerms(BaseModel):
   label: str
   terms: list[str] = Field(description="Free-text terms, label first.")
   mesh_heading: str = Field(default="", description="PubMed MeSH heading, if any.")
+  term_origins: dict[str, TermOrigin] = Field(
+    default={}, description="Where each term came from, keyed by term."
+  )
 
 
 class SourceSearch(BaseModel):
@@ -106,6 +149,7 @@ class SourceSearch(BaseModel):
 
   source: str
   query: str
+  attempt: Attempt = "base"
   returned_work_ids: list[str] = []
   in_corpus_work_ids: list[str] = Field(
     default=[], description="Returned works dropped because they are in the Corpus."
@@ -126,6 +170,45 @@ class SaturationHit(BaseModel):
   openalex_id: str = ""
   verdict: ScreeningVerdict
   reason: str
+  attempt: Attempt = Field(default="base", description="The attempt that found it.")
+
+
+class QueryVariantAttempt(BaseModel):
+  """
+  The adversarial second attempt: LLM-rephrased terms, and why it ran or not.
+
+  `concepts` hold only the new terms per concept; a concept with none was
+  searched by its base terms. Its searches are the check's `llm_variant` ones.
+  """
+
+  label: str = _TEXT["second_attempt_label"]
+  model: str = ""
+  tier: ModelTier = "cheap"
+  prompt_version: str = QUERY_VARIANT_PROMPT_VERSION
+  concepts: list[ConceptTerms] = []
+  note: str = Field(default="", description="Why the attempt did not search.")
+
+
+@dataclass(frozen=True)
+class QueryVariantModel:
+  """
+  The LLM the second attempt rephrases queries with, and what to record of it.
+
+  `model` is the concrete model id `tier` resolves to, recorded with the
+  attempt. With no `client` (e.g. no API key), `unavailable_reason` says why.
+  """
+
+  client: LlmClient | None
+  model: str = ""
+  tier: ModelTier = "cheap"
+  unavailable_reason: str = ""
+
+
+class _ProposedVariants(BaseModel):
+  """The model's alternative search terms for the gap's two concepts."""
+
+  first_concept_terms: list[str] = []
+  second_concept_terms: list[str] = []
 
 
 class SaturationCheck(BaseModel):
@@ -143,6 +226,8 @@ class SaturationCheck(BaseModel):
   concepts: list[ConceptTerms]
   searches: list[SourceSearch]
   hits: list[SaturationHit]
+  # Set only when the base queries found no closing work.
+  second_attempt: QueryVariantAttempt | None = None
 
   @property
   def screened_hit_count(self) -> int:
@@ -163,7 +248,7 @@ def _utc_now() -> datetime:
   return datetime.now(UTC).replace(microsecond=0)
 
 
-def saturate_gap(  # pylint: disable=too-many-arguments
+def saturate_gap(  # pylint: disable=too-many-arguments,too-many-locals
   root: Path,
   gap_id: str,
   sources: Sequence[TopicSearchSource],
@@ -171,6 +256,7 @@ def saturate_gap(  # pylint: disable=too-many-arguments
   *,
   limit: int = DEFAULT_SEARCH_LIMIT,
   now: Callable[[], datetime] = _utc_now,
+  query_variants: QueryVariantModel | None = None,
 ) -> SaturationCheck:
   """
   Search every source for work closing one cell gap; append the dated result.
@@ -178,6 +264,8 @@ def saturate_gap(  # pylint: disable=too-many-arguments
   Raises `SaturationError` for an unknown gap id or a Gap Type this stage does
   not check yet. A source that fails (offline, rate-limited) is recorded with
   its error; when every source fails the check is "not run", never an error.
+  When the base queries find no closing work, `query_variants` rephrases them
+  for a second attempt; it is never called otherwise.
   """
   gap = _find_cell_gap(root, gap_id)
   corpus_ids = _corpus_work_ids(
@@ -189,6 +277,28 @@ def saturate_gap(  # pylint: disable=too-many-arguments
   ]
 
   searches, hits = _search_all(sources, concepts, limit, corpus_ids)
+  second_attempt: QueryVariantAttempt | None = None
+  if _status(searches, hits)[0] == "no_closing_work_found":
+    second_attempt = _second_attempt(
+      gap.title,
+      concepts,
+      searches,
+      query_variants or QueryVariantModel(client=None),
+    )
+    if second_attempt.concepts:
+      query_concepts, screen_concepts = _variant_concepts(
+        concepts, second_attempt.concepts
+      )
+      more_searches, hits = _search_all(
+        sources,
+        query_concepts,
+        limit,
+        corpus_ids,
+        attempt="llm_variant",
+        known=hits,
+        screen_concepts=screen_concepts,
+      )
+      searches.extend(more_searches)
   status, reason = _status(searches, hits)
   report = read_saturation_checks(root)
   check = SaturationCheck(
@@ -202,6 +312,7 @@ def saturate_gap(  # pylint: disable=too-many-arguments
     concepts=concepts,
     searches=searches,
     hits=hits,
+    second_attempt=second_attempt,
   )
   report.corpus_root = root
   report.checks.append(check)
@@ -248,32 +359,159 @@ def _concept(  # pylint: disable=too-many-arguments,too-many-positional-argument
     ),
     None,
   )
-  candidates = [label]
+  candidates: list[tuple[str, TermOrigin]] = [(label, "label")]
   mesh_heading = ""
   if topic is not None:
-    candidates = [topic.label, *topic.aliases]
+    candidates = [(topic.label, "label"), *((a, "alias") for a in topic.aliases)]
     mesh_heading = topic.label if topic.mesh_id else ""
   candidates.extend(
-    link.original_term
+    (link.original_term, "corpus_term")
     for link in gap.evidence
     if link.axis == axis
     and link.category_id == category_id
     and len(link.original_term.split()) <= MAX_CORPUS_TERM_WORDS
   )
-  terms: list[str] = []
+  origins: dict[str, TermOrigin] = {}
   seen: set[str] = set()
-  for candidate in candidates:
+  for candidate, origin in candidates:
     term = _search_form(candidate)
-    if term and term.lower() not in seen and len(terms) < MAX_TERMS_PER_CONCEPT:
+    if term and term.lower() not in seen and len(origins) < MAX_TERMS_PER_CONCEPT:
       seen.add(term.lower())
-      terms.append(term)
+      origins[term] = origin
   return ConceptTerms(
     axis=axis,
     category_id=category_id,
     label=label,
-    terms=terms,
+    terms=list(origins),
     mesh_heading=mesh_heading,
+    term_origins=origins,
   )
+
+
+def _second_attempt(
+  gap_title: str,
+  concepts: Sequence[ConceptTerms],
+  searches: Sequence[SourceSearch],
+  variants: QueryVariantModel,
+) -> QueryVariantAttempt:
+  """
+  Ask the LLM for rephrased terms; keep only short, new, searchable ones.
+
+  A failed or missing LLM is recorded on the attempt, never raised: the base
+  result stands (ADR 0006: surface, don't block).
+  """
+  attempt = QueryVariantAttempt(model=variants.model, tier=variants.tier)
+  if variants.client is None:
+    reason = variants.unavailable_reason or "no LLM client was given"
+    attempt.note = _TEXT["variant_no_llm"].format(reason=reason)
+    return attempt
+  try:
+    proposal = complete_model(
+      variants.client,
+      _variant_prompt(gap_title, concepts, searches),
+      _ProposedVariants,
+      # The model joins the cache key, so a changed model id never serves (and
+      # gets recorded against) another model's terms.
+      prompt_version=f"{QUERY_VARIANT_PROMPT_VERSION}@{variants.model}",
+      tier=variants.tier,
+    )
+  except (LlmResponseError, ValidationError, httpx.HTTPError) as error:
+    logger.warning("Query-variant LLM call failed: %s", error)
+    attempt.note = _TEXT["variant_failed"].format(
+      error=f"{type(error).__name__}: {error}"
+    )
+    return attempt
+  proposed = [proposal.first_concept_terms, proposal.second_concept_terms]
+  new_concepts = [
+    _new_terms(concept, phrases) for concept, phrases in zip(concepts, proposed)
+  ]
+  if not any(concept.terms for concept in new_concepts):
+    attempt.note = _TEXT["variant_nothing_new"]
+    return attempt
+  attempt.concepts = new_concepts
+  return attempt
+
+
+def _new_terms(concept: ConceptTerms, phrases: Sequence[str]) -> ConceptTerms:
+  """Keep the proposed phrases that are searchable and not already searched."""
+  seen = {term.lower() for term in concept.terms}
+  terms: list[str] = []
+  for phrase in phrases:
+    term = _search_form(phrase)
+    if (
+      term
+      and len(term.split()) <= MAX_CORPUS_TERM_WORDS
+      and term.lower() not in seen
+      and len(terms) < MAX_TERMS_PER_CONCEPT
+    ):
+      seen.add(term.lower())
+      terms.append(term)
+  return ConceptTerms(
+    axis=concept.axis,
+    category_id=concept.category_id,
+    label=concept.label,
+    terms=terms,
+    term_origins={term: "llm_variant" for term in terms},
+  )
+
+
+def _variant_concepts(
+  base: Sequence[ConceptTerms], variants: Sequence[ConceptTerms]
+) -> tuple[list[ConceptTerms], list[ConceptTerms]]:
+  """
+  Return the concepts the second attempt searches by, and those it screens by.
+
+  A concept with new terms is searched by those alone (a rephrasing, not a
+  repeat) and screened by old and new; one without keeps its base terms.
+  """
+  query: list[ConceptTerms] = []
+  screening: list[ConceptTerms] = []
+  for old, new in zip(base, variants):
+    if not new.terms:
+      query.append(old)
+      screening.append(old)
+      continue
+    query.append(new)
+    screening.append(new.model_copy(update={"terms": [*new.terms, *old.terms]}))
+  return query, screening
+
+
+def _variant_prompt(
+  gap_title: str,
+  concepts: Sequence[ConceptTerms],
+  searches: Sequence[SourceSearch],
+) -> str:
+  """Build the prompt asking for rephrased search terms for each concept."""
+  lines = [
+    "You are helping to DISPROVE a candidate research gap: find wording under "
+    "which published work combining two concepts would be indexed. Searches "
+    "with the terms below found no work mentioning both concepts.",
+    "",
+    f"CANDIDATE GAP: {gap_title}",
+  ]
+  for name, concept in zip(("FIRST", "SECOND"), concepts):
+    lines.append(
+      f"{name} CONCEPT ({concept.axis}): {concept.label}. Already searched: "
+      + "; ".join(concept.terms)
+    )
+  lines.append("QUERIES THAT FOUND NOTHING:")
+  lines.extend(
+    f"- {search.source}: {search.query}" for search in searches if not search.error
+  )
+  lines.extend(
+    [
+      "",
+      "For each concept, propose up to "
+      f"{MAX_TERMS_PER_CONCEPT} alternative search terms authors actually use "
+      "in titles and abstracts: synonyms, field-specific or older wording, "
+      "spelled-out or abbreviated forms, spelling variants, and common "
+      f"narrower terms. Each term is a plain phrase of at most "
+      f"{MAX_CORPUS_TERM_WORDS} words, with no quotes or boolean operators. Do "
+      "not repeat terms already searched. Return an empty list for a concept "
+      "with no good alternative.",
+    ]
+  )
+  return "\n".join(lines)
 
 
 def _search_form(phrase: str) -> str:
@@ -311,20 +549,35 @@ def build_query(source_name: str, concepts: Sequence[ConceptTerms]) -> str:
   return " AND ".join(groups)
 
 
-def _search_all(
+def _search_all(  # pylint: disable=too-many-arguments,too-many-locals
   sources: Sequence[TopicSearchSource],
   concepts: Sequence[ConceptTerms],
   limit: int,
   corpus_ids: set[str],
+  *,
+  attempt: Attempt = "base",
+  known: Sequence[SaturationHit] = (),
+  screen_concepts: Sequence[ConceptTerms] | None = None,
 ) -> tuple[list[SourceSearch], list[SaturationHit]]:
-  """Search every source; return the searches and the screened hits, best first."""
+  """
+  Search every source; return the searches and the screened hits, best first.
+
+  `known` hits (from an earlier attempt) are kept, and a work found again is
+  merged into them rather than counted twice. Hits are screened by
+  `screen_concepts` when given, else by the concepts searched.
+  """
   searches: list[SourceSearch] = []
   hits: dict[str, SaturationHit] = {}
+  for hit in known:
+    ids = _corpus_work_ids([(hit.doi, hit.pmid, hit.openalex_id)])
+    for work_id in ids or {hit.work_id}:
+      hits[work_id] = hit
   for source in sources:
     search, records = _search(source, concepts, limit, corpus_ids)
+    search.attempt = attempt
     searches.append(search)
     for record in records:
-      _add_hit(hits, source.name, record, concepts)
+      _add_hit(hits, source.name, record, screen_concepts or concepts, attempt)
   unique = list({id(hit): hit for hit in hits.values()}.values())
   return searches, sorted(unique, key=lambda hit: hit.verdict != "mentions_both")
 
@@ -368,6 +621,7 @@ def _add_hit(
   source_name: str,
   record: WorkRecord,
   concepts: Sequence[ConceptTerms],
+  attempt: Attempt,
 ) -> None:
   """
   Screen a returned work and add it, merging a work two sources returned.
@@ -398,6 +652,7 @@ def _add_hit(
     openalex_id=record.openalex_id,
     verdict=verdict,
     reason=reason,
+    attempt=attempt,
   )
   for work_id in ids or {hit.work_id}:
     hits[work_id] = hit
@@ -447,11 +702,21 @@ def _status(
   if not ran:
     errors = "; ".join(f"{s.source}: {s.error}" for s in searches) or "no source"
     return "not_run", _TEXT["not_run"].format(errors=errors)
-  screened = sum(1 for hit in hits if hit.verdict == "mentions_both")
+  ran = list(dict.fromkeys(ran))
+  screened = [hit for hit in hits if hit.verdict == "mentions_both"]
   status: SaturationStatus = (
     "possibly_addressed" if screened else "no_closing_work_found"
   )
-  return status, _TEXT[status].format(count=screened, sources=", ".join(ran))
+  variant_count = sum(1 for hit in screened if hit.attempt == "llm_variant")
+  # The reason names the second attempt whenever it decided the outcome: it
+  # found the hits, or it also searched and found nothing.
+  second_attempt_ran = any(s.attempt == "llm_variant" for s in searches)
+  key = status
+  if variant_count or (status == "no_closing_work_found" and second_attempt_ran):
+    key = f"{status}_variant"
+  return status, _TEXT[key].format(
+    count=len(screened), sources=", ".join(ran), variant_count=variant_count
+  )
 
 
 def _work_id(record: WorkRecord) -> str:
