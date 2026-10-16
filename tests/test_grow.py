@@ -12,6 +12,7 @@ the Corpus.
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -25,7 +26,7 @@ from research_gap_dashboard.grow import (
   read_suggested_papers,
 )
 from research_gap_dashboard.ingest import MAX_PAPERS, check_corpus
-from research_gap_dashboard.sources import OpenAccessWork, WorkRecord
+from research_gap_dashboard.sources import OpenAlexAdapter
 
 _PDF = b"%PDF-1.7 a suggested paper"
 _NOW = datetime(2026, 5, 4, 12, 0, tzinfo=UTC)
@@ -52,34 +53,43 @@ def _make_corpus(root: Path, count: int = 10, *, doi_list: bool = False) -> Path
   return root
 
 
-class _FakeOpenAlex:  # pylint: disable=too-few-public-methods
-  """Answers `open_access` with a canned work, or raises like a dead network."""
+_OA_WORK = {
+  "id": "https://openalex.org/W42",
+  "doi": f"https://doi.org/{_DOI}",
+  "title": "Heart failure in {older} adults",
+  "publication_year": 2021,
+  "authorships": [
+    {"author": {"display_name": "Ada Lovelace"}},
+    {"author": {"display_name": "Alan Turing"}},
+  ],
+  "primary_location": {"source": {"display_name": "Open Journal"}},
+}
 
-  def __init__(self, work: OpenAccessWork | None, error: Exception | None = None):
-    self.work = work
+
+class _FakeOpenAlex(OpenAlexAdapter):
+  """The real adapter over a fake fetch: a canned work, or a dead network."""
+
+  def __init__(self, pdf_urls: list[str] | None, error: Exception | None = None):
+    super().__init__(fetch=self._answer)
+    self.pdf_urls = pdf_urls
     self.error = error
-    self.refs: list[str] = []
+    self.urls: list[str] = []
 
-  def open_access(self, work_ref: str) -> OpenAccessWork | None:
-    """Record the lookup and answer it."""
-    self.refs.append(work_ref)
+  def _answer(self, url: str) -> dict[str, Any] | None:
+    self.urls.append(url)
     if self.error is not None:
       raise self.error
-    return self.work
+    if self.pdf_urls is None:
+      return None
+    return {
+      **_OA_WORK,
+      "locations": [{"is_oa": True, "pdf_url": pdf} for pdf in self.pdf_urls],
+    }
 
-
-def _work(pdf_urls: list[str]) -> OpenAccessWork:
-  return OpenAccessWork(
-    record=WorkRecord(
-      doi=_DOI,
-      title="Heart failure in {older} adults",
-      year=2021,
-      venue="Open Journal",
-      authors=["Ada Lovelace", "Alan Turing"],
-      openalex_id="https://openalex.org/W42",
-    ),
-    pdf_urls=pdf_urls,
-  )
+  @property
+  def refs(self) -> list[str]:
+    """The work references looked up, as the URL path names them."""
+    return [url.split("/works/", 1)[1].split("?", 1)[0] for url in self.urls]
 
 
 def _downloads(bodies: dict[str, bytes | None]):
@@ -97,7 +107,7 @@ def corpus_fixture(tmp_path: Path) -> Path:
 
 def test_open_access_pdf_is_fetched_placed_and_listed(corpus: Path):
   """An open-access suggestion becomes a paired Paper, logged with route and date."""
-  openalex = _FakeOpenAlex(_work(["https://x/landing", "https://x/paper.pdf"]))
+  openalex = _FakeOpenAlex(["https://x/landing", "https://x/paper.pdf"])
   download = _downloads({"https://x/landing": b"<html>", "https://x/paper.pdf": _PDF})
 
   outcome = add_suggested_paper(
@@ -133,7 +143,7 @@ def test_no_open_access_pdf_leaves_a_pending_paper_outside_the_corpus(corpus: Pa
     corpus,
     WorkRef(doi=_DOI),
     "saturation",
-    openalex=_FakeOpenAlex(_work([])),
+    openalex=_FakeOpenAlex([]),
     download=_downloads({}),
     now=_NOW,
   )
@@ -155,7 +165,7 @@ def test_offline_lookup_is_pending_not_a_failure(corpus: Path):
     corpus,
     WorkRef(doi=_DOI),
     "retrieval",
-    openalex=_FakeOpenAlex(None, error=httpx.ConnectError("offline")),
+    openalex=_FakeOpenAlex([], error=httpx.ConnectError("offline")),
     download=_downloads({}),
     title="A title from the suggestion",
     now=_NOW,
@@ -173,7 +183,7 @@ def test_uploaded_pdf_adds_a_pending_paper(corpus: Path):
       corpus,
       WorkRef(doi=_DOI),
       route,
-      openalex=_FakeOpenAlex(_work([])),
+      openalex=_FakeOpenAlex([]),
       download=_downloads({}),
       now=_NOW,
     )
@@ -182,7 +192,7 @@ def test_uploaded_pdf_adds_a_pending_paper(corpus: Path):
     corpus,
     WorkRef(openalex_id="https://openalex.org/W42", doi=_DOI),
     "retrieval",
-    openalex=_FakeOpenAlex(_work([])),
+    openalex=_FakeOpenAlex([]),
     download=_downloads({}),
     upload=_PDF,
     now=_NOW,
@@ -203,7 +213,7 @@ def test_an_upload_that_is_not_a_pdf_is_refused(corpus: Path):
       corpus,
       WorkRef(doi=_DOI),
       "retrieval",
-      openalex=_FakeOpenAlex(_work([])),
+      openalex=_FakeOpenAlex([]),
       download=_downloads({}),
       upload=b"<html>",
       now=_NOW,
@@ -213,7 +223,7 @@ def test_an_upload_that_is_not_a_pdf_is_refused(corpus: Path):
 
 def test_a_paper_already_in_the_corpus_is_never_added_twice(corpus: Path):
   """One Grow path: a second add of the same work, by any route, is refused."""
-  openalex = _FakeOpenAlex(_work(["https://x/paper.pdf"]))
+  openalex = _FakeOpenAlex(["https://x/paper.pdf"])
   download = _downloads({"https://x/paper.pdf": _PDF})
   add_suggested_paper(
     corpus, WorkRef(doi=_DOI), "retrieval", openalex=openalex, download=download
@@ -244,7 +254,7 @@ def test_a_full_corpus_refuses_another_paper(tmp_path: Path):
       corpus,
       WorkRef(doi=_DOI),
       "retrieval",
-      openalex=_FakeOpenAlex(_work(["https://x/paper.pdf"])),
+      openalex=_FakeOpenAlex(["https://x/paper.pdf"]),
       download=_downloads({"https://x/paper.pdf": _PDF}),
     )
   assert not (corpus / "suggested_papers.json").exists()
@@ -258,7 +268,7 @@ def test_a_doi_list_corpus_gets_a_doi_line_and_a_matching_pdf(tmp_path: Path):
     corpus,
     WorkRef(doi=_DOI),
     "retrieval",
-    openalex=_FakeOpenAlex(_work(["https://x/paper.pdf"])),
+    openalex=_FakeOpenAlex(["https://x/paper.pdf"]),
     download=_downloads({"https://x/paper.pdf": _PDF}),
   )
 
@@ -289,7 +299,7 @@ def test_mark_unavailable_records_reason_and_date_and_upload_reverses_it(
     corpus,
     WorkRef(doi=_DOI),
     "saturation",
-    openalex=_FakeOpenAlex(_work([])),
+    openalex=_FakeOpenAlex([]),
     download=_downloads({}),
     upload=_PDF,
   )
@@ -309,7 +319,7 @@ def test_cli_prints_the_outcome_and_exits_incomplete_when_pending(
   corpus: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ):
   """`add-suggested` prints its outcome as JSON; pending exits 2, added exits 0."""
-  monkeypatch.setattr(cli, "OpenAlexAdapter", lambda **_: _FakeOpenAlex(_work([])))
+  monkeypatch.setattr(cli, "OpenAlexAdapter", lambda **_: _FakeOpenAlex([]))
   upload = corpus.parent / "upload.pdf"
   upload.write_bytes(_PDF)
 

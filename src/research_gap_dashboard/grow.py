@@ -30,7 +30,7 @@ import re
 import unicodedata
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Literal
 
 import httpx
 from pydantic import BaseModel, Field
@@ -43,7 +43,12 @@ from research_gap_dashboard.ingest import (
   read_manifest,
   read_paper_list_entries,
 )
-from research_gap_dashboard.sources import BytesFetch, OpenAccessWork, WorkRecord
+from research_gap_dashboard.sources import (
+  BytesFetch,
+  OpenAccessWork,
+  OpenAlexAdapter,
+  WorkRecord,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,14 +64,6 @@ PdfSource = Literal["", "open_access", "upload"]
 
 class GrowError(Exception):
   """A suggested Paper could not be added or recorded, with a reason to show."""
-
-
-class OpenAccessSource(Protocol):  # pylint: disable=too-few-public-methods
-  """Looks a work up with its open-access PDF locations (OpenAlex)."""
-
-  def open_access(self, work_ref: str) -> OpenAccessWork | None:
-    """Return the work and its PDF URLs, or None if the source lacks it."""
-    raise NotImplementedError
 
 
 class WorkRef(BaseModel):
@@ -183,7 +180,7 @@ def add_suggested_paper(  # pylint: disable=too-many-arguments,too-many-locals
   ref: WorkRef,
   route: Route,
   *,
-  openalex: OpenAccessSource,
+  openalex: OpenAlexAdapter,
   download: BytesFetch,
   upload: bytes | None = None,
   title: str = "",
@@ -331,7 +328,7 @@ def _paired_count(root: Path) -> int:
 
 
 def _look_up(
-  openalex: OpenAccessSource, ref: WorkRef
+  openalex: OpenAlexAdapter, ref: WorkRef
 ) -> tuple[OpenAccessWork | None, str]:
   """Look the work up on OpenAlex; a dead network is a note, not a failure."""
   try:
