@@ -5,7 +5,8 @@ The page renders a button; clicking it runs the stage (or a chain of commands,
 such as a seam command and the stage it feeds) via `pipeline_runner` (a blocking
 subprocess, ADR 0007) and keeps the results in session state across the rerun
 that follows, so the page redraws with the new artifacts while each outcome and
-its captured output stay on screen.
+its captured output stay on screen. After a detect run, the outcome is followed
+by what the run changed since the one before (issue #93).
 
 A run whose estimated cost is above `LLM_COST_CONFIRM_ABOVE` is not launched on
 the first click: the button records it as pending and the next rerun asks the
@@ -29,6 +30,7 @@ from research_gap_dashboard.dashboard.run_cost import (
   estimate_stage_cost,
   needs_confirmation,
 )
+from research_gap_dashboard.dashboard.views.run_changes import render_run_changes
 from research_gap_dashboard.dashboard.views.session_keys import (
   LAST_RUN_KEY,
   PENDING_RUN_KEY,
@@ -165,6 +167,16 @@ def render_last_run(corpus_root: Path) -> None:
   results: list[RunResult] = stored[1]
   for result in results:
     _render_result(result)
+  if any(_detect_ran(result) for result in results):
+    render_run_changes(corpus_root)
+
+
+def _detect_ran(result: RunResult) -> bool:
+  """Whether this result is a detect run that wrote its artifact."""
+  return result.stage == "detect" and result.outcome in (
+    RunOutcome.SUCCEEDED,
+    RunOutcome.INCOMPLETE,
+  )
 
 
 def _render_result(result: RunResult) -> None:

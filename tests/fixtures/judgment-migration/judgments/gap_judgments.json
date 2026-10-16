@@ -1,0 +1,19 @@
+{
+  "judgments": [
+    {
+      "gap_id": "limitation:limitation-group-01",
+      "decision": "accepted",
+      "decided_at": "2025-03-01T10:00:00Z"
+    },
+    {
+      "gap_id": "limitation:limitation-group-02",
+      "decision": "rejected",
+      "decided_at": "2025-03-01T10:05:00Z"
+    },
+    {
+      "gap_id": "topicxmethod:takotsubo:rct",
+      "decision": "accepted",
+      "decided_at": "2025-03-01T10:10:00Z"
+    }
+  ]
+}

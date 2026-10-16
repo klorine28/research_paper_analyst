@@ -52,10 +52,15 @@ same cards. Limitation grouping needs the LLM, through the cached client
 (ADR 0001), so a rerun over the same Extractions yields the same groups. Every
 card links to Evidence from Papers in the Corpus manifest only
 (CODING_STANDARDS > Research integrity).
+
+A re-run first moves the artifact it replaces to `candidate_gaps.previous.json`,
+keeping its modification time, so the dashboard can say what changed since the
+last run and tell which artifact a researcher's older verdicts were made on.
 """
 
 import logging
 import math
+import shutil
 from collections.abc import Iterable
 from fractions import Fraction
 from pathlib import Path
@@ -91,6 +96,8 @@ from research_gap_dashboard.taxonomy import AXES, Axis
 logger = logging.getLogger(__name__)
 
 CANDIDATE_GAPS_NAME = "candidate_gaps.json"
+# The artifact the latest run replaced; the "changed since last run" baseline.
+PREVIOUS_CANDIDATE_GAPS_NAME = "candidate_gaps.previous.json"
 
 # L1 starting levels (ADR 0008 §1): the lower-tail probability at or under
 # which an empty-or-thin cell starts High, then Medium; anything above is Low.
@@ -380,6 +387,10 @@ class CandidateGapsReport(BaseModel):
 
   corpus_root: Path
   corpus_paper_count: int = Field(description="Papers in the Coverage Matrices.")
+  paper_citation_keys: list[str] = Field(
+    default_factory=list,
+    description="Every Paper in the manifest; empty in artifacts written before.",
+  )
   extracted_paper_count: int = Field(description="Papers checked for limitations.")
   candidate_rule: str = Field(description="Which cells became cell candidates.")
   l1_smallest_margins: L1Margins | None = Field(
@@ -526,6 +537,7 @@ def detect_corpus(  # pylint: disable=too-many-locals
   report = CandidateGapsReport(
     corpus_root=root,
     corpus_paper_count=len(papers),
+    paper_citation_keys=sorted(corpus_keys),
     extracted_paper_count=len(extractions),
     candidate_rule=_TEXT["candidate_rule"],
     l1_smallest_margins=l1_smallest_margins(len(papers)),
@@ -981,4 +993,8 @@ def _write_report(root: Path, report: CandidateGapsReport) -> None:
   artifacts_dir = inspect_corpus_layout(root).layout.artifacts_dir
   artifacts_dir.mkdir(parents=True, exist_ok=True)
   path = artifacts_dir / CANDIDATE_GAPS_NAME
+  if path.is_file():
+    # copy2 keeps the replaced artifact's mtime: when it was written, which is
+    # what dates the verdicts made while it was on screen.
+    shutil.copy2(path, artifacts_dir / PREVIOUS_CANDIDATE_GAPS_NAME)
   path.write_text(report.model_dump_json(indent=2), encoding="utf-8")

@@ -39,7 +39,7 @@ from research_gap_dashboard.dashboard.artifacts import (
 )
 from research_gap_dashboard.dashboard.attention import build_attention
 from research_gap_dashboard.dashboard.corpus_scope import has_scope
-from research_gap_dashboard.dashboard.judgments import load_judgments
+from research_gap_dashboard.dashboard.judgments import gap_key, load_judgments
 from research_gap_dashboard.dashboard.pipeline_status import (
   StageState,
   build_pipeline_status,
@@ -117,23 +117,24 @@ def build_flow_progress(corpus_root: Path) -> FlowProgress:
   """Read a Corpus's place on the guided path from its files on disk."""
   stages = {status.stage: status.state for status in build_pipeline_status(corpus_root)}
   banner = build_attention(corpus_root).banner
-  gap_ids = (
-    [gap.gap_id for gap in load_candidate_gaps(corpus_root).gaps]
+  gap_keys = (
+    [gap_key(gap) for gap in load_candidate_gaps(corpus_root).gaps]
     if has_candidate_gaps(corpus_root)
     else []
   )
-  verdicts = load_judgments(corpus_root).by_gap_id()
-  decisions = [verdicts[gap_id].decision for gap_id in gap_ids if gap_id in verdicts]
+  log = load_judgments(corpus_root)
+  verdicts = [log.verdict_for(key) for key in gap_keys]
+  decisions = [verdict.decision for verdict in verdicts if verdict is not None]
   health = CorpusHealth(
     total_papers=banner.total_papers,
     reached_papers=banner.reached_artifact,
     attention_papers=banner.missing_papers + banner.papers_with_dropped_facts,
     stages_done=sum(1 for state in stages.values() if state == StageState.DONE),
     stages_total=len(stages),
-    gap_count=len(gap_ids),
+    gap_count=len(gap_keys),
     accepted=decisions.count("accepted"),
     rejected=decisions.count("rejected"),
-    undecided=len(gap_ids) - len(decisions),
+    undecided=len(gap_keys) - len(decisions),
   )
   done = {
     Step.SCOPE: has_scope(corpus_root),

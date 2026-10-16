@@ -24,6 +24,7 @@ from research_gap_dashboard.dashboard.guided_flow import (
 from research_gap_dashboard.dashboard.journal import load_journal
 from research_gap_dashboard.dashboard.judgments import load_judgments
 from research_gap_dashboard.dashboard.resume import load_resume_point
+from research_gap_dashboard.dashboard.views.run_changes import render_run_changes
 from research_gap_dashboard.dashboard.views.session_keys import PENDING_STEP_KEY
 
 RECOMMENDED_BUTTON_KEY = "home-recommended-step"
@@ -38,6 +39,7 @@ def render_page(chosen: CorpusChoice) -> None:
   _render_resume(chosen)
   _render_recommendation(progress)
   _render_health(progress)
+  render_run_changes(chosen.root)
   _render_steps(progress)
 
 

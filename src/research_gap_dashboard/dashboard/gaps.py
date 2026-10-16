@@ -33,7 +33,12 @@ from research_gap_dashboard.dashboard.evidence_context import (
   EvidenceExpander,
   ExpandedEvidence,
 )
-from research_gap_dashboard.dashboard.judgments import Decision, JudgmentLog
+from research_gap_dashboard.dashboard.judgments import (
+  Decision,
+  GapKey,
+  JudgmentLog,
+  gap_key,
+)
 
 Status = Decision | None
 
@@ -145,6 +150,9 @@ class GapCard(BaseModel):
   """
 
   gap_id: str
+  # What a verdict on this card is saved under: the gap id for a cell gap, the
+  # verbatim source statements for an Unanswered Limitation (ADR 0010 §5).
+  key: GapKey
   gap_type: str
   gap_type_label: str
   title: str
@@ -480,6 +488,7 @@ def _card(  # pylint: disable=too-many-arguments,too-many-positional-arguments
   """Assemble one display card from an artifact record and its judgment."""
   return GapCard(
     gap_id=record.gap_id,
+    key=gap_key(record),
     gap_type=record.gap_type,
     gap_type_label=text.GAP_TYPE_LABELS.get(record.gap_type, record.gap_type),
     title=record.title,
@@ -614,7 +623,6 @@ def build_gap_cards(
   that have no parsed text on disk. `saturation`, the check log, gives each card
   its wider-literature badge; without it every card reads "not checked".
   """
-  decided = judgments.by_gap_id()
   expander = EvidenceExpander(corpus_root)
   checks_by_gap: dict[str, list[SaturationCheckRecord]] = {}
   for check in (saturation or SaturationChecksArtifact()).checks:
@@ -622,7 +630,7 @@ def build_gap_cards(
   cards = [
     _card(
       record,
-      decided[record.gap_id].decision if record.gap_id in decided else None,
+      _decision(judgments, record),
       expander,
       artifact.matrices,
       checks_by_gap.get(record.gap_id, []),
@@ -635,6 +643,12 @@ def build_gap_cards(
     corpus_paper_count=artifact.corpus_paper_count,
     l1_smallest_margins=(margins.high, margins.medium) if margins else None,
   )
+
+
+def _decision(judgments: JudgmentLog, record: CandidateGapRecord) -> Status:
+  """Return the verdict that applies to a card, if one does."""
+  verdict = judgments.verdict_for(gap_key(record))
+  return verdict.decision if verdict is not None else None
 
 
 # The triage filter's names for a card's judgment state; "undecided" stands for a
