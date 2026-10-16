@@ -89,6 +89,7 @@ def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
       undecided=data.undecided_count,
     )
   )
+  _render_l1_margins(data)
   shown = _render_filters(data)
   if not shown.cards:
     st.info(text.GAP_FILTER_NO_MATCH)
@@ -103,6 +104,18 @@ def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
       st.subheader(text.GAP_OTHERS_HEADING)
   for card in others:
     _render_gap_card(card, corpus_root)
+
+
+def _render_l1_margins(data: GapCardsData) -> None:
+  """State the smallest category sizes that can rank High at this Corpus size."""
+  if data.l1_smallest_margins is None:
+    return
+  high, medium = data.l1_smallest_margins
+  if high is None or medium is None:
+    return
+  st.caption(
+    text.GAP_L1_MARGINS.format(total=data.corpus_paper_count, high=high, medium=medium)
+  )
 
 
 def _render_filters(data: GapCardsData) -> FilteredGapCards:
