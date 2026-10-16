@@ -1,0 +1,47 @@
+{
+ "59140576500e168d56fefa6414d714532f1cd3b78fa299da973b688490bab16d.limitations-group-v2": {
+  "groups": [
+   {
+    "label": "Missing trigger data",
+    "statement_ids": [
+     "[control2016:limitations[0]]"
+    ]
+   },
+   {
+    "label": "Retrospective single-center design",
+    "statement_ids": [
+     "[early2016:limitations[0]]"
+    ]
+   }
+  ]
+ },
+ "5414348b2278d90b18ecd99aaaced321a5df0287c1392611df3b52b16162b5b3.limitations-follow-up-v1": {
+  "follow_ups": []
+ },
+ "724ada92586c4b0e075db8cb5970969c042f90834ceb2209876877a0913d98ce.limitations-follow-up-v1": {
+  "follow_ups": [
+   {
+    "fact_id": "[later2021:study_design[0]]",
+    "reason": "This is a prospective multicentre study across 12 hospitals, directly addressing the limitation of the retrospective single-center design."
+   },
+   {
+    "fact_id": "[later2021:populations[0]]",
+    "reason": "This enrolled 612 consecutive patients across 12 centres, providing the multicentre cohort needed to confirm single-centre findings."
+   }
+  ]
+ },
+ "35517ecf62e821ccdc65ae72a23e83033403e10155292136843a30a8aa8a3aa4.limitations-tag-v1": {
+  "tags": [
+   {
+    "group_id": "[limitation-group-01]",
+    "bucket": "measurement",
+    "category_ids": []
+   },
+   {
+    "group_id": "[limitation-group-02]",
+    "bucket": "study_design",
+    "category_ids": []
+   }
+  ]
+ }
+}

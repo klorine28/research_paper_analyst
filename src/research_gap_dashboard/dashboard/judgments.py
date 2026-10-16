@@ -103,6 +103,9 @@ class GapJudgment(BaseModel):
   decision: Decision
   decided_at: datetime
   title: str = ""
+  # The detection layer whose rejection this acceptance overrode (ADR 0008 "demote,
+  # never delete"); empty when no layer had rejected the gap.
+  overrode_review: str = ""
   # Unanswered Limitations only; empty on cell gaps and on pre-migration verdicts.
   source_statements: list[SourceStatement] = []
 
@@ -257,12 +260,19 @@ def _as_key(gap: GapKey | str) -> GapKey:
 
 
 def record_judgment(
-  corpus_root: Path, gap: GapKey | str, decision: Decision, title: str = ""
+  corpus_root: Path,
+  gap: GapKey | str,
+  decision: Decision,
+  title: str = "",
+  *,
+  overrode_review: str = "",
 ) -> GapJudgment:
   """
   Accept or reject a gap, overwriting every verdict that applied to it.
 
   The title is kept so a verdict whose gap later disappears can still be named.
+  `overrode_review` names the detection layer whose rejection an acceptance
+  outranks, so the log shows the researcher chose the gap over the filter.
   """
   key = _as_key(gap)
   log = load_judgments(corpus_root)
@@ -271,6 +281,7 @@ def record_judgment(
     decision=decision,
     decided_at=datetime.now(timezone.utc),
     title=title,
+    overrode_review=overrode_review if decision == "accepted" else "",
     source_statements=_sorted_statements(key.source_statements),
   )
   kept = [judgment for judgment in log.judgments if not judgment.judges(key)]

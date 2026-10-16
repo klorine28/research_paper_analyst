@@ -10,12 +10,23 @@ the researcher's saved accept/reject state.
 
 import json
 import re
+import shutil
 from pathlib import Path
 
 import pytest
 
 from conftest import StubLlmClient, open_page
-from test_detect import _PLACEMENTS, _write_corpus
+from test_detect import (
+  _BRIDGES,
+  _PLACEMENTS,
+  _ROLL_UP,
+  _ROLL_UP_PARENTS,
+  _WITNESS_EXTRACTIONS,
+  _WITNESS_GROUPING,
+  RoutedLlmClient,
+  _tags,
+  _write_corpus,
+)
 
 from research_gap_dashboard.dashboard.trust_gate import acknowledge_denominator
 import research_gap_dashboard.dashboard as dashboard_pkg
@@ -36,12 +47,15 @@ from research_gap_dashboard.dashboard.gaps import (
   filter_gap_cards,
   filter_by_confidence,
   narrative_scope,
+  natural_frequency,
   next_undecided_gap_id,
   scope_context_to_gap,
   surfaced_gap_context,
 )
 from research_gap_dashboard.dashboard.judgments import load_judgments, record_judgment
 from research_gap_dashboard.detect import detect_corpus
+from research_gap_dashboard.limitations import GROUP_PROMPT_VERSION, TAG_PROMPT_VERSION
+from research_gap_dashboard.llm import RecordedLlmClient
 
 
 @pytest.fixture(name="corpus")
@@ -744,9 +758,12 @@ def test_the_gap_list_states_the_smallest_margins_that_rank_high(
 
 def test_no_gap_card_text_claims_significance():
   """No user-facing gap text words the L1 score as a significance test or p."""
+  # The one permitted mention is the disclaimer that it is not one.
+  assert text.GAP_L1_RANKING_LABEL.lower().endswith("not a significance test")
   for name in dir(text):
     value = getattr(text, name)
     if name.startswith("GAP_") and isinstance(value, str):
+      value = value.replace(text.GAP_L1_RANKING_LABEL, "")
       assert "significan" not in value.lower(), name
       assert re.search(r"\bp\b", value, flags=re.IGNORECASE) is None, name
 
@@ -762,3 +779,361 @@ def test_an_artifact_without_trails_still_builds_cards(corpus: Path):
   card = _card(corpus, "topicxmethod:takotsubo:rct")
 
   assert card.data.reasons == [card.confidence_reason]
+
+
+def test_tier_three_lists_the_bridges_strongest_first(tmp_path: Path):
+  """A cell's bridging categories reach its Tier 3, Adamic-Adar order kept."""
+  root = _write_corpus(tmp_path / "corpus", _BRIDGES)
+  detect_corpus(root, StubLlmClient({}))
+
+  card = _card(root, "topicxmethod:takotsubo:rct")
+
+  assert [bridge.label for bridge in card.data.bridges] == ["Female", "Aged"]
+  assert card.data.bridges[0].text == text.GAP_DATA_BRIDGE.format(
+    label="Female", axis="population", row_count=2, column_count=2
+  )
+
+
+def test_the_card_shows_its_bridges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+  """The rendered Tier 3 names each bridge under its own heading."""
+  root = _write_corpus(tmp_path / "corpus", _BRIDGES)
+  detect_corpus(root, StubLlmClient({}))
+  app = _run_gap_cards_app(root, monkeypatch)
+  app.multiselect[0].set_value(["high", "medium", "low"]).run()
+
+  assert not app.exception
+  data = [e for e in app.expander if e.label == text.GAP_TIER_DATA_LABEL]
+  texts = [" ".join(block.value for block in tier.markdown) for tier in data]
+  bridged = [t for t in texts if "- Female (population" in t]
+  assert len(bridged) == 1
+  assert text.GAP_DATA_BRIDGES_HEADING in bridged[0]
+  assert bridged[0].index("- Female (population") < bridged[0].index(
+    "- Aged (population"
+  )
+
+
+def test_a_card_without_bridges_lists_none(corpus: Path):
+  """No bridge, no list: older artifacts and unbridged cells read the same."""
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  assert card.data.bridges == []
+
+
+@pytest.fixture(name="witnessed")
+def witnessed_fixture(tmp_path: Path) -> Path:
+  """
+  Write a Corpus whose limitation group 01 corroborates Takotsubo x RCT.
+
+  Group 01 is a study-design limitation about Takotsubo; group 02 a generic
+  sample-size one. Both stay unanswered (no Paper has a year).
+  """
+  client = RoutedLlmClient(
+    {
+      GROUP_PROMPT_VERSION: [_WITNESS_GROUPING],
+      TAG_PROMPT_VERSION: [
+        _tags(
+          ("01", "study_design", ["topic:takotsubo"]),
+          ("02", "sample_size", []),
+        )
+      ],
+    }
+  )
+  root = _write_corpus(
+    tmp_path / "corpus", _PLACEMENTS, extractions=_WITNESS_EXTRACTIONS
+  )
+  detect_corpus(root, client)
+  return root
+
+
+def test_a_corroborated_card_lists_the_groups_that_flag_it(witnessed: Path):
+  """A two-witness card names its limitation groups; an unflagged one none."""
+  flagged = _card(witnessed, "topicxmethod:takotsubo:rct")
+  plain = _card(witnessed, "topicxtopic:heart-failure:takotsubo")
+
+  assert flagged.flagged_by_authors == ["No randomized trial"]
+  assert plain.flagged_by_authors == []
+
+
+def test_an_unanswered_limitation_card_shows_its_bucket(witnessed: Path):
+  """A limitation card carries its group's type; an untagged one shows none."""
+  data = build_gap_cards(load_candidate_gaps(witnessed), load_judgments(witnessed))
+  buckets = {
+    card.title: card.bucket_label
+    for card in data.cards
+    if card.gap_type == "unanswered_limitation"
+  }
+
+  assert buckets == {
+    "No randomized trial": "Study design",
+    "Small sample": "Sample size",
+    "Older patients": "",
+  }
+
+
+def test_the_page_shows_the_authors_flag_and_the_bucket(
+  witnessed: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """Tier 1 says "also flagged by authors" and a limitation card's type."""
+  app = _run_gap_cards_app(witnessed, monkeypatch)
+  app.multiselect[0].set_value(["high", "medium", "low"]).run()
+
+  captions = " ".join(caption.value for caption in app.caption)
+  assert not app.exception
+  assert "Also flagged by authors: No randomized trial" in captions
+  assert "Limitation type: Sample size" in captions
+
+
+REVIEW_FIXTURE = Path(__file__).parent / "fixtures" / "gap-review"
+
+
+@pytest.fixture(name="reviewed_corpus")
+def reviewed_corpus_fixture(tmp_path: Path) -> Path:
+  """Copy the gap-review fixture Corpus and detect it with its recorded answers."""
+  # Its own parent directory, so the app's corpus picker sees only this Corpus.
+  root = tmp_path / "reviewed" / "corpus"
+  shutil.copytree(REVIEW_FIXTURE / "corpus", root)
+  detect_corpus(
+    root, RecordedLlmClient.from_file(REVIEW_FIXTURE / "llm-responses.json")
+  )
+  return root
+
+
+def test_a_kept_gap_card_carries_audit_basis_and_minimal_study(reviewed_corpus: Path):
+  """Tier 2 fields come from the review that kept the gap, with its Evidence ids."""
+  card = _card(reviewed_corpus, "topicxmethod:takotsubo:rct")
+
+  assert card.audit_basis.startswith("Takotsubo is studied only")
+  assert card.audit_basis_evidence_ids == [
+    "tako1:research_question[0]",
+    "hf1:study_design[0]",
+  ]
+  assert "randomized trial" in card.minimal_study
+  assert card.data.reasons[-1].startswith("Kept by review")
+
+
+def test_a_rejected_or_unreviewed_card_has_no_review_fields(
+  reviewed_corpus: Path, corpus: Path
+):
+  """A reject carries no Audit Basis or Minimal Study, nor does an unreviewed card."""
+  rejected = _card(reviewed_corpus, "topicxtopic:heart-failure:takotsubo")
+  unreviewed = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  for card in (rejected, unreviewed):
+    assert card.audit_basis == ""
+    assert card.minimal_study == ""
+  assert "pseudo-firstness" in rejected.data.reasons[-1]
+
+
+def test_tier_two_shows_the_audit_basis_and_a_labelled_minimal_study(
+  reviewed_corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """The researcher reads the Audit Basis, and the Minimal Study as a suggestion."""
+  app = _run_gap_cards_app(reviewed_corpus, monkeypatch)
+
+  assert not app.exception
+  justification = [
+    e for e in app.expander if e.label == text.GAP_TIER_JUSTIFICATION_LABEL
+  ]
+  markdown = " ".join(block.value for tier in justification for block in tier.markdown)
+  assert text.GAP_AUDIT_BASIS_HEADING in markdown
+  assert text.GAP_MINIMAL_STUDY_HEADING in markdown
+  assert "suggestion" in text.GAP_MINIMAL_STUDY_HEADING
+  captions = " ".join(c.value for tier in justification for c in tier.caption)
+  assert text.GAP_MINIMAL_STUDY_CAVEAT in captions
+
+
+# "Rejected by review" (ADR 0008 §5, issue #109). The roll-up Corpus's hierarchy
+# makes the taxonomy roll-up reject one cell and lower another, so the artifact
+# detect writes carries real review verdicts.
+_REJECTED_ID = "topicxtopic:cardiomyopathies:takotsubo"
+_LOWERED_ID = "topicxmethod:takotsubo:rct"
+_UNREVIEWED_ID = "topicxmethod:heart-failure:retrospective"
+_ALL_LEVELS = ["high", "medium", "low"]
+
+
+@pytest.fixture(name="reviewed")
+def reviewed_fixture(tmp_path: Path) -> Path:
+  """Write a Corpus whose CandidateGaps artifact rejects one cell and lowers one."""
+  root = _write_corpus(tmp_path / "corpus", _ROLL_UP, parents=_ROLL_UP_PARENTS)
+  detect_corpus(root, StubLlmClient({}))
+  return root
+
+
+def _reviewed_cards(corpus: Path):
+  """Build the Gap Cards data for a corpus, judgments included."""
+  return build_gap_cards(load_candidate_gaps(corpus), load_judgments(corpus))
+
+
+def test_each_card_carries_its_review_verdicts(reviewed: Path):
+  """A rejected or lowered card names the layer and its reason; others none."""
+  by_id = {card.gap_id: card for card in _reviewed_cards(reviewed).cards}
+
+  rejected = by_id[_REJECTED_ID]
+  assert [(s.layer, s.effect) for s in rejected.review] == [
+    ("taxonomy_roll_up", "reject")
+  ]
+  assert rejected.rejected_by_review
+  assert "taxonomy artifact" in rejected.review[0].label
+  assert "taxonomy roll-up" in rejected.review[0].label
+
+  lowered = by_id[_LOWERED_ID]
+  assert [(s.layer, s.effect, s.level_after) for s in lowered.review] == [
+    ("taxonomy_roll_up", "lower", "low")
+  ]
+  assert not lowered.rejected_by_review
+  assert "c1" in lowered.review[0].label
+
+  assert by_id[_UNREVIEWED_ID].review == []
+
+
+def test_rejected_candidates_leave_the_list_but_are_never_deleted(reviewed: Path):
+  """A rejected card is kept and listed under review, counted apart from filters."""
+  data = _reviewed_cards(reviewed)
+  shown = filter_gap_cards(data, confidence_levels=_ALL_LEVELS)
+
+  assert _REJECTED_ID in {card.gap_id for card in data.cards}
+  assert _REJECTED_ID not in {card.gap_id for card in shown.cards}
+  assert _LOWERED_ID in {card.gap_id for card in shown.cards}
+  assert shown.review_hidden_count == 1
+  assert shown.hidden_count == 0
+  reviewed_ids = [card.gap_id for card in data.reviewed_cards]
+  assert reviewed_ids[0] == _REJECTED_ID
+  assert _LOWERED_ID in reviewed_ids
+  assert _UNREVIEWED_ID not in reviewed_ids
+
+
+def test_a_rejected_candidate_stays_out_of_the_chat_context(reviewed: Path):
+  """The chat grounds in surfaced gaps only, so a rejected one is left out."""
+  data = _reviewed_cards(reviewed)
+  rejected = next(card for card in data.cards if card.gap_id == _REJECTED_ID)
+
+  context = surfaced_gap_context(data, _corpus_context(), _ALL_LEVELS)
+
+  assert rejected.title not in {gap.title for gap in context.gaps}
+
+
+def test_accepting_a_rejected_gap_surfaces_it_and_records_the_override(
+  reviewed: Path,
+):
+  """The researcher's acceptance outranks the review and is logged with its layer."""
+  record_judgment(
+    reviewed, _REJECTED_ID, "accepted", overrode_review="taxonomy_roll_up"
+  )
+
+  data = _reviewed_cards(reviewed)
+  shown = filter_gap_cards(data, confidence_levels=_ALL_LEVELS)
+
+  assert _REJECTED_ID in {card.gap_id for card in shown.cards}
+  assert shown.review_hidden_count == 0
+  assert _REJECTED_ID in {card.gap_id for card in data.reviewed_cards}
+  judgment = load_judgments(reviewed).by_gap_id()[_REJECTED_ID]
+  assert (judgment.decision, judgment.overrode_review) == (
+    "accepted",
+    "taxonomy_roll_up",
+  )
+
+
+def test_the_page_lists_rejected_gaps_collapsed_and_accepts_one(
+  reviewed: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """'Rejected by review (N)' lists every verdict; Accept there is recorded."""
+  app = _run_gap_cards_app(reviewed, monkeypatch)
+  app.multiselect[0].set_value(_ALL_LEVELS).run()
+  count = len(_reviewed_cards(reviewed).reviewed_cards)
+
+  assert not app.exception
+  label = text.GAP_REVIEW_SECTION_LABEL.format(count=count)
+  section = next(e for e in app.expander if e.label == label)
+  assert not section.proto.expanded
+  section_text = " ".join(block.value for block in section.markdown)
+  assert "taxonomy artifact" in section_text
+  assert f"accept-{_REJECTED_ID}" not in {button.key for button in app.button}
+  assert any(
+    text.GAP_REVIEW_HIDDEN_NOTE.format(count=1) == c.value for c in app.caption
+  )
+
+  app.button(key=f"review-accept-{_REJECTED_ID}").click().run()
+
+  assert not app.exception
+  judgment = load_judgments(reviewed).by_gap_id()[_REJECTED_ID]
+  assert (judgment.decision, judgment.overrode_review) == (
+    "accepted",
+    "taxonomy_roll_up",
+  )
+  assert f"accept-{_REJECTED_ID}" in {button.key for button in app.button}
+
+
+def test_tier_3_labels_the_l1_score_with_a_frequency_and_the_trail(corpus: Path):
+  """Tier 3 reads the L1 score as counts and a frequency, plus each layer step."""
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  # 4 Takotsubo x 1 RCT of 6 Papers, empty: 2/6, about 3 in 10.
+  assert card.data.l1_frequency == text.GAP_FREQUENCY.format(count=3, per=10)
+  assert [(s.layer, s.effect, s.level) for s in card.data.trail] == [
+    (text.GAP_LAYER_LABELS["l1"], text.GAP_LAYER_EFFECT_LABELS["start"], "Low")
+  ]
+  assert card.data.trail[0].reason == card.data.reasons[0]
+
+
+@pytest.mark.parametrize(
+  ("probability", "expected"),
+  [
+    (0.004, text.GAP_FREQUENCY.format(count=4, per=1000)),
+    (0.05, text.GAP_FREQUENCY.format(count=5, per=100)),
+    (1 / 3, text.GAP_FREQUENCY.format(count=3, per=10)),
+    (0.00001, text.GAP_FREQUENCY_RARE),
+    (0.99, text.GAP_FREQUENCY_NEARLY_ALWAYS),
+  ],
+)
+def test_the_l1_frequency_reads_as_a_natural_frequency(
+  probability: float, expected: str
+):
+  """The L1 probability is shown as "about k in n", never as a bare decimal."""
+  assert natural_frequency(probability) == expected
+
+
+def test_a_pre_l1_card_has_no_frequency(corpus: Path):
+  """A card written before L1 shows no frequency rather than inventing one."""
+  path = corpus / "artifacts" / "candidate_gaps.json"
+  data = json.loads(path.read_text(encoding="utf-8"))
+  for gap in data["gaps"]:
+    gap.pop("trail", None)
+    gap.pop("l1_probability", None)
+  path.write_text(json.dumps(data), encoding="utf-8")
+
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  assert card.data.l1_frequency is None
+  assert card.data.trail == []
+
+
+def test_tier_3_shows_the_labelled_l1_score_and_the_layer_trail(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """In the app, Tier 3 says "ranking score, not a significance test" and the trail."""
+  app = _run_gap_cards_app(corpus, monkeypatch)
+  app.multiselect[0].set_value(["high", "medium", "low"]).run()
+
+  assert not app.exception
+  data = [e for e in app.expander if e.label == text.GAP_TIER_DATA_LABEL]
+  data_text = " ".join(block.value for tier in data for block in tier.markdown)
+  assert text.GAP_L1_RANKING_LABEL in data_text
+  assert text.GAP_FREQUENCY.format(count=3, per=10) in data_text
+  assert text.GAP_DATA_TRAIL_HEADING in data_text
+  assert text.GAP_LAYER_LABELS["l1"] in data_text
+
+
+def test_the_margins_line_says_when_nothing_can_rank_high(
+  corpus: Path, monkeypatch: pytest.MonkeyPatch
+):
+  """At a Corpus too small for High, the line says so instead of vanishing."""
+  path = corpus / "artifacts" / "candidate_gaps.json"
+  data = json.loads(path.read_text(encoding="utf-8"))
+  data["l1_smallest_margins"] = {"high": None, "medium": 2}
+  path.write_text(json.dumps(data), encoding="utf-8")
+
+  app = _run_gap_cards_app(corpus, monkeypatch)
+
+  assert not app.exception
+  captions = [caption.value for caption in app.caption]
+  assert text.GAP_L1_MARGINS_NO_HIGH.format(total=6, medium=2) in captions

@@ -1,0 +1,49 @@
+{
+  "51568ee01ca95d71feaffef59445bbf03c605a6913fbfc6e7d28cf400e190528.gap-review-v1": {
+    "audit_basis": null,
+    "bucket": null,
+    "claim": null,
+    "grounds": [],
+    "minimal_study": null,
+    "rejection_class": "pseudo_firstness",
+    "verdict": "reject",
+    "warrant": "Being first to describe heart failure alongside Takotsubo in this Corpus names no question a study would answer."
+  },
+  "cdc563265588bb544c630a20dba8d855fdfd22fa6e6c76956fc30015acfc6289.gap-review-v1": {
+    "audit_basis": {
+      "evidence_ids": [
+        "tako1:research_question[0]",
+        "hf1:study_design[0]"
+      ],
+      "text": "Takotsubo is studied only by retrospective chart reviews; randomized trials in the Corpus study heart failure."
+    },
+    "bucket": "more_probable",
+    "claim": "No Paper in the Corpus tests a Takotsubo treatment in a randomized trial.",
+    "grounds": [
+      "tako1:research_question[0]",
+      "tako2:research_question[0]"
+    ],
+    "minimal_study": "A pilot randomized trial of a beta-blocker against usual care after a Takotsubo episode.",
+    "rejection_class": null,
+    "verdict": "keep",
+    "warrant": "Five Papers study Takotsubo, all retrospectively, while randomized trials appear only for heart failure."
+  },
+  "fc88e85158dd2c022c5433fe07c4cc0bfb213aba012ddd7fbaabf451fd7f3cf4.gap-review-v1": {
+    "audit_basis": {
+      "evidence_ids": [
+        "hf2:research_question[0]"
+      ],
+      "text": "All five heart failure Papers are randomized trials."
+    },
+    "bucket": "least_probable",
+    "claim": "No Paper in the Corpus reviews heart failure retrospectively.",
+    "grounds": [
+      "hf1:research_question[0]",
+      "zz9999:methods[0]"
+    ],
+    "minimal_study": "A retrospective registry review of heart failure admissions.",
+    "rejection_class": null,
+    "verdict": "keep",
+    "warrant": "Heart failure is studied only in trials, but registry reviews of it are common, so the hole may reflect the Corpus's selection."
+  }
+}
