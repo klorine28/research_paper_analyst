@@ -15,8 +15,9 @@ logged and reversible. Copying an approved alias into the shared taxonomy file
 is a separate, deliberate act (`promote_alias`) that keeps the provenance.
 
 Recurring unmapped terms join the same overlay as another provenance kind
-(see `term_promotion`). Other alias sources ADR 0010 names (the Corpus's mapped
-terms, LLM suggestions) are not here yet.
+(see `term_promotion`), as do LLM suggestions for thin categories (see
+`llm_aliases`). The Corpus's mapped original terms, another source ADR 0010
+names, are not here yet.
 """
 
 import json
@@ -54,7 +55,9 @@ MESH_CONTACT = (
 # inject recorded MeSH responses through it.
 JsonFetch = Callable[[str], dict[str, Any] | None]
 
-AliasSource = Literal["mesh_entry_term", "mesh_child_descriptor", "unmapped_term"]
+AliasSource = Literal[
+  "mesh_entry_term", "mesh_child_descriptor", "unmapped_term", "llm_suggestion"
+]
 AliasStatus = Literal["proposed", "approved", "rejected", "promoted"]
 
 # The statuses under which an alias maps phrases for its Corpus.
@@ -74,7 +77,7 @@ class MeshDescriptor(BaseModel):
 
 
 class AliasProvenance(BaseModel):
-  """Where a suggested alias came from: a MeSH descriptor, or the Corpus's Papers."""
+  """Where a suggested alias came from: MeSH, the Corpus's Papers, or an LLM."""
 
   source: AliasSource
   mesh_id: str | None = Field(
@@ -90,6 +93,12 @@ class AliasProvenance(BaseModel):
     default_factory=list,
     description="The Papers whose verified Evidence holds the term, if unmapped.",
   )
+  model: str | None = Field(
+    default=None, description="The model that suggested the phrase, if an LLM."
+  )
+  prompt_version: str | None = Field(
+    default=None, description="The prompt version it answered, if an LLM."
+  )
 
   def describe(self) -> str:
     """Render the provenance as one line for the shared taxonomy file."""
@@ -98,6 +107,8 @@ class AliasProvenance(BaseModel):
         f"unmapped term recurring in {len(self.citation_keys)} Papers "
         f"({', '.join(self.citation_keys)})"
       )
+    if self.source == "llm_suggestion":
+      return f"LLM suggestion ({self.model}, prompt {self.prompt_version})"
     if self.source == "mesh_entry_term":
       return f"MeSH entry term of {self.mesh_id} ({self.mesh_label})"
     return f"MeSH child descriptor {self.mesh_id} ({self.mesh_label}, {self.mesh_tree})"

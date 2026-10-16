@@ -213,6 +213,26 @@ uv run research-gap-dashboard aliases approve-unmapped path/to/corpus topic nerv
   `reject` reverses it (the term is offered again), and `promote` copies it to
   the shared file like any approved alias.
 
+### LLM suggestions for thin categories
+
+A category with fewer than 2 aliases (its shared aliases plus the Corpus's
+approved ones) is **thin**. For those only, a model can be asked for the other
+names the literature uses:
+
+```shell
+uv run research-gap-dashboard aliases suggest-llm path/to/corpus   # needs ANTHROPIC_API_KEY
+```
+
+- One call per thin category, on the cheap tier unless `--tier default`, through
+  the Corpus's LLM cache. A category with LLM suggestions already in the Alias
+  Overlay is never asked again, whatever was decided on them. The command lists
+  the thin categories per axis before calling.
+- A phrase the taxonomy (with approved aliases) already resolves, one offered to
+  two categories, or one the unmapped-term stoplist rejects is dropped.
+- The rest are logged as *proposed*, with the model and prompt version as
+  provenance. Nothing maps until approved with `aliases approve`; `reject` and
+  `promote` work as for any alias.
+
 ## Validating a file
 
 The loader collects every problem it finds and reports them together, so a

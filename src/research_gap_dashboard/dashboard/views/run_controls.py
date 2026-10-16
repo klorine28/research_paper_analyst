@@ -5,7 +5,8 @@ The page renders a button; clicking it runs the stage (or a chain of commands,
 such as a seam command and the stage it feeds) via `pipeline_runner` (a blocking
 subprocess, ADR 0007) and keeps the results in session state across the rerun
 that follows, so the page redraws with the new artifacts while each outcome and
-its captured output stay on screen.
+its captured output stay on screen. After a detect run, the outcome is followed
+by what the run changed since the one before (issue #93).
 
 A run whose estimated cost is above `LLM_COST_CONFIRM_ABOVE` is not launched on
 the first click: the button records it as pending and the next rerun asks the
@@ -15,7 +16,7 @@ in the pipeline panel's collapsed Run details (issue #70).
 """
 
 import os
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import streamlit as st
@@ -24,17 +25,19 @@ from research_gap_dashboard.dashboard import pipeline_runner, text
 from research_gap_dashboard.dashboard.pipeline_runner import RunOutcome, RunResult
 from research_gap_dashboard.dashboard.run_cost import (
   CostConfigError,
+  CostEstimate,
   cost_confirm_threshold,
   estimate_stage_cost,
   needs_confirmation,
 )
+from research_gap_dashboard.dashboard.views.run_changes import render_run_changes
 from research_gap_dashboard.dashboard.views.session_keys import (
   LAST_RUN_KEY,
   PENDING_RUN_KEY,
 )
 
 
-def render_run_button(
+def render_run_button(  # pylint: disable=too-many-arguments
   corpus_root: Path,
   stage: str,
   label: str | None = None,
@@ -42,6 +45,9 @@ def render_run_button(
   args: Sequence[str] = (),
   key: str | None = None,
   primary: bool = True,
+  then: Sequence[str] = (),
+  stage_args: Mapping[str, Sequence[str]] | None = None,
+  estimate: CostEstimate | None = None,
 ) -> None:
   """
   Render a button that runs `stage` on the Corpus, then redraws the page.
@@ -49,14 +55,20 @@ def render_run_button(
   `key` tells apart two buttons for the same stage on one page (e.g. one per
   Corpus, or one per empty chart); it defaults to the stage name. Every button
   goes through the cost confirmation, wherever it sits. `primary=False` draws
-  a quieter button, for one repeated on every card.
+  a quieter button, for one repeated on every card. `then` chains commands
+  after the stage under the same lock, with any options of their own in
+  `stage_args` (detect, then `saturate --auto`). `estimate` replaces the
+  stage's own estimate when the run's size isn't the Corpus's (e.g. a check of
+  every accepted gap).
   """
   label = label or text.run_stage_button(stage)
   button_key = key or f"run-{stage}"
   if render_pending_confirmation(corpus_root, button_key):
     return
   if st.button(label, key=button_key, type="primary" if primary else "secondary"):
-    request_run(corpus_root, [stage], button_key, args)
+    request_run(
+      corpus_root, [stage, *then], button_key, args, stage_args, estimate=estimate
+    )
 
 
 def request_run(
@@ -64,22 +76,28 @@ def request_run(
   stages: Sequence[str],
   button_key: str,
   args: Sequence[str] = (),
+  stage_args: Mapping[str, Sequence[str]] | None = None,
+  *,
+  estimate: CostEstimate | None = None,
 ) -> None:
   """
   Launch a run now, or park it for confirmation if its estimate is too high.
 
   A parked run is shown by `render_pending_confirmation` under the button
-  `button_key` names, on the next rerun.
+  `button_key` names, on the next rerun. `estimate`, when given, is the whole
+  run's estimate and is used instead of each stage's.
   """
-  if any(_must_confirm(corpus_root, stage) for stage in stages):
+  extra = {stage: tuple(options) for stage, options in (stage_args or {}).items()}
+  if any(_must_confirm(corpus_root, stage, estimate) for stage in stages):
     st.session_state[PENDING_RUN_KEY] = (
       str(corpus_root),
       tuple(stages),
       button_key,
       tuple(args),
+      extra,
     )
     st.rerun()
-  _launch(corpus_root, stages, args)
+  _launch(corpus_root, stages, args, extra)
 
 
 def render_pending_confirmation(corpus_root: Path, button_key: str) -> bool:
@@ -87,45 +105,56 @@ def render_pending_confirmation(corpus_root: Path, button_key: str) -> bool:
   pending = st.session_state.get(PENDING_RUN_KEY)
   if pending is None or pending[0] != str(corpus_root) or pending[2] != button_key:
     return False
-  _, stages, _, args = pending
+  _, stages, _, args, stage_args = pending
   st.warning(text.RUN_CONFIRM_PROMPT.format(stage=" \u2192 ".join(stages)))
   confirm, cancel = st.columns(2)
   if confirm.button(
     text.RUN_CONFIRM_BUTTON, key=f"confirm-{button_key}", type="primary"
   ):
     st.session_state.pop(PENDING_RUN_KEY, None)
-    _launch(corpus_root, stages, args)
+    _launch(corpus_root, stages, args, stage_args)
   if cancel.button(text.RUN_CANCEL_BUTTON, key=f"cancel-{button_key}"):
     st.session_state.pop(PENDING_RUN_KEY, None)
     st.rerun()
   return True
 
 
-def _must_confirm(corpus_root: Path, stage: str) -> bool:
+def _must_confirm(
+  corpus_root: Path, stage: str, estimate: CostEstimate | None = None
+) -> bool:
   """
   Whether this run's estimate needs the researcher's confirmation.
 
-  A stage that will be refused for a missing key launches nothing, so it isn't
-  worth confirming. An unreadable threshold is shown and treated as zero, so a
-  misconfiguration asks too often rather than never.
+  Without the API key no LLM call can be billed: a stage that needs the key is
+  refused and launches nothing, and one that only may use the LLM (`saturate`)
+  runs without it. Neither is worth confirming. An unreadable threshold is
+  shown and treated as zero, so a misconfiguration asks too often rather than
+  never.
   """
-  if pipeline_runner.needs_api_key(stage) and not os.environ.get(
-    pipeline_runner.API_KEY_ENV
-  ):
+  if not os.environ.get(pipeline_runner.API_KEY_ENV):
     return False
   try:
     threshold = cost_confirm_threshold()
   except CostConfigError as error:
     st.error(str(error))
     threshold = 0.0
-  return needs_confirmation(estimate_stage_cost(corpus_root, stage), threshold)
+  if estimate is None or estimate.stage != stage:
+    estimate = estimate_stage_cost(corpus_root, stage)
+  return needs_confirmation(estimate, threshold)
 
 
-def _launch(corpus_root: Path, stages: Sequence[str], args: Sequence[str] = ()) -> None:
+def _launch(
+  corpus_root: Path,
+  stages: Sequence[str],
+  args: Sequence[str] = (),
+  stage_args: Mapping[str, Sequence[str]] | None = None,
+) -> None:
   """Run the stages now under one lock, keep their results, and redraw."""
   with st.spinner(text.RUN_IN_PROGRESS.format(stage=" \u2192 ".join(stages))):
     # Looked up on the module at call time so tests can patch the subprocess.
-    results = pipeline_runner.run_stages(corpus_root, stages, args=args)
+    results = pipeline_runner.run_stages(
+      corpus_root, stages, args=args, stage_args=stage_args
+    )
   st.session_state[LAST_RUN_KEY] = (str(corpus_root), results)
   st.rerun()
 
@@ -138,6 +167,16 @@ def render_last_run(corpus_root: Path) -> None:
   results: list[RunResult] = stored[1]
   for result in results:
     _render_result(result)
+  if any(_detect_ran(result) for result in results):
+    render_run_changes(corpus_root)
+
+
+def _detect_ran(result: RunResult) -> bool:
+  """Whether this result is a detect run that wrote its artifact."""
+  return result.stage == "detect" and result.outcome in (
+    RunOutcome.SUCCEEDED,
+    RunOutcome.INCOMPLETE,
+  )
 
 
 def _render_result(result: RunResult) -> None:

@@ -4,8 +4,10 @@ The Pipeline page: every stage's status, with a run or re-run button for each.
 Status (done / not run / stale) comes from `pipeline_status`; the buttons launch
 the stage through `run_controls` (ADR 0007). Cost is kept out of the way, in a
 collapsed "Run details" expander with each LLM stage's estimate and the last
-run's actual cost (issue #70). An Add Papers panel uploads more Papers into an
-ingested Corpus and checks their pairing before re-ingesting (issue #75).
+run's actual cost (issue #70). Running detect here also runs the automatic
+saturation checks after it (`saturate --auto`, issue #89). An Add Papers panel
+uploads more Papers into an ingested Corpus and checks their pairing before
+re-ingesting (issue #75).
 """
 
 from pathlib import Path
@@ -35,6 +37,11 @@ from research_gap_dashboard.dashboard.views.run_controls import (
 
 # A stale stage names this many of its newer inputs before summarising the rest.
 _NEWER_INPUTS_SHOWN = 3
+
+# Detect is followed, under the same lock, by the automatic saturation checks
+# of its high-confidence gaps (ADR 0009 §5); detect itself never searches.
+_CHAINED_AFTER: dict[str, tuple[str, ...]] = {"detect": ("saturate",)}
+_CHAINED_ARGS: dict[str, tuple[str, ...]] = {"saturate": ("--auto",)}
 
 
 def render_page(chosen: CorpusChoice) -> None:
@@ -68,7 +75,15 @@ def _render_stage(corpus_root: Path, status: StageStatus) -> None:
       if status.state == StageState.NOT_RUN
       else text.RERUN_STAGE_BUTTON
     )
-    render_run_button(corpus_root, status.stage, template.format(stage=status.stage))
+    if status.stage in _CHAINED_AFTER:
+      st.caption(text.PIPELINE_AUTO_SATURATE_NOTE)
+    render_run_button(
+      corpus_root,
+      status.stage,
+      template.format(stage=status.stage),
+      then=_CHAINED_AFTER.get(status.stage, ()),
+      stage_args=_CHAINED_ARGS,
+    )
 
 
 def _newer_inputs(inputs: list[str]) -> str:

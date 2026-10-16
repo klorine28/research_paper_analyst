@@ -11,6 +11,7 @@ lists gaps the same way.
 
 from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -35,7 +36,12 @@ from research_gap_dashboard.dashboard.evidence_context import (
   EvidenceExpander,
   ExpandedEvidence,
 )
-from research_gap_dashboard.dashboard.judgments import Decision, JudgmentLog
+from research_gap_dashboard.dashboard.judgments import (
+  Decision,
+  GapKey,
+  JudgmentLog,
+  gap_key,
+)
 from research_gap_dashboard.dashboard.suggestions import (
   SuggestedPapersRecord,
   Suggestion,
@@ -137,6 +143,7 @@ class SaturationView(BaseModel):
   badge: str
   summary: str = ""
   checked_on: str = ""
+  checked_at: datetime | None = None
   screening_method: str = ""
   searches: list[SaturationSearchView] = []
   hits: list[SaturationHitView] = []
@@ -162,6 +169,9 @@ class GapCard(BaseModel):
   """
 
   gap_id: str
+  # What a verdict on this card is saved under: the gap id for a cell gap, the
+  # verbatim source statements for an Unanswered Limitation (ADR 0010 §5).
+  key: GapKey
   gap_type: str
   gap_type_label: str
   title: str
@@ -461,6 +471,7 @@ def _saturation(
     status=latest.status,
     badge=_badge(latest),
     summary=latest.status_reason,
+    checked_at=latest.checked_at,
     checked_on=latest.checked_at.strftime("%Y-%m-%d %H:%M"),
     screening_method=latest.screening_method,
     searches=[
@@ -521,6 +532,7 @@ def _card(  # pylint: disable=too-many-arguments,too-many-positional-arguments
   """Assemble one display card from an artifact record and its judgment."""
   return GapCard(
     gap_id=record.gap_id,
+    key=gap_key(record),
     gap_type=record.gap_type,
     gap_type_label=text.GAP_TYPE_LABELS.get(record.gap_type, record.gap_type),
     title=record.title,
@@ -664,7 +676,6 @@ def build_gap_cards(  # pylint: disable=too-many-arguments
     suggested=suggested or SuggestedPapersRecord(),
     overlaps=retrieval_overlaps(retrieval),
   )
-  decided = judgments.by_gap_id()
   expander = EvidenceExpander(corpus_root)
   checks_by_gap: dict[str, list[SaturationCheckRecord]] = {}
   for check in (saturation or SaturationChecksArtifact()).checks:
@@ -672,7 +683,7 @@ def build_gap_cards(  # pylint: disable=too-many-arguments
   cards = [
     _card(
       record,
-      decided[record.gap_id].decision if record.gap_id in decided else None,
+      _decision(judgments, record),
       expander,
       artifact.matrices,
       checks_by_gap.get(record.gap_id, []),
@@ -686,6 +697,12 @@ def build_gap_cards(  # pylint: disable=too-many-arguments
     corpus_paper_count=artifact.corpus_paper_count,
     l1_smallest_margins=(margins.high, margins.medium) if margins else None,
   )
+
+
+def _decision(judgments: JudgmentLog, record: CandidateGapRecord) -> Status:
+  """Return the verdict that applies to a card, if one does."""
+  verdict = judgments.verdict_for(gap_key(record))
+  return verdict.decision if verdict is not None else None
 
 
 # The triage filter's names for a card's judgment state; "undecided" stands for a
@@ -704,14 +721,17 @@ def filter_gap_cards(
   statuses: Collection[StatusFilter] = STATUS_FILTERS,
   gap_types: Collection[str] | None = None,
   confidence_levels: Collection[str] | None = None,
+  *,
+  possibly_addressed_only: bool = False,
 ) -> FilteredGapCards:
   """
   Keep the cards matching every filter, in artifact order, counting the rest.
 
   Filters combine with AND: a card shows only when its status, its Gap Type and
-  its confidence level are all selected. `None` means no filter on that facet.
-  The hidden count is what lets the page always say how many gaps the filters
-  keep out of view.
+  its confidence level are all selected, and, with `possibly_addressed_only`,
+  when its latest wider-literature check found possibly closing work (ADR 0009
+  §14). `None` means no filter on that facet. The hidden count is what lets
+  the page always say how many gaps the filters keep out of view.
   """
   cards = [
     card
@@ -719,8 +739,56 @@ def filter_gap_cards(
     if _status_filter(card) in statuses
     and (gap_types is None or card.gap_type in gap_types)
     and (confidence_levels is None or card.confidence in confidence_levels)
+    and (not possibly_addressed_only or is_possibly_addressed(card))
   ]
   return FilteredGapCards(cards=cards, total_count=data.gap_count)
+
+
+def is_possibly_addressed(card: GapCard) -> bool:
+  """Whether the card's latest wider-literature check found possibly closing work."""
+  return card.saturation.status == "possibly_addressed"
+
+
+# Mirrors the pipeline's saturate.CHECK_FRESHNESS; restated, not imported (ADR
+# 0002). "Check all accepted" does not search again for a gap checked within it.
+CHECK_FRESHNESS = timedelta(days=30)
+
+
+class AcceptedCheckPlan(BaseModel):
+  """What "check all accepted" would do now: which gaps it searches, which not."""
+
+  to_check: list[str]
+  fresh: list[str]
+
+  @property
+  def accepted_count(self) -> int:
+    """How many accepted gaps can be checked at all."""
+    return len(self.to_check) + len(self.fresh)
+
+
+def plan_accepted_checks(data: GapCardsData, now: datetime) -> AcceptedCheckPlan:
+  """
+  Split the accepted, checkable gaps into those to search and those still fresh.
+
+  A gap's latest check is fresh when it ran (it is not "not run") within
+  `CHECK_FRESHNESS` of `now`; the pipeline applies the same rule, and the page
+  uses the count of gaps to search to estimate the run's cost.
+  """
+  to_check: list[str] = []
+  fresh: list[str] = []
+  for card in data.cards:
+    if card.status != "accepted" or not card.saturation.checkable:
+      continue
+    checked_at = card.saturation.checked_at
+    if (
+      checked_at is not None
+      and card.saturation.status != "not_run"
+      and now - checked_at <= CHECK_FRESHNESS
+    ):
+      fresh.append(card.gap_id)
+    else:
+      to_check.append(card.gap_id)
+  return AcceptedCheckPlan(to_check=to_check, fresh=fresh)
 
 
 def next_undecided_gap_id(cards: Sequence[GapCard], current: str | None) -> str | None:

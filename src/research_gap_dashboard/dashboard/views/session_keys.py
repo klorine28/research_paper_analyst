@@ -21,6 +21,8 @@ EXPLAINER_PAPER_KEY = "explainer_paper_key"
 GAP_FILTER_STATUS_KEY = "gap_filter_status"
 GAP_FILTER_TYPE_KEY = "gap_filter_type"
 GAP_FOCUS_KEY = "gap_focus_id"
+# The "possibly addressed only" filter of the gap list (issue #90).
+GAP_FILTER_POSSIBLY_ADDRESSED_KEY = "gap_filter_possibly_addressed"
 # The Gap Cards confidence filter keeps its choice here rather than only under its
 # widget key: Streamlit drops a widget's state once a run doesn't render it, so
 # without this copy the filter would reset whenever the researcher left the page
@@ -67,3 +69,8 @@ SUGGESTION_OUTCOME_KEY = "suggestion_outcome"
 # step under PENDING_STEP_KEY and the shell opens that step's first page
 # (issue #76).
 PENDING_STEP_KEY = "pending_nav_step"
+# The (corpus root, step) whose visit was last written to the resume point, so the
+# shell writes it only when the Corpus or step shown changes (issue #83). A new
+# session lacks the picker key, which is how the shell knows to reopen the
+# Corpus last worked on.
+RESUME_RECORDED_KEY = "resume_recorded_visit"

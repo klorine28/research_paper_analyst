@@ -18,6 +18,8 @@ from research_gap_dashboard.aggregate import (
 from research_gap_dashboard import cli
 from research_gap_dashboard.cli import EXIT_ERROR, EXIT_OK, main
 from research_gap_dashboard.detect import (
+  CANDIDATE_GAPS_NAME,
+  PREVIOUS_CANDIDATE_GAPS_NAME,
   CandidateGapsReport,
   CellGap,
   L1Margins,
@@ -38,6 +40,7 @@ from research_gap_dashboard.limitations import (
   FOLLOW_UP_PROMPT_VERSION,
   GROUP_PROMPT_VERSION,
 )
+from research_gap_dashboard.sources import OpenAlexAdapter, PubMedAdapter
 from research_gap_dashboard.taxonomy import Axis
 
 Placements = dict[str, list[tuple[Axis, str]]]
@@ -415,6 +418,24 @@ def test_cli_detect_writes_the_artifact(tmp_path: Path, monkeypatch) -> None:
 
   assert main(["detect", str(root)]) == EXIT_OK
   assert (root / "artifacts" / "candidate_gaps.json").is_file()
+
+
+def test_cli_detect_makes_no_literature_search_calls(
+  tmp_path: Path, monkeypatch
+) -> None:
+  """Saturation checks run after detect, never inside it (ADR 0009 §5)."""
+  root = _write_corpus(tmp_path, _PLACEMENTS)
+  monkeypatch.setattr(cli, "build_llm_client", lambda **_: StubLlmClient({}))
+
+  def _no_search(*_args: Any, **_kwargs: Any) -> Any:
+    raise AssertionError("detect must not search the wider literature")
+
+  monkeypatch.setattr(cli, "_build_search_sources", _no_search)
+  monkeypatch.setattr(OpenAlexAdapter, "search", _no_search)
+  monkeypatch.setattr(PubMedAdapter, "search", _no_search)
+
+  assert main(["detect", str(root)]) == EXIT_OK
+  assert not (root / "artifacts" / "saturation_checks.json").exists()
 
 
 def test_cli_detect_records_the_run_llm_usage(tmp_path: Path, monkeypatch) -> None:
@@ -873,3 +894,38 @@ def test_without_a_hierarchy_the_roll_up_is_a_no_op(tmp_path: Path) -> None:
   cells = [gap for gap in report.gaps if isinstance(gap, CellGap)]
   assert all(len(gap.trail) == 1 and not gap.rejected for gap in cells)
   assert _gap(report, "topicxmethod:takotsubo:rct").confidence == "medium"
+
+
+def test_a_re_run_keeps_the_previous_artifact_for_the_change_summary(
+  tmp_path: Path,
+) -> None:
+  """Re-running detect keeps the artifact it replaces, written time and all."""
+  root = _write_corpus(tmp_path, _PLACEMENTS)
+  artifacts = root / "artifacts"
+  _detect(root)
+  first = (artifacts / CANDIDATE_GAPS_NAME).read_bytes()
+  first_mtime = (artifacts / CANDIDATE_GAPS_NAME).stat().st_mtime_ns
+
+  _detect(root)
+
+  previous = artifacts / PREVIOUS_CANDIDATE_GAPS_NAME
+  assert previous.read_bytes() == first
+  assert previous.stat().st_mtime_ns == first_mtime
+
+
+def test_a_first_run_leaves_no_previous_artifact(tmp_path: Path) -> None:
+  """With nothing to replace, there is no previous run to compare against."""
+  root = _write_corpus(tmp_path, _PLACEMENTS)
+
+  _detect(root)
+
+  assert not (root / "artifacts" / PREVIOUS_CANDIDATE_GAPS_NAME).exists()
+
+
+def test_the_artifact_lists_the_corpus_papers_it_ran_over(tmp_path: Path) -> None:
+  """The Corpus's Paper keys are recorded, so a later run can name new Papers."""
+  root = _write_corpus(tmp_path, _PLACEMENTS)
+
+  report = _detect(root)
+
+  assert report.paper_citation_keys == sorted(_PLACEMENTS)

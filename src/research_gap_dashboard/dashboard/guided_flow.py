@@ -7,14 +7,18 @@ issue #76). This module says which steps are complete and which one the home
 screen recommends next, from what is on disk only: the scope record, the
 pipeline status (existence + mtime, ADR 0007), the fallout the attention report
 finds, and the researcher's gap verdicts. It never blocks anything; free
-navigation stays, and the soft Trust gate is a separate concern.
+navigation stays, and the soft Trust gate (`dashboard.trust_gate`) is a separate
+concern. This module only names the steps the gate guards, and lets an
+acknowledged denominator move the recommendation past Trust.
 
 Step completion, step by step:
 
 - Scope: a scope statement is recorded.
 - Build: every core stage (the ones Candidate Gaps depend on) is done, not
   stale. `explain` and `retrieve` feed single pages and do not hold Build back.
-- Trust: every Paper reached the artifact with fully verified facts.
+- Trust: every Paper reached the artifact with fully verified facts. An
+  acknowledged denominator opens the gate but does not tick Trust: the Corpus
+  is still incomplete.
 - Explore: judging has started (any verdict recorded); the map comes first.
 - Judge: every Candidate Gap has a verdict.
 - Grow: the optional retrieve stage is done.
@@ -35,11 +39,12 @@ from research_gap_dashboard.dashboard.artifacts import (
 )
 from research_gap_dashboard.dashboard.attention import build_attention
 from research_gap_dashboard.dashboard.corpus_scope import has_scope
-from research_gap_dashboard.dashboard.judgments import load_judgments
+from research_gap_dashboard.dashboard.judgments import gap_key, load_judgments
 from research_gap_dashboard.dashboard.pipeline_status import (
   StageState,
   build_pipeline_status,
 )
+from research_gap_dashboard.dashboard.trust_gate import build_trust_gate
 
 
 class Step(StrEnum):
@@ -63,6 +68,11 @@ PHASES: tuple[tuple[str, tuple[Step, ...]], ...] = (
   ("analyse", (Step.EXPLORE, Step.JUDGE)),
   ("extend", (Step.GROW, Step.WRITE)),
 )
+
+# The steps the soft Trust gate locks until the Corpus is complete or its
+# denominator is acknowledged (issue #77). Scope, Build and Trust stay open:
+# they are where fallout gets fixed.
+GATED_STEPS: tuple[Step, ...] = (Step.EXPLORE, Step.JUDGE, Step.GROW, Step.WRITE)
 
 # The stages Candidate Gaps are built from; Build is done when all of them are.
 CORE_STAGES = ("ingest", "parse", "extract", "aggregate", "detect")
@@ -107,23 +117,24 @@ def build_flow_progress(corpus_root: Path) -> FlowProgress:
   """Read a Corpus's place on the guided path from its files on disk."""
   stages = {status.stage: status.state for status in build_pipeline_status(corpus_root)}
   banner = build_attention(corpus_root).banner
-  gap_ids = (
-    [gap.gap_id for gap in load_candidate_gaps(corpus_root).gaps]
+  gap_keys = (
+    [gap_key(gap) for gap in load_candidate_gaps(corpus_root).gaps]
     if has_candidate_gaps(corpus_root)
     else []
   )
-  verdicts = load_judgments(corpus_root).by_gap_id()
-  decisions = [verdicts[gap_id].decision for gap_id in gap_ids if gap_id in verdicts]
+  log = load_judgments(corpus_root)
+  verdicts = [log.verdict_for(key) for key in gap_keys]
+  decisions = [verdict.decision for verdict in verdicts if verdict is not None]
   health = CorpusHealth(
     total_papers=banner.total_papers,
     reached_papers=banner.reached_artifact,
     attention_papers=banner.missing_papers + banner.papers_with_dropped_facts,
     stages_done=sum(1 for state in stages.values() if state == StageState.DONE),
     stages_total=len(stages),
-    gap_count=len(gap_ids),
+    gap_count=len(gap_keys),
     accepted=decisions.count("accepted"),
     rejected=decisions.count("rejected"),
-    undecided=len(gap_ids) - len(decisions),
+    undecided=len(gap_keys) - len(decisions),
   )
   done = {
     Step.SCOPE: has_scope(corpus_root),
@@ -134,7 +145,8 @@ def build_flow_progress(corpus_root: Path) -> FlowProgress:
     Step.GROW: stages[_GROW_STAGE] == StageState.DONE,
     Step.WRITE: False,
   }
-  recommended, reason = _recommend(done, stages, health)
+  acknowledged = build_trust_gate(corpus_root).state == "acknowledged"
+  recommended, reason = _recommend(done, stages, health, acknowledged=acknowledged)
   return FlowProgress(
     completed=[step for step in STEPS if done[step]],
     recommended=recommended,
@@ -144,7 +156,11 @@ def build_flow_progress(corpus_root: Path) -> FlowProgress:
 
 
 def _recommend(
-  done: dict[Step, bool], stages: dict[str, StageState], health: CorpusHealth
+  done: dict[Step, bool],
+  stages: dict[str, StageState],
+  health: CorpusHealth,
+  *,
+  acknowledged: bool,
 ) -> tuple[Step, str]:
   """Pick the first step that still needs work; Grow is optional, never picked."""
   if not done[Step.SCOPE]:
@@ -154,14 +170,21 @@ def _recommend(
       return Step.BUILD, text.RECOMMEND_BUILD_NOT_RUN.format(stage=stage)
     if stages[stage] == StageState.STALE:
       return Step.BUILD, text.RECOMMEND_BUILD_STALE.format(stage=stage)
-  if not done[Step.TRUST]:
+  if not done[Step.TRUST] and not acknowledged:
     return Step.TRUST, text.RECOMMEND_TRUST.format(
       reached=health.reached_papers,
       total=health.total_papers,
       attention=health.attention_papers,
     )
   if not done[Step.EXPLORE]:
-    return Step.EXPLORE, text.RECOMMEND_EXPLORE.format(gaps=health.gap_count)
+    reason = (
+      text.RECOMMEND_EXPLORE_ACKNOWLEDGED if acknowledged else text.RECOMMEND_EXPLORE
+    )
+    return Step.EXPLORE, reason.format(
+      gaps=health.gap_count,
+      reached=health.reached_papers,
+      total=health.total_papers,
+    )
   if health.undecided:
     return Step.JUDGE, text.RECOMMEND_JUDGE.format(
       undecided=health.undecided, gaps=health.gap_count

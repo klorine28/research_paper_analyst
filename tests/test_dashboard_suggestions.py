@@ -24,6 +24,7 @@ from test_saturate import FILLED_GAP, FIXTURE, _check
 
 import research_gap_dashboard.dashboard as dashboard_pkg
 from research_gap_dashboard.dashboard import pipeline_runner, text
+from research_gap_dashboard.dashboard.trust_gate import acknowledge_denominator
 from research_gap_dashboard.dashboard.artifacts import (
   RetrievalGapsArtifact,
   load_candidate_gaps,
@@ -304,6 +305,9 @@ def test_a_hit_is_added_from_its_gap_card(
   saturation_corpus: Path, fake_cli: _FakeCli, monkeypatch: pytest.MonkeyPatch
 ):
   """The card's hit picker offers the same Grow path, as a saturation route."""
+  # The fixture's Papers have no Extractions, so the Trust gate (#77) would lock
+  # the Judge step; acknowledge the denominator as a researcher would.
+  acknowledge_denominator(saturation_corpus)
   monkeypatch.setenv("RESEARCH_GAP_CORPORA_DIR", str(saturation_corpus.parent))
   app_path = Path(dashboard_pkg.__file__).parent / "app.py"
   app = AppTest.from_file(str(app_path), default_timeout=30).run()

@@ -5,6 +5,7 @@ A card's wider-literature hits can be added to the Corpus through the shared
 Grow path; a hit that is also a Retrieval Gap candidate says so (#91).
 """
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import streamlit as st
@@ -33,12 +34,14 @@ from research_gap_dashboard.dashboard.gaps import (
   build_gap_cards,
   filter_gap_cards,
   next_undecided_gap_id,
+  plan_accepted_checks,
 )
 from research_gap_dashboard.dashboard.judgments import (
   clear_judgment,
   load_judgments,
   record_judgment,
 )
+from research_gap_dashboard.dashboard.run_cost import estimate_gap_checks_cost
 from research_gap_dashboard.dashboard.suggestions import load_suggested_papers
 from research_gap_dashboard.dashboard.views.run_controls import (
   render_last_run,
@@ -51,6 +54,7 @@ from research_gap_dashboard.dashboard.views.session_keys import (
   COMPARISON_PAPERS_KEY,
   DISCUSS_GAP_KEY,
   EXPLAINER_PAPER_KEY,
+  GAP_FILTER_POSSIBLY_ADDRESSED_KEY,
   GAP_FILTER_STATUS_KEY,
   GAP_FILTER_TYPE_KEY,
   GAP_FOCUS_KEY,
@@ -106,6 +110,7 @@ def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
       undecided=data.undecided_count,
     )
   )
+  _render_check_all_accepted(data, corpus_root)
   _render_l1_margins(data)
   shown = _render_filters(data)
   if not shown.cards:
@@ -123,6 +128,33 @@ def render_gap_cards(data: GapCardsData, corpus_root: Path) -> None:
     _render_gap_card(card, corpus_root)
 
 
+def _render_check_all_accepted(data: GapCardsData, corpus_root: Path) -> None:
+  """
+  Offer to check every accepted gap against the wider literature (ADR 0009 §2).
+
+  Gaps checked within the freshness window keep their result, so the button
+  counts, and the cost estimate covers, only the gaps it would search. The run
+  goes through the usual cost confirmation.
+  """
+  plan = plan_accepted_checks(data, datetime.now(UTC))
+  if not plan.accepted_count:
+    return
+  if plan.to_check:
+    render_run_button(
+      corpus_root,
+      "saturate",
+      text.GAP_CHECK_ALL_ACCEPTED_BUTTON.format(count=len(plan.to_check)),
+      args=["--accepted"],
+      key="saturate-accepted",
+      primary=False,
+      estimate=estimate_gap_checks_cost(corpus_root, len(plan.to_check)),
+    )
+    if plan.fresh:
+      st.caption(text.GAP_CHECK_ALL_ACCEPTED_FRESH.format(count=len(plan.fresh)))
+  else:
+    st.caption(text.GAP_CHECK_ALL_ACCEPTED_NONE_DUE)
+
+
 def _render_l1_margins(data: GapCardsData) -> None:
   """State the smallest category sizes that can rank High at this Corpus size."""
   if data.l1_smallest_margins is None:
@@ -136,8 +168,19 @@ def _render_l1_margins(data: GapCardsData) -> None:
 
 
 def _render_filters(data: GapCardsData) -> FilteredGapCards:
-  """Render the confidence, status and Gap Type filters; return what they keep."""
+  """
+  Render the gap list's filters; return what they keep.
+
+  Confidence, then "possibly addressed only" beside it (ADR 0009 §14), then
+  status and Gap Type. The page always says how many gaps the filters hide, and
+  how many of those the "possibly addressed" filter alone hides.
+  """
   levels = _confidence_filter()
+  possibly_addressed_only = st.toggle(
+    text.GAP_FILTER_POSSIBLY_ADDRESSED_LABEL,
+    help=text.GAP_FILTER_POSSIBLY_ADDRESSED_HELP,
+    key=GAP_FILTER_POSSIBLY_ADDRESSED_KEY,
+  )
   gap_types = list(dict.fromkeys(card.gap_type for card in data.cards))
   status_col, type_col = st.columns(2)
   statuses = status_col.multiselect(
@@ -159,12 +202,25 @@ def _render_filters(data: GapCardsData) -> FilteredGapCards:
     statuses=statuses,
     gap_types=selected_types,
     confidence_levels=levels,
+    possibly_addressed_only=possibly_addressed_only,
   )
   st.caption(
     text.GAP_FILTER_SUMMARY.format(
       shown=len(shown.cards), total=data.gap_count, hidden=shown.hidden_count
     )
   )
+  if possibly_addressed_only:
+    without = filter_gap_cards(
+      data,
+      statuses=statuses,
+      gap_types=selected_types,
+      confidence_levels=levels,
+    )
+    st.caption(
+      text.GAP_FILTER_POSSIBLY_ADDRESSED_HIDDEN.format(
+        hidden=without.shown_count - shown.shown_count
+      )
+    )
   return shown
 
 
@@ -451,17 +507,17 @@ def _render_controls(card: GapCard, corpus_root: Path) -> None:
   if accept_col.button(
     text.GAP_ACCEPT_BUTTON, key=f"accept-{card.gap_id}", width="stretch"
   ):
-    record_judgment(corpus_root, card.gap_id, "accepted")
+    record_judgment(corpus_root, card.key, "accepted", title=card.title)
     st.rerun()
   if reject_col.button(
     text.GAP_REJECT_BUTTON, key=f"reject-{card.gap_id}", width="stretch"
   ):
-    record_judgment(corpus_root, card.gap_id, "rejected")
+    record_judgment(corpus_root, card.key, "rejected", title=card.title)
     st.rerun()
   if clear_col.button(
     text.GAP_CLEAR_BUTTON, key=f"clear-{card.gap_id}", width="stretch"
   ):
-    clear_judgment(corpus_root, card.gap_id)
+    clear_judgment(corpus_root, card.key)
     st.rerun()
 
   _render_paper_links(card)

@@ -8,6 +8,7 @@ it knows where everything lives.
 <corpus>/
   corpus.bib          # the paper list: a BibTeX file, or dois.txt (one DOI per line)
   scope.json          # the scope statement: question, field, what was searched
+  entry_log.json      # how and when each Paper entered, and suggested papers marked unavailable
   suggested_papers.json  # suggested Papers added, pending or unavailable (Grow path)
   papers/             # the Papers' PDFs, and nothing else
   paper-data/         # per-Paper derived data (parsed sections, Extractions, LLM cache)
@@ -31,6 +32,16 @@ it knows where everything lives.
   Corpus is created from its "New analysis" form (or added later to an older
   Corpus) and shows it on every page. It is a Corpus input, like the paper
   list (ADR 0007), not an artifact.
+- **The entry log sits next to the scope.** `entry_log.json` records each
+  Paper's entry route (imported, added by upload, from a retrieval suggestion,
+  from a saturation check) and date, plus suggested papers marked unavailable
+  (ADR 0010 §4). The dashboard writes it when it places a paper list (the
+  initial import before the first ingest, "added by upload" after) and when a
+  suggestion is added or marked unavailable. A manifest Paper the log has never
+  seen is recorded as imported, dated by the manifest, the first time the
+  dashboard opens the Corpus, so older Corpora get a complete log. The
+  Overview shows the route summary and timeline; the scope line on every page
+  and the exported scope statement disclose the unavailable papers.
 - **A Corpus holds 10–75 Papers.** The envelope is enforced by ingest, not by
   the layout check.
   `ingest --check` reports the pairing and the envelope without writing the
@@ -53,6 +64,7 @@ it knows where everything lives.
 | `artifacts/extractions.json` | `extract` | Each Paper's eight Extraction fields (including the one plain-words study design), every fact with its verified Evidence passage, plus rejected Papers |
 | `artifacts/normalized_facts.json` | `aggregate` | Each Paper's phrases mapped onto the Topic, Method, Population, and Dataset taxonomies (axis, original term, category, source fact, Evidence), plus unmapped terms and Method-axis phrases that are "not a study design" (see `docs/taxonomy.md`) |
 | `artifacts/candidate_gaps.json` | `detect` | The Coverage Matrices (Topic × Topic, × Method, × Population, × Dataset), every limitation group with its follow-ups, and one card per Knowledge Gap, Coverage Gap, or Unanswered Limitation (see below) |
+| `artifacts/candidate_gaps.previous.json` | `detect` | The `candidate_gaps.json` the latest run replaced, with its modification time kept: the baseline of the "changed since last run" summary and the date that tells which artifact older gap verdicts were made on |
 
 ### Candidate Gaps
 
@@ -60,6 +72,14 @@ it knows where everything lives.
 Matrix detection makes no LLM call and is fully deterministic; limitation
 grouping needs the Anthropic API key and goes through the disk cache, so a
 rerun over the same artifacts gives the same `candidate_gaps.json`.
+
+A gap verdict in `judgments/gap_judgments.json` follows a Knowledge or Coverage
+Gap by its `gap_id` (the cell), and an Unanswered Limitation by its verbatim
+source statements (citation key and quoted passage), because a re-run may
+renumber, split or merge limitation groups (ADR 0010 §5). Verdicts saved by
+group id alone are migrated once, on first read, against the artifact that was
+on screen when they were made; one that no artifact on disk dates is reported
+as orphaned instead of being guessed onto a reused group id.
 
 #### Knowledge and Coverage Gaps
 
