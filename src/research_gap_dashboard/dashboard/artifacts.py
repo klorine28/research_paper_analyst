@@ -108,6 +108,17 @@ class LayerStepRecord(_ReadModel):
   reason: str = ""
 
 
+class BridgeRecord(_ReadModel):
+  """One category bridging a cell gap's two sides, as the dashboard reads it."""
+
+  axis: str
+  category_id: str
+  label: str = ""
+  row_link_count: int = 0
+  column_link_count: int = 0
+  weight: float = 0.0
+
+
 class CandidateGapRecord(_ReadModel):
   """One Candidate Gap card, projected onto what the Gap Cards view shows."""
 
@@ -120,6 +131,8 @@ class CandidateGapRecord(_ReadModel):
   corpus_paper_count: int
   # Cell gaps: each layer's verdict in order; empty in pre-trail artifacts.
   trail: list[LayerStepRecord] = []
+  # Cell gaps: bridging categories, strongest first; empty before bridges.
+  bridges: list[BridgeRecord] = []
   # Cell gaps: the L1 ranking score; None in pre-L1 artifacts.
   l1_probability: float | None = None
   cell_count: int | None = None
@@ -134,8 +147,13 @@ class CandidateGapRecord(_ReadModel):
   column_label: str = ""
   row_paper_count: int = 0
   column_paper_count: int = 0
+  # Cell gaps: the limitation groups that corroborate the cell (two witnesses);
+  # empty when none does, and in artifacts written before the layer.
+  corroborating_group_ids: list[str] = []
   # Unanswered Limitations only: how many later Papers were checked.
   later_paper_count: int = 0
+  # Unanswered Limitations only: the group's limitation type, if tagged.
+  bucket: str | None = None
 
 
 class MatrixCategoryRecord(_ReadModel):

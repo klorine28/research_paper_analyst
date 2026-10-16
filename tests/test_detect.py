@@ -1,6 +1,7 @@
 """Behavior of the detect stage: artifacts in, Candidate Gap cards out."""
 
 import json
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,7 @@ from research_gap_dashboard.ingest import CorpusManifest, Paper
 from research_gap_dashboard.limitations import (
   FOLLOW_UP_PROMPT_VERSION,
   GROUP_PROMPT_VERSION,
+  TAG_PROMPT_VERSION,
 )
 from research_gap_dashboard.sources import OpenAlexAdapter, PubMedAdapter
 from research_gap_dashboard.taxonomy import Axis
@@ -71,6 +73,10 @@ _LABELS = {
   "cardiomyopathies": "Cardiomyopathies",
   "dilated": "Dilated Cardiomyopathy",
   "cohort": "Cohort Studies",
+  "female": "Female",
+  "humans": "Humans",
+  "stroke": "Stroke",
+  "registry": "Registries",
 }
 
 
@@ -478,6 +484,7 @@ class RoutedLlmClient:  # pylint: disable=too-few-public-methods
   def __init__(self, scripts: dict[str, list[dict[str, Any]]]):
     self.scripts = scripts
     self.calls: dict[str, int] = {version: 0 for version in scripts}
+    self.tiers: dict[str, str] = {}
 
   def complete(  # pylint: disable=unused-argument
     self,
@@ -488,10 +495,12 @@ class RoutedLlmClient:  # pylint: disable=too-few-public-methods
     tier: str = "default",
     refresh: bool = False,
   ) -> dict[str, Any]:
-    """Return the next scripted result for this prompt version."""
-    script = self.scripts[prompt_version]
-    result = script[min(self.calls[prompt_version], len(script) - 1)]
-    self.calls[prompt_version] += 1
+    """Return the next scripted result for this prompt version ({} if unscripted)."""
+    script = self.scripts.get(prompt_version, [{}])
+    calls = self.calls.get(prompt_version, 0)
+    result = script[min(calls, len(script) - 1)]
+    self.calls[prompt_version] = calls + 1
+    self.tiers[prompt_version] = tier
     return result
 
 
@@ -759,7 +768,8 @@ def test_bracketed_ids_copied_from_the_prompt_still_resolve(tmp_path: Path) -> N
   groups = {g.label: g for g in report.limitation_groups}
   sample = groups["Small sample size"]
   assert sample.source_citation_keys == ["early1", "early2"]
-  assert sample.notes == []
+  # The only note is that the (unscripted) tagging call left the group untagged.
+  assert all("tagged" in note for note in sample.notes)
   assert [f.fact_id for f in sample.follow_ups] == ["later1:methods[0]"]
 
 
@@ -929,3 +939,306 @@ def test_the_artifact_lists_the_corpus_papers_it_ran_over(tmp_path: Path) -> Non
   report = _detect(root)
 
   assert report.paper_citation_keys == sorted(_PLACEMENTS)
+
+
+# The bridges layer (ADR 0008). Takotsubo and RCTs never meet, but Aged and
+# Female each link both through two Papers: exactly two bridges. Humans is on
+# every Paper (near-universal), so it never bridges; Aged, on 6 of 10, does.
+# Stroke meets Aged through two Papers but Female through only s1: Stroke x
+# RCT has exactly one bridge. Four heart-failure Papers fill the Corpus out.
+# Female has fewer neighbours than Aged (s2 adds Registries to Aged's), so it
+# is the stronger bridge by Adamic-Adar weight.
+_BRIDGES: Placements = {
+  "a1": [
+    ("topic", "takotsubo"),
+    ("population", "aged"),
+    ("population", "female"),
+    ("population", "humans"),
+  ],
+  "a2": [
+    ("topic", "takotsubo"),
+    ("population", "aged"),
+    ("population", "female"),
+    ("population", "humans"),
+  ],
+  "b1": [
+    ("method", "rct"),
+    ("population", "aged"),
+    ("population", "female"),
+    ("population", "humans"),
+  ],
+  "b2": [
+    ("method", "rct"),
+    ("population", "aged"),
+    ("population", "female"),
+    ("population", "humans"),
+  ],
+  "s1": [
+    ("topic", "stroke"),
+    ("population", "aged"),
+    ("population", "female"),
+    ("population", "humans"),
+  ],
+  "s2": [
+    ("topic", "stroke"),
+    ("population", "aged"),
+    ("population", "humans"),
+    ("dataset", "registry"),
+  ],
+  **{
+    f"f{index}": [("topic", "heart-failure"), ("population", "humans")]
+    for index in range(1, 5)
+  },
+}
+
+
+def _bridges_report(tmp_path: Path, placements: Placements = _BRIDGES, **kw: Any):
+  """Detect over the bridges Corpus."""
+  return _detect(_write_corpus(tmp_path, placements, **kw))
+
+
+def test_exactly_two_bridges_raise_one_level(tmp_path: Path) -> None:
+  """Two categories each linked to both sides by two Papers raise the cell."""
+  gap = _gap(_bridges_report(tmp_path), "topicxmethod:takotsubo:rct")
+
+  assert [(s.layer, s.effect, s.level_after) for s in gap.trail] == [
+    ("l1", "start", "low"),
+    ("bridges", "raise", "medium"),
+  ]
+  assert gap.confidence == "medium"
+  assert {b.category_id for b in gap.bridges} == {"aged", "female"}
+  assert "Aged" in gap.trail[-1].reason
+  assert "Female" in gap.trail[-1].reason
+
+
+def test_one_bridge_does_not_raise(tmp_path: Path) -> None:
+  """A single bridge is stored and noted, but the level stays."""
+  gap = _gap(_bridges_report(tmp_path), "topicxmethod:stroke:rct")
+
+  assert [b.category_id for b in gap.bridges] == ["aged"]
+  assert gap.confidence == gap.trail[0].level_after
+  assert gap.trail[-1].layer == "bridges"
+  assert gap.trail[-1].effect == "none"
+
+
+def test_a_link_backed_by_one_paper_is_not_a_bridge(tmp_path: Path) -> None:
+  """Female meets Stroke in s1 only, so it does not bridge Stroke x RCT."""
+  gap = _gap(_bridges_report(tmp_path), "topicxmethod:stroke:rct")
+
+  assert "female" not in {b.category_id for b in gap.bridges}
+
+
+def test_a_near_universal_category_never_bridges(tmp_path: Path) -> None:
+  """Humans is on every Paper and links both sides twice, yet never bridges."""
+  report = _bridges_report(tmp_path)
+
+  cells = [gap for gap in report.gaps if isinstance(gap, CellGap)]
+  assert cells
+  assert all("humans" not in {b.category_id for b in g.bridges} for g in cells)
+
+
+def test_bridges_are_ordered_strongest_first(tmp_path: Path) -> None:
+  """Adamic-Adar: the bridge with fewer neighbours weighs more and comes first."""
+  gap = _gap(_bridges_report(tmp_path), "topicxmethod:takotsubo:rct")
+
+  assert [b.category_id for b in gap.bridges] == ["female", "aged"]
+  female, aged = gap.bridges
+  assert female.weight == pytest.approx(1 / math.log(5))
+  assert aged.weight == pytest.approx(1 / math.log(6))
+  assert (female.row_link_count, female.column_link_count) == (2, 2)
+
+
+@pytest.mark.parametrize(
+  "parents",
+  [
+    {"topic": {"takotsubo": "cardiomyopathies"}},
+    {"topic": {"cardiomyopathies": "takotsubo"}},
+  ],
+  ids=["ancestor", "descendant"],
+)
+def test_a_side_s_ancestor_or_descendant_never_bridges(
+  tmp_path: Path, parents: dict[Axis, dict[str, str]]
+) -> None:
+  """A broader or narrower Takotsubo category links both sides but is excluded."""
+  placements = {
+    key: [*value, ("topic", "cardiomyopathies")] if key[0] in "ab" else value
+    for key, value in _BRIDGES.items()
+  }
+  report = _bridges_report(tmp_path, placements, parents=parents)
+
+  gap = _gap(report, "topicxmethod:takotsubo:rct")
+  assert {b.category_id for b in gap.bridges} == {"aged", "female"}
+
+
+def test_a_cell_without_bridges_gets_no_bridges_step(tmp_path: Path) -> None:
+  """No qualifying bridge: the trail says nothing for this layer."""
+  gap = _gap(
+    _detect(_write_corpus(tmp_path, _PLACEMENTS)), "topicxmethod:takotsubo:rct"
+  )
+
+  assert gap.bridges == []
+  assert "bridges" not in [step.layer for step in gap.trail]
+
+
+# Two witnesses. Three Papers of unknown year state one limitation each, so no
+# follow-up call is made; each statement forms its own group, numbered in
+# statement order: group 01 from p01, 02 from p02, 03 from p03.
+_WITNESS_EXTRACTIONS = [
+  Extraction(
+    citation_key=key,
+    fields=ExtractionFields(limitations=[_fact(statement, statement.lower())]),
+  )
+  for key, statement in (
+    ("p01", "No randomized trial exists."),
+    ("p02", "The sample was small."),
+    ("p03", "Older patients were not studied."),
+  )
+]
+_WITNESS_GROUPING = {
+  "groups": [
+    {"label": "No randomized trial", "statement_ids": ["p01:limitations[0]"]},
+    {"label": "Small sample", "statement_ids": ["p02:limitations[0]"]},
+    {"label": "Older patients", "statement_ids": ["p03:limitations[0]"]},
+  ]
+}
+
+
+def _tags(*tags: tuple[str, str, list[str]]) -> dict[str, Any]:
+  """Script the tagging call: (group number, bucket, category ids) per group."""
+  return {
+    "tags": [
+      {"group_id": f"limitation-group-{n}", "bucket": b, "category_ids": ids}
+      for n, b, ids in tags
+    ]
+  }
+
+
+def _witness_detect(tmp_path: Path, tags: dict[str, Any]) -> CandidateGapsReport:
+  """Run detect over `_PLACEMENTS` with the witness limitations and these tags."""
+  client = RoutedLlmClient(
+    {GROUP_PROMPT_VERSION: [_WITNESS_GROUPING], TAG_PROMPT_VERSION: [tags]}
+  )
+  root = _write_corpus(tmp_path, _PLACEMENTS, extractions=_WITNESS_EXTRACTIONS)
+  return detect_corpus(root, client)
+
+
+def _baseline(tmp_path: Path) -> CandidateGapsReport:
+  """Run detect over `_PLACEMENTS` with no limitation at all."""
+  return _detect(_write_corpus(tmp_path / "baseline", _PLACEMENTS))
+
+
+_UP = {"low": "medium", "medium": "high", "high": "high"}
+
+
+def test_a_group_naming_one_side_and_the_other_axis_raises_one_level(
+  tmp_path: Path,
+) -> None:
+  """A study-design limitation about Takotsubo corroborates Takotsubo x RCT."""
+  report = _witness_detect(tmp_path, _tags(("01", "study_design", ["topic:takotsubo"])))
+
+  before = _gap(_baseline(tmp_path), "topicxmethod:takotsubo:rct")
+  gap = _gap(report, "topicxmethod:takotsubo:rct")
+  assert gap.confidence == _UP[before.confidence]
+  assert gap.corroborating_group_ids == ["limitation-group-01"]
+  step = gap.trail[-1]
+  assert (step.layer, step.effect) == ("two_witness", "raise")
+  assert "also flagged by authors" in step.reason
+  assert "No randomized trial" in step.reason
+
+
+def test_a_group_naming_both_categories_corroborates(tmp_path: Path) -> None:
+  """A group tagged with both of a cell's categories corroborates it."""
+  report = _witness_detect(
+    tmp_path, _tags(("03", "other", ["topic:takotsubo", "population:aged"]))
+  )
+
+  before = _gap(_baseline(tmp_path), "topicxpopulation:takotsubo:aged")
+  gap = _gap(report, "topicxpopulation:takotsubo:aged")
+  assert gap.confidence == _UP[before.confidence]
+  assert gap.corroborating_group_ids == ["limitation-group-03"]
+
+
+@pytest.mark.parametrize("bucket", ["sample_size", "analysis"])
+def test_a_generic_bucket_never_corroborates(tmp_path: Path, bucket: str) -> None:
+  """A sample-size or analysis limitation leaves every level where it was."""
+  report = _witness_detect(tmp_path, _tags(("02", bucket, ["topic:takotsubo"])))
+
+  baseline = {g.gap_id: g.confidence for g in _baseline(tmp_path).gaps}
+  for gap in report.gaps:
+    if isinstance(gap, CellGap):
+      assert gap.confidence == baseline[gap.gap_id], gap.gap_id
+      assert gap.corroborating_group_ids == []
+
+
+def test_an_unmentioned_cell_keeps_its_level(tmp_path: Path) -> None:
+  """Absence of a witness changes nothing; Tier 3 says nobody mentions it."""
+  report = _witness_detect(tmp_path, _tags(("01", "study_design", ["topic:takotsubo"])))
+
+  before = _gap(_baseline(tmp_path), "topicxtopic:heart-failure:takotsubo")
+  gap = _gap(report, "topicxtopic:heart-failure:takotsubo")
+  assert gap.confidence == before.confidence
+  assert gap.corroborating_group_ids == []
+  assert gap.trail[-1].effect == "none"
+  assert all(step.effect != "lower" for step in gap.trail)
+
+
+def test_unknown_category_ids_from_the_model_are_dropped_and_noted(
+  tmp_path: Path,
+) -> None:
+  """An invented category id never tags a group, and the group says so."""
+  report = _witness_detect(
+    tmp_path,
+    _tags(
+      ("01", "study_design", ["topic:ghost", "[topic:takotsubo]"]),
+      ("99", "population", ["population:aged"]),
+    ),
+  )
+
+  group = {g.group_id: g for g in report.limitation_groups}["limitation-group-01"]
+  assert [(c.axis, c.category_id) for c in group.categories] == [("topic", "takotsubo")]
+  assert any("topic:ghost" in note for note in group.notes)
+  assert any("limitation-group-99" in note for note in report.limitation_tagging_notes)
+
+
+def test_unanswered_limitation_cards_show_their_bucket(tmp_path: Path) -> None:
+  """Each Unanswered Limitation card carries its group's limitation type."""
+  report = _witness_detect(
+    tmp_path,
+    _tags(("01", "study_design", []), ("02", "sample_size", [])),
+  )
+
+  buckets = {g.title: g.bucket for g in _limitation_gaps(report)}
+  assert buckets == {
+    "No randomized trial": "study_design",
+    "Small sample": "sample_size",
+    "Older patients": None,
+  }
+
+
+def test_tagging_is_one_cheap_call_recorded_in_the_artifact(tmp_path: Path) -> None:
+  """Every group is tagged in one cheap-tier call, versioned in provenance."""
+  client = RoutedLlmClient(
+    {
+      GROUP_PROMPT_VERSION: [_WITNESS_GROUPING],
+      TAG_PROMPT_VERSION: [_tags(("01", "other", []))],
+    }
+  )
+  root = _write_corpus(tmp_path, _PLACEMENTS, extractions=_WITNESS_EXTRACTIONS)
+
+  report = detect_corpus(root, client)
+
+  assert client.calls[TAG_PROMPT_VERSION] == 1
+  assert client.tiers[TAG_PROMPT_VERSION] == "cheap"
+  assert TAG_PROMPT_VERSION in report.limitation_prompt_versions
+  assert report.limitation_tag_tier == "cheap"
+
+
+def test_without_limitations_no_tagging_call_is_made(tmp_path: Path) -> None:
+  """A Corpus stating no limitation adds no two-witness step and no call."""
+  client = RoutedLlmClient({})
+  report = detect_corpus(_write_corpus(tmp_path, _PLACEMENTS), client)
+
+  assert TAG_PROMPT_VERSION not in client.calls
+  for gap in report.gaps:
+    assert isinstance(gap, CellGap)
+    assert all(step.layer != "two_witness" for step in gap.trail)
