@@ -46,6 +46,11 @@ from research_gap_dashboard.dashboard.artifacts import (
   PaperRecord,
 )
 from research_gap_dashboard.dashboard.limitations import LimitationsData
+from research_gap_dashboard.dashboard.overview import (
+  PREVIEW_BARS,
+  MiniBar,
+  build_mini_bar,
+)
 
 # The layout seed is fixed so the same Corpus always draws the same graph: a
 # reproducible figure is an honesty requirement, not a convenience.
@@ -834,9 +839,17 @@ def _add_node_trace(
 
 
 # The three follow-up buckets, in the order the segmented bar stacks them: taken
-# up, still open after a check (the gap signal), and not yet checkable.
-_LIMITATION_ADDRESSED_COLOR = "#2ca02c"
-_LIMITATION_NO_LATER_COLOR = "#9aa0a6"
+# up, still open after a check (the gap signal), and not yet checkable. The
+# good/bad split is blue/vermillion (Okabe-Ito, darkened) rather than red/green,
+# the most common colour-vision confusion. Each fill reaches 3:1 against white and
+# the three differ by at least 10 in CIE L*, so they separate in grayscale too;
+# each count label is coloured to reach 4.5:1 on its own segment.
+_LIMITATION_ADDRESSED_COLOR = "#00497a"
+_LIMITATION_OPEN_COLOR = "#d55e00"
+_LIMITATION_NO_LATER_COLOR = "#666666"
+_LIMITATION_ADDRESSED_LABEL_COLOR = "#ffffff"
+_LIMITATION_OPEN_LABEL_COLOR = "#000000"
+_LIMITATION_NO_LATER_LABEL_COLOR = "#ffffff"
 
 
 def build_limitation_bar_figure(view: LimitationFollowUpView) -> go.Figure:
@@ -852,20 +865,23 @@ def build_limitation_bar_figure(view: LimitationFollowUpView) -> go.Figure:
       text.META_LIMITATION_ADDRESSED_LABEL,
       view.addressed_count,
       _LIMITATION_ADDRESSED_COLOR,
+      _LIMITATION_ADDRESSED_LABEL_COLOR,
     ),
     (
       text.META_LIMITATION_OPEN_LABEL,
       view.open_checked_count,
-      text.META_ISOLATED_COLOR,
+      _LIMITATION_OPEN_COLOR,
+      _LIMITATION_OPEN_LABEL_COLOR,
     ),
     (
       text.META_LIMITATION_NO_LATER_LABEL,
       view.no_later_count,
       _LIMITATION_NO_LATER_COLOR,
+      _LIMITATION_NO_LATER_LABEL_COLOR,
     ),
   ]
   figure = go.Figure()
-  for label, count, colour in segments:
+  for label, count, colour, label_colour in segments:
     figure.add_trace(
       go.Bar(
         y=[text.META_LIMITATION_BAR_ROW],
@@ -876,6 +892,7 @@ def build_limitation_bar_figure(view: LimitationFollowUpView) -> go.Figure:
         text=[str(count) if count else ""],
         textposition="inside",
         insidetextanchor="middle",
+        insidetextfont={"color": label_colour},
         hovertemplate=f"{label}: %{{x}}<extra></extra>",
       )
     )
@@ -888,3 +905,38 @@ def build_limitation_bar_figure(view: LimitationFollowUpView) -> go.Figure:
     legend={"orientation": "h", "y": -0.3},
   )
   return figure
+
+
+def limitation_bar_text_summary(view: LimitationFollowUpView) -> str:
+  """State the limitation bar in words: its denominator and each segment's share."""
+  total = view.total or 1
+
+  def share(count: int) -> int:
+    return round(100 * count / total)
+
+  return text.META_LIMITATION_SUMMARY.format(
+    total=view.total,
+    addressed=view.addressed_count,
+    addressed_pct=share(view.addressed_count),
+    open=view.open_checked_count,
+    open_pct=share(view.open_checked_count),
+    no_later=view.no_later_count,
+    no_later_pct=share(view.no_later_count),
+  )
+
+
+def author_preview_bar(table: AuthorCollaborationTable) -> MiniBar | None:
+  """Build the authors tile's bar thumbnail, or None when no author is listed."""
+  rows = table.rows[:PREVIEW_BARS]
+  if not rows:
+    return None
+  labels = [row.author for row in rows]
+  values = [row.paper_count for row in rows]
+  return build_mini_bar(
+    labels,
+    values,
+    text.MINI_BAR_ALT_AUTHORS,
+    shown=len(rows),
+    authors=table.total_authors,
+    papers=table.papers_with_authors,
+  )

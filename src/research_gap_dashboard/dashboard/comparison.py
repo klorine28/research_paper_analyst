@@ -43,6 +43,9 @@ MIN_SELECTION = 2
 MAX_DIRECT = 5
 MAX_SELECTION = 15
 CHUNK_SIZE = MAX_DIRECT
+# Field-by-field columns past this many per row become too narrow to read (UI
+# audit H8), so wider comparisons wrap onto further rows of the same width.
+MAX_COLUMNS = 3
 
 # The four Coverage Matrix axes, in display order, with their human labels.
 AXIS_LABELS: dict[str, str] = {
@@ -192,6 +195,19 @@ def comparison_preselection(
   in_corpus = set(corpus_keys)
   distinct = [key for key in dict.fromkeys(wanted) if key in in_corpus]
   return distinct[:MAX_SELECTION]
+
+
+def field_rows[T](units: Sequence[T], max_columns: int = MAX_COLUMNS) -> list[list[T]]:
+  """
+  Wrap compared units into rows of at most `max_columns`, in order.
+
+  Every row is laid out at the full row's width, so a 5-Paper comparison reads
+  as three columns then two, not five slivers.
+  """
+  return [
+    list(units[start : start + max_columns])
+    for start in range(0, len(units), max_columns)
+  ]
 
 
 def chunk_selection(

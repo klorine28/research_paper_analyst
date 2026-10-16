@@ -322,6 +322,45 @@ PREVIEW_VENUES = "{count} venues \u00b7 top: {top} ({n})"
 PREVIEW_AXES = "{count} {axis} categories \u00b7 top: {top} ({n})"
 PREVIEW_FACTS = "{facts} facts \u00b7 mean {mean:.1f}/paper"
 
+# Text alternatives for the bar thumbnails (chart audit C7). The thumbnails hide
+# their category axis, so each summary names every bar with its count and
+# states what the bars were counted over. ``{bars}`` is filled by bar_listing.
+MINI_BAR_ALT_PAPERS_YEAR = (
+  "Bar chart of Papers per publication year, over all {total} Papers in the "
+  "Corpus: {bars}."
+)
+MINI_BAR_ALT_VENUES = (
+  "Bar chart of the top {shown} of {venues} venues by Paper count, over the "
+  "{total} Papers in the Corpus: {bars}."
+)
+MINI_BAR_ALT_AXIS = (
+  "Bar chart of the top {shown} of {categories} {axis} categories by Paper "
+  "count, over the {placed} of {total} Papers placed on the {axis} axis (a "
+  "Paper can sit in several categories): {bars}."
+)
+MINI_BAR_ALT_FACTS = (
+  "Bar chart of verified facts per Paper for the top {shown} of {papers} "
+  "extracted Papers ({facts} facts in all): {bars}."
+)
+MINI_BAR_ALT_AUTHORS = (
+  "Bar chart of the top {shown} of {authors} authors by Paper count, over the "
+  "{papers} Papers in the Corpus that list authors: {bars}."
+)
+
+
+def bar_listing(labels: list[str], values: list[int], *, numbered: bool) -> str:
+  """
+  Name every bar with its count, in chart order, for a text alternative.
+
+  When numbered, each name is prefixed with its bar's number, the key for a thumbnail
+  whose ticks are numbers because the names are too long to print under it.
+  """
+  return "; ".join(
+    f"{index}. {label} ({value})" if numbered else f"{label} ({value})"
+    for index, (label, value) in enumerate(zip(labels, values, strict=True), 1)
+  )
+
+
 PAPERS_PER_YEAR_EXPLAINER = (
   "**What it answers:** When were the Papers in this Corpus published?\n\n"
   "**How to read it:** Each bar is one year; its height is how many Papers "
@@ -681,9 +720,29 @@ TRENDS_STATUS_SUFFIX = {
   "abandoned": " (abandoned)",
   "steady": "",
 }
+TRENDS_STATUS_LABEL = {
+  "emerging": "Emerging",
+  "abandoned": "Abandoned",
+  "steady": "Steady",
+}
+TRENDS_CAPPED = (
+  "Showing {shown} of {total} Topics as lines; the other {tabled} are listed in "
+  "the table below."
+)
+TRENDS_COL_TOPIC = "Topic"
+TRENDS_COL_PAPERS = "Papers with a year"
+TRENDS_COL_FIRST_YEAR = "First year"
+TRENDS_COL_LAST_YEAR = "Last year"
+TRENDS_COL_STATUS = "Trend"
 TRENDS_DENOMINATOR = (
   "Lines are built from the {with_year} of {total} Papers in the Corpus that "
   "carry a publication year."
+)
+TRENDS_ALT = (
+  "Line chart of Papers per year for {shown} of {topics} Topics, {span}, "
+  "counted over the {with_year} of {total} Papers in the Corpus that carry a "
+  "publication year. Most-covered Topic: {top} ({top_total} Papers). "
+  "{emerging} emerging and {abandoned} abandoned Topic(s)."
 )
 TRENDS_MISSING_YEAR = (
   "{without_year} Paper(s) carry no publication year and are not on the timeline."
@@ -701,7 +760,9 @@ TRENDS_EXPLAINER = (
   "**How to read it:** Each line is a Topic; the x-axis is the year and the "
   "y-axis is how many Papers covered it that year. Bold solid lines are "
   "*emerging* Topics (they first appear in the recent half of the span); bold "
-  "dashed lines are *abandoned* Topics (no Paper since then).\n\n"
+  "dashed lines are *abandoned* Topics (no Paper since then). Each line has "
+  "its own colour and marker; past seven lines, emerging and abandoned Topics "
+  "keep their lines and the least-covered steady Topics move to a table.\n\n"
   "**What a gap looks like here:** An abandoned Topic may hold an unanswered "
   "question; an emerging one shows where the field is moving.\n\n"
   "**Caveat:** Built only from Papers with a known year (denominator below)."
@@ -742,7 +803,9 @@ META_NEIGHBOR_LEGEND = "Neighbour"
 META_FADED_LEGEND = "Other"
 META_CONNECTED_COLOR = "#2c7fb8"
 META_ISOLATED_COLOR = "#d62728"
-META_SELECTED_COLOR = "#e6a817"
+# Darkened amber: reaches 3:1 on white while staying at least 10 CIE L* from the
+# connected blue and isolated red, so the transient highlight survives grayscale.
+META_SELECTED_COLOR = "#c98714"
 META_CLICK_HINT = (
   "Click a node to highlight it and its neighbours; click empty space to clear. "
   "The data table below is the non-interactive way to read the same links."
@@ -882,9 +945,10 @@ META_LIMITATION_NO_LATER_LABEL = "No later Paper to check yet"
 META_LIMITATION_BAR_ROW = "Limitation groups"
 META_LIMITATION_BAR_X = "Number of limitation groups"
 META_LIMITATION_SUMMARY = (
-  "Of {total} limitation group(s): {addressed} addressed by a later Paper, "
-  "{open} still open after later Papers were checked, and {no_later} with no "
-  "later Paper in the Corpus to check yet."
+  "Segmented bar of the {total} limitation group(s) flagged across this "
+  "Corpus's Papers: {addressed} ({addressed_pct}%) addressed by a later Paper, "
+  "{open} ({open_pct}%) still open after later Papers were checked, and "
+  "{no_later} ({no_later_pct}%) with no later Paper in the Corpus to check yet."
 )
 META_LIMITATION_TOP_ADDRESSED = "Most-addressed limitations:"
 META_LIMITATION_TOP_ROW = "\u2022 {label} \u2014 {count} follow-up(s)"
@@ -1026,6 +1090,22 @@ EXPLAINER_METADATA_YEAR_PART = " \u00b7 {year}"
 EXPLAINER_DOI_LABEL = "DOI: {doi}"
 EXPLAINER_DOMAIN_HEADING = "In domain language"
 EXPLAINER_LAY_HEADING = "In plain language"
+EXPLAINER_PROVENANCE = "Generated by {details}."
+
+# Provenance of LLM-generated text (UI audit I7): the model, prompt version, and
+# cache status, read from the artifact that holds the text.
+PROVENANCE_MODEL = "{model} ({tier} tier)"
+PROVENANCE_MODEL_UNRECORDED = "an unrecorded model ({tier} tier)"
+PROVENANCE_MODEL_AND_TIER_UNRECORDED = "an unrecorded model"
+PROVENANCE_PROMPT = "prompt {version}"
+PROVENANCE_PROMPT_UNRECORDED = "prompt version not recorded"
+PROVENANCE_CACHED = "served from the LLM cache"
+PROVENANCE_FRESH = "fresh completion"
+PROVENANCE_CACHE_UNRECORDED = "cache status not recorded"
+PROVENANCE_STAGE_CACHE = (
+  "{cached} of {total} completions in its last run served from the LLM cache"
+)
+PROVENANCE_SEPARATOR = " \u00b7 "
 
 # Paper Comparison page. The researcher picks 2-15 Papers and sees them side by
 # side, field by field, with agreements and blind spots grounded in the shared
@@ -1066,6 +1146,12 @@ COMPARISON_NO_BLIND_SPOTS = (
   "The selection covers every category this Corpus studies on these axes."
 )
 COMPARISON_BLIND_SPOT_AXIS = "{axis}: {labels}"
+COMPARISON_PROVENANCE_EXTRACT = "Statements from the extract stage: {details}."
+COMPARISON_PROVENANCE_AGGREGATE = "Categories from the aggregate stage: {details}."
+COMPARISON_PROVENANCE_NOTE = (
+  "The comparison itself makes no LLM call: set summaries are mechanical "
+  "rollups of these statements and categories."
+)
 
 # Conversational Analytics page. A chat and a narrative summary, both grounded in
 # the Corpus and citing only its Papers (CONTEXT.md > Conversational Analytics;
