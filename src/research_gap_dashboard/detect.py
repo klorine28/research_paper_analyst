@@ -44,13 +44,22 @@ The bridges layer then looks for categories, on any axis, that each link both
 sides of a surviving cell through at least two Papers; two or more raise it one
 level. Each card stores its bridges, strongest (Adamic-Adar) first.
 
+Two witnesses come last: after grouping, every limitation group is tagged
+(one cached cheap-tier call) with a limitation type and the observed
+categories it concerns, and a cell is corroborated when one group names both
+its categories, or one of them plus a type routed to the other's axis
+(`BUCKET_AXES`). Corroboration raises one level and records the groups; the
+layer is boost-only, so a cell no author mentions keeps its level and only
+says so. Generic types (sample size, follow-up, analysis, other) corroborate
+nothing.
+
 When an `Embedder` is injected, cross-Paper limitation pairs whose embeddings
 are close are passed to grouping as merge hints, and the embedding model id,
 revision, threshold, and every hint are recorded in the artifact; without one
 (the `embeddings` extra absent) grouping runs LLM-only.
 
-Matrix detection is deterministic and makes no LLM call; categories, cells,
-and gaps are sorted, so the same NormalizedFacts artifact always yields the
+Matrix detection is deterministic and makes no LLM call of its own; categories,
+cells, and gaps are sorted, so the same NormalizedFacts artifact always yields the
 same cards. Limitation grouping needs the LLM, through the cached client
 (ADR 0001), so a rerun over the same Extractions yields the same groups. Every
 card links to Evidence from Papers in the Corpus manifest only
@@ -60,6 +69,8 @@ A re-run first moves the artifact it replaces to `candidate_gaps.previous.json`,
 keeping its modification time, so the dashboard can say what changed since the
 last run and tell which artifact a researcher's older verdicts were made on.
 """
+
+# pylint: disable=too-many-lines
 
 import logging
 import math
@@ -87,11 +98,14 @@ from research_gap_dashboard.ingest import read_manifest
 from research_gap_dashboard.limitations import (
   FOLLOW_UP_PROMPT_VERSION,
   GROUP_PROMPT_VERSION,
+  TAG_PROMPT_VERSION,
+  LimitationBucket,
   LimitationGroup,
   MergeHint,
   collect_statements,
   group_limitations,
   merge_hints,
+  tag_limitations,
 )
 from research_gap_dashboard.llm import LlmClient, ModelTier
 from research_gap_dashboard.taxonomy import AXES, Axis
@@ -129,6 +143,24 @@ BRIDGE_MIN_COUNT = 2
 # A category on at least this share of the Corpus's Papers links everything,
 # so it never bridges (e.g. "humans").
 NEAR_UNIVERSAL_SHARE = Fraction(9, 10)
+# ADR 0008 two witnesses: author-stated limitations corroborating a cell.
+TWO_WITNESS_LAYER = "two_witness"
+# The tier limitation tagging runs on: one batched, low-stakes call.
+TAG_TIER: ModelTier = "cheap"
+
+# The axis each limitation type can corroborate (spec #112); None for the
+# generic types, which never corroborate a specific cell.
+BUCKET_AXES: dict[LimitationBucket, Axis | None] = {
+  "study_design": "method",
+  "population": "population",
+  "setting_data": "dataset",
+  "measurement": "topic",
+  "open_question": "topic",
+  "sample_size": None,
+  "follow_up": None,
+  "analysis": None,
+  "other": None,
+}
 
 _LEVELS: tuple[Confidence, ...] = ("low", "medium", "high")
 
@@ -222,6 +254,22 @@ _TEXT: dict[str, str] = {
     "least {min_links} Papers ({bridges}); {min_count} are needed to raise it."
   ),
   "bridge": "{label} ({axis}; {row_count} and {column_count} Papers)",
+  "witness_raise": (
+    "Raised one level, also flagged by authors: limitation group(s) {groups} "
+    "stated in the Corpus point at this combination."
+  ),
+  "witness_ceiling": (
+    "Already at the highest level; also flagged by authors: limitation "
+    "group(s) {groups} stated in the Corpus point at this combination."
+  ),
+  "witness_related": (
+    "No change: limitation group(s) {groups} concern one side of this combination only."
+  ),
+  "witness_none": (
+    "No change: no author in the Corpus states a limitation pointing at this "
+    "combination."
+  ),
+  "witness_group": "{group_id} ({label})",
   "limitation": (
     "Candidate Unanswered Limitation: {source_count} Paper(s) in the Corpus "
     "({papers}) state this limitation or open question, and none of the "
@@ -347,6 +395,10 @@ class CellGap(BaseModel):
     default_factory=list,
     description="Bridging categories, strongest first; empty before bridges.",
   )
+  corroborating_group_ids: list[str] = Field(
+    default_factory=list,
+    description="Limitation groups that corroborate this cell (two witnesses).",
+  )
 
   @property
   def rejected(self) -> bool:
@@ -406,6 +458,9 @@ class UnansweredLimitationGap(BaseModel):
   later_paper_count: int = Field(description="Later Papers checked for a follow-up.")
   corpus_paper_count: int = Field(description="The denominator: Papers extracted.")
   evidence: list[StatementEvidence] = Field(min_length=1)
+  bucket: LimitationBucket | None = Field(
+    default=None, description="The group's limitation type; None if untagged."
+  )
 
 
 CandidateGap = Annotated[
@@ -458,6 +513,12 @@ class CandidateGapsReport(BaseModel):
     default=None, description="Cosine at or above which a pair became a hint."
   )
   limitation_merge_hints: list[MergeHint] = Field(default_factory=list)
+  limitation_tag_tier: ModelTier | None = Field(
+    default=None, description="The tier groups were tagged on; None if untagged."
+  )
+  limitation_tagging_notes: list[str] = Field(
+    default_factory=list, description="Tags dropped for naming no known group."
+  )
   matrices: list[CoverageMatrix]
   limitation_groups: list[LimitationGroup]
   gaps: list[CandidateGap]
@@ -565,7 +626,7 @@ def detect_corpus(  # pylint: disable=too-many-locals
   hierarchy: dict[Axis, dict[str, str]] = {
     axis: normalized.parents(axis) for axis in AXES
   }
-  matrices, gaps = _matrix_gaps(papers, hierarchy)
+  matrices, cell_gaps = _matrix_gaps(papers, hierarchy)
 
   hints = (
     merge_hints(collect_statements(extractions), embedder, merge_threshold)
@@ -579,6 +640,11 @@ def detect_corpus(  # pylint: disable=too-many-locals
     tier=tier,
     hints=hints,
   )
+  groups, tagging_notes = tag_limitations(
+    groups, _observed_labels(papers), client, tier=TAG_TIER
+  )
+  gaps: list[CandidateGap] = []
+  gaps.extend(_two_witnesses(gap, groups) if groups else gap for gap in cell_gaps)
   gaps.extend(
     _limitation_gap(group, len(extractions)) for group in groups if not group.addressed
   )
@@ -591,7 +657,11 @@ def detect_corpus(  # pylint: disable=too-many-locals
     candidate_rule=_TEXT["candidate_rule"],
     l1_smallest_margins=l1_smallest_margins(len(papers)),
     normalized_prompt_version=normalized.prompt_version,
-    limitation_prompt_versions=[GROUP_PROMPT_VERSION, FOLLOW_UP_PROMPT_VERSION],
+    limitation_prompt_versions=[
+      GROUP_PROMPT_VERSION,
+      FOLLOW_UP_PROMPT_VERSION,
+      TAG_PROMPT_VERSION,
+    ],
     tier=tier,
     excluded_citation_keys=excluded,
     embedding=(
@@ -601,6 +671,8 @@ def detect_corpus(  # pylint: disable=too-many-locals
     ),
     limitation_merge_threshold=merge_threshold if embedder is not None else None,
     limitation_merge_hints=hints,
+    limitation_tag_tier=TAG_TIER if groups else None,
+    limitation_tagging_notes=tagging_notes,
     matrices=matrices,
     limitation_groups=groups,
     gaps=gaps,
@@ -617,12 +689,12 @@ def detect_corpus(  # pylint: disable=too-many-locals
 
 def _matrix_gaps(
   papers: list[NormalizedFacts], hierarchy: dict[Axis, dict[str, str]]
-) -> tuple[list[CoverageMatrix], list[CandidateGap]]:
+) -> tuple[list[CoverageMatrix], list[CellGap]]:
   """Build every Coverage Matrix, card each candidate cell (L1), then layer it."""
   roll_up = _RollUp(papers, hierarchy)
   bridges = _Bridges(papers, roll_up.ancestors)
   matrices: list[CoverageMatrix] = []
-  gaps: list[CandidateGap] = []
+  gaps: list[CellGap] = []
   for row_axis, column_axis, gap_type in MATRIX_SPECS:
     matrix = build_matrix(papers, row_axis, column_axis)
     matrices.append(matrix)
@@ -1062,6 +1134,94 @@ def _bridges_step(level: Confidence, found: list[Bridge]) -> LayerStep:
   )
 
 
+def _observed_labels(papers: list[NormalizedFacts]) -> dict[tuple[Axis, str], str]:
+  """Map every category any Paper was placed on, per axis, to its label."""
+  return {
+    (axis, category.category_id): category.label
+    for axis in AXES
+    for category in _observed_categories(papers, axis)
+  }
+
+
+def _two_witnesses(gap: CellGap, groups: list[LimitationGroup]) -> CellGap:
+  """
+  Apply the two-witness layer (ADR 0008): corroborate, never penalise.
+
+  A group witnesses the cell when it names both categories, or one of them
+  plus a limitation type routed to the other category's axis. A rejected
+  candidate is left as it is: no boost can undo a rejection.
+  """
+  if gap.rejected:
+    return gap
+  level = gap.trail[-1].level_after
+  sides: tuple[tuple[Axis, str], tuple[Axis, str]] = (
+    (gap.row_axis, gap.row_id),
+    (gap.column_axis, gap.column_id),
+  )
+  witnesses: list[LimitationGroup] = []
+  related: list[LimitationGroup] = []
+  for group in groups:
+    kind = _witness_kind(group, sides)
+    if kind == "witness":
+      witnesses.append(group)
+    elif kind == "related":
+      related.append(group)
+  if witnesses:
+    raised = _LEVELS[min(_LEVELS.index(level) + 1, len(_LEVELS) - 1)]
+    step = LayerStep(
+      layer=TWO_WITNESS_LAYER,
+      effect="raise" if raised != level else "none",
+      level_after=raised,
+      reason=_TEXT["witness_raise" if raised != level else "witness_ceiling"].format(
+        groups=_group_names(witnesses)
+      ),
+    )
+  elif related:
+    step = LayerStep(
+      layer=TWO_WITNESS_LAYER,
+      effect="none",
+      level_after=level,
+      reason=_TEXT["witness_related"].format(groups=_group_names(related)),
+    )
+  else:
+    step = LayerStep(
+      layer=TWO_WITNESS_LAYER,
+      effect="none",
+      level_after=level,
+      reason=_TEXT["witness_none"],
+    )
+  return gap.model_copy(
+    update={
+      "trail": [*gap.trail, step],
+      "confidence": step.level_after,
+      "corroborating_group_ids": [group.group_id for group in witnesses],
+    }
+  )
+
+
+def _witness_kind(
+  group: LimitationGroup, sides: tuple[tuple[Axis, str], tuple[Axis, str]]
+) -> Literal["witness", "related"] | None:
+  """Say whether a group witnesses a cell, concerns one side only, or neither."""
+  named = {(c.axis, c.category_id) for c in group.categories}
+  routed = BUCKET_AXES[group.bucket] if group.bucket is not None else None
+  (first, second) = sides
+  if first in named and second in named:
+    return "witness"
+  if first in named or second in named:
+    other = second if first in named else first
+    return "witness" if routed == other[0] else "related"
+  return None
+
+
+def _group_names(groups: list[LimitationGroup]) -> str:
+  """Name the limitation groups a two-witness reason cites."""
+  return "; ".join(
+    _TEXT["witness_group"].format(group_id=group.group_id, label=group.label)
+    for group in groups
+  )
+
+
 def _sides(gap: CellGap) -> tuple[tuple[Axis, str, Axis, str, str], ...]:
   """Each side of a cell as (axis, id, other axis, other id, other label)."""
   return (
@@ -1162,6 +1322,7 @@ def _limitation_gap(group: LimitationGroup, total: int) -> UnansweredLimitationG
     source_citation_keys=sources,
     later_paper_count=later,
     corpus_paper_count=total,
+    bucket=group.bucket,
     evidence=[
       StatementEvidence(
         citation_key=statement.citation_key,

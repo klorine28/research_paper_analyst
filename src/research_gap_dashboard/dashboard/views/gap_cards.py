@@ -305,6 +305,12 @@ def _render_headline(card: GapCard) -> None:
     + _card_status_label(card)
   )
   st.write(card.why)
+  if card.flagged_by_authors:
+    st.caption(
+      text.GAP_FLAGGED_BY_AUTHORS.format(groups="; ".join(card.flagged_by_authors))
+    )
+  if card.bucket_label:
+    st.caption(text.GAP_LIMITATION_BUCKET.format(bucket=card.bucket_label))
   if card.cell_count is not None:
     st.caption(
       text.GAP_CELL_COUNT_LABEL.format(

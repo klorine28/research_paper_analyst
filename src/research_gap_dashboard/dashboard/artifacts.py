@@ -147,8 +147,13 @@ class CandidateGapRecord(_ReadModel):
   column_label: str = ""
   row_paper_count: int = 0
   column_paper_count: int = 0
+  # Cell gaps: the limitation groups that corroborate the cell (two witnesses);
+  # empty when none does, and in artifacts written before the layer.
+  corroborating_group_ids: list[str] = []
   # Unanswered Limitations only: how many later Papers were checked.
   later_paper_count: int = 0
+  # Unanswered Limitations only: the group's limitation type, if tagged.
+  bucket: str | None = None
 
 
 class MatrixCategoryRecord(_ReadModel):
