@@ -11,9 +11,11 @@ generalize beyond it (CODING_STANDARDS > Research integrity).
 Unlike the extract stage, an explanation is prose the model writes in its own
 words, so there is no verbatim Evidence to string-match; grounding is enforced
 by prompting on the Paper's text alone. The stage stores one file per Paper
-under `paper-data/` (alongside the parsed text), records the prompt version and
-model tier behind each one, and surfaces a per-Paper failure without aborting
-the run. LLM calls go through the cached client (ADR 0001), so reruns are free.
+under `paper-data/` (alongside the parsed text), records the provenance behind
+each one (prompt version, model tier, model ID, and whether the cache served
+it, so the Explainer can show it: UI audit I7), and surfaces a per-Paper
+failure without aborting the run. LLM calls go through the cached client
+(ADR 0001), so reruns are free.
 """
 
 import logging
@@ -23,7 +25,7 @@ from pydantic import BaseModel, Field
 
 from research_gap_dashboard.corpus_layout import inspect_corpus_layout
 from research_gap_dashboard.ingest import read_manifest
-from research_gap_dashboard.llm import LlmClient, ModelTier, complete_model
+from research_gap_dashboard.llm import LlmClient, LlmUsage, ModelTier, complete_model
 from research_gap_dashboard.parsing import ParsedPaper, read_parsed_paper
 
 logger = logging.getLogger(__name__)
@@ -65,6 +67,16 @@ class PaperExplanation(BaseModel):
   citation_key: str
   prompt_version: str
   tier: ModelTier
+  # Defaulted so explanations written before they were recorded still load;
+  # an empty model and a None cache status read as "not recorded".
+  model: str = ""
+  cached: bool | None = Field(
+    default=None,
+    description=(
+      "Whether this run served the explanation from the LLM cache rather than "
+      "a fresh completion; None when the run did not tally its LLM usage."
+    ),
+  )
   registers: ExplanationRegisters
 
 
@@ -85,19 +97,23 @@ class ExplainReport(BaseModel):
   failures: list[ExplanationFailure]
 
 
-def explain_corpus(
+def explain_corpus(  # pylint: disable=too-many-arguments,too-many-locals
   root: Path,
   client: LlmClient,
   *,
   prompt_version: str = PROMPT_VERSION,
   tier: ModelTier = "default",
+  model: str = "",
+  usage: LlmUsage | None = None,
 ) -> ExplainReport:
   """
   Explain every Paper's experiment and store one file per Paper under paper-data/.
 
   Each Paper is explained independently: a Paper that was never parsed is
   recorded in the report's failures and the run carries on with the rest of the
-  Corpus.
+  Corpus. `model` is the model ID behind `tier`, recorded as provenance; when
+  `usage` is the tally `client` records into, each explanation also records
+  whether the cache served it.
   """
   manifest = read_manifest(root)
   paper_data_dir = inspect_corpus_layout(root).layout.paper_data_dir
@@ -119,9 +135,17 @@ def explain_corpus(
       )
       continue
 
+    billed_before = usage.calls if usage is not None else 0
+    cached_before = usage.cached_calls if usage is not None else 0
     explanation = explain_paper(
       paper.citation_key, parsed, client, prompt_version=prompt_version, tier=tier
     )
+    explanation.model = model
+    if usage is not None:
+      # A cache hit adds no billed call; a retry past a bad cached answer does.
+      explanation.cached = (
+        usage.cached_calls > cached_before and usage.calls == billed_before
+      )
     out_path = paper_data_dir / f"{paper.citation_key}{EXPLANATION_SUFFIX}"
     out_path.write_text(explanation.model_dump_json(indent=2), encoding="utf-8")
     explanation_paths.append(out_path)

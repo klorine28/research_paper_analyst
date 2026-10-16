@@ -21,6 +21,7 @@ from research_gap_dashboard.dashboard.comparison import (
   field_rows,
   selection_error,
 )
+from research_gap_dashboard.dashboard.provenance import comparison_provenance
 from research_gap_dashboard.dashboard.views.run_controls import (
   render_last_run,
   render_run_buttons,
@@ -67,16 +68,13 @@ def render_page(chosen: CorpusChoice) -> None:
     st.info(text.COMPARISON_TOO_FEW)
     return
 
-  result = build_comparison(
-    selection_keys,
-    load_extractions(corpus_root),
-    load_normalized_facts(corpus_root),
-    manifest,
-  )
-  render_comparison(result)
+  extractions = load_extractions(corpus_root)
+  normalized = load_normalized_facts(corpus_root)
+  result = build_comparison(selection_keys, extractions, normalized, manifest)
+  render_comparison(result, comparison_provenance(corpus_root, extractions, normalized))
 
 
-def render_comparison(result: ComparisonResult) -> None:
+def render_comparison(result: ComparisonResult, provenance: list[str]) -> None:
   """Render the Paper Comparison page from already-computed data."""
   if result.is_chunked:
     st.warning(
@@ -84,6 +82,8 @@ def render_comparison(result: ComparisonResult) -> None:
         count=len(result.citation_keys), sets=len(result.chunks)
       )
     )
+  for line in provenance:
+    st.caption(line)
 
   st.subheader(text.COMPARISON_FIELDS_HEADING)
   for field in result.fields:

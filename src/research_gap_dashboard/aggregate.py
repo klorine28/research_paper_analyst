@@ -202,6 +202,8 @@ class AggregateReport(BaseModel):
   corpus_root: Path
   prompt_version: str
   tier: ModelTier
+  # The model ID behind `tier`; defaulted so older artifacts still load.
+  model: str = ""
   taxonomies: list[TaxonomyProvenance]
   normalized: list[NormalizedFacts]
   failures: list[AggregateFailure]
@@ -256,13 +258,14 @@ class _ProposedMethodNormalization(_ProposedNormalization):
   )
 
 
-def aggregate_corpus(
+def aggregate_corpus(  # pylint: disable=too-many-arguments
   root: Path,
   client: LlmClient,
   taxonomies: Sequence[Taxonomy],
   *,
   prompt_version: str = PROMPT_VERSION,
   tier: ModelTier = "default",
+  model: str = "",
 ) -> AggregateReport:
   """
   Normalize every Paper's Extraction onto each Taxonomy and write the artifact.
@@ -295,6 +298,7 @@ def aggregate_corpus(
     corpus_root=root,
     prompt_version=prompt_version,
     tier=tier,
+    model=model,
     taxonomies=[
       TaxonomyProvenance(
         axis=taxonomy.meta.axis,
