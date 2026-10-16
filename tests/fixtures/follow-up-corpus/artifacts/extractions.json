@@ -1,0 +1,150 @@
+{
+  "corpus_root": "tests/fixtures/follow-up-corpus",
+  "prompt_version": "fixture",
+  "tier": "default",
+  "model": "",
+  "extractions": [
+    {
+      "citation_key": "early2016",
+      "fields": {
+        "research_question": [],
+        "study_design": [
+          {
+            "statement": "Retrospective single-centre review of 48 Takotsubo patients.",
+            "evidence": {
+              "passage": "Retrospective single-centre review of 48 Takotsubo patients.",
+              "section": "methods"
+            }
+          }
+        ],
+        "methods": [],
+        "populations": [],
+        "datasets": [],
+        "key_findings": [
+          {
+            "statement": "In-hospital complications occurred in 21% of patients.",
+            "evidence": {
+              "passage": "In-hospital complications occurred in 21% of patients.",
+              "section": "results"
+            }
+          }
+        ],
+        "limitations": [
+          {
+            "statement": "The study was retrospective and limited to a single centre, so a prospective multicentre cohort is needed to confirm the findings.",
+            "evidence": {
+              "passage": "The study was retrospective and limited to a single centre, so a prospective multicentre cohort is needed to confirm the findings.",
+              "section": "limitations"
+            }
+          }
+        ],
+        "future_work": []
+      }
+    },
+    {
+      "citation_key": "control2016",
+      "fields": {
+        "research_question": [],
+        "study_design": [
+          {
+            "statement": "Retrospective case series of 30 Takotsubo patients.",
+            "evidence": {
+              "passage": "Retrospective case series of 30 Takotsubo patients.",
+              "section": "methods"
+            }
+          }
+        ],
+        "methods": [],
+        "populations": [],
+        "datasets": [],
+        "key_findings": [],
+        "limitations": [
+          {
+            "statement": "Emotional and physical triggers preceding admission were not recorded, so their role in recurrence remains unknown.",
+            "evidence": {
+              "passage": "Emotional and physical triggers preceding admission were not recorded, so their role in recurrence remains unknown.",
+              "section": "limitations"
+            }
+          }
+        ],
+        "future_work": []
+      }
+    },
+    {
+      "citation_key": "unrelated2019",
+      "fields": {
+        "research_question": [],
+        "study_design": [
+          {
+            "statement": "Case report of a single Takotsubo patient.",
+            "evidence": {
+              "passage": "Case report of a single Takotsubo patient.",
+              "section": "methods"
+            }
+          }
+        ],
+        "methods": [],
+        "populations": [],
+        "datasets": [],
+        "key_findings": [
+          {
+            "statement": "The ECG showed transient ST-segment elevation.",
+            "evidence": {
+              "passage": "The ECG showed transient ST-segment elevation.",
+              "section": "results"
+            }
+          }
+        ],
+        "limitations": [],
+        "future_work": []
+      }
+    },
+    {
+      "citation_key": "later2021",
+      "fields": {
+        "research_question": [],
+        "study_design": [
+          {
+            "statement": "Prospective multicentre cohort study enrolling consecutive Takotsubo patients at 12 hospitals.",
+            "evidence": {
+              "passage": "Prospective multicentre cohort study enrolling consecutive Takotsubo patients at 12 hospitals.",
+              "section": "methods"
+            }
+          }
+        ],
+        "methods": [
+          {
+            "statement": "Echocardiography was performed at admission and at 30 days.",
+            "evidence": {
+              "passage": "Echocardiography was performed at admission and at 30 days.",
+              "section": "methods"
+            }
+          }
+        ],
+        "populations": [
+          {
+            "statement": "612 consecutive Takotsubo patients across 12 centres.",
+            "evidence": {
+              "passage": "612 consecutive Takotsubo patients across 12 centres.",
+              "section": "methods"
+            }
+          }
+        ],
+        "datasets": [],
+        "key_findings": [
+          {
+            "statement": "In-hospital complications occurred in 18% of patients, confirming earlier single-centre estimates.",
+            "evidence": {
+              "passage": "In-hospital complications occurred in 18% of patients, confirming earlier single-centre estimates.",
+              "section": "results"
+            }
+          }
+        ],
+        "limitations": [],
+        "future_work": []
+      }
+    }
+  ],
+  "failures": [],
+  "unverified": []
+}
