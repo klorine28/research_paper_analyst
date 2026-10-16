@@ -530,6 +530,9 @@ GAP_FILTER_LABEL = "Show confidence levels"
 
 # Per-card labels.
 GAP_CONFIDENCE_LABEL = "Confidence: {confidence}"
+# Two witnesses (ADR 0008): a cell an author-stated limitation corroborates.
+GAP_FLAGGED_BY_AUTHORS = "Also flagged by authors: {groups}"
+GAP_LIMITATION_BUCKET = "Limitation type: {bucket}"
 GAP_CELL_COUNT_LABEL = "Papers in this cell: {count} of {total}."
 GAP_EVIDENCE_HEADING = "Evidence"
 GAP_EVIDENCE_SOURCE = "{citation_key} — {section}"
@@ -688,6 +691,17 @@ GAP_SATURATION_UNAVAILABLE_HEADING = "Hits marked unavailable"
 
 # How each Candidate Gap's kind and confidence read to the researcher; kept here
 # so the dashboard never imports the detect stage's labels (ADR 0002).
+LIMITATION_BUCKET_LABELS: dict[str, str] = {
+  "study_design": "Study design",
+  "population": "Population",
+  "setting_data": "Setting / data",
+  "sample_size": "Sample size",
+  "measurement": "Measurement",
+  "follow_up": "Follow-up",
+  "analysis": "Analysis",
+  "open_question": "Open question",
+  "other": "Other",
+}
 GAP_TYPE_LABELS: dict[str, str] = {
   "knowledge_gap": "Knowledge Gap",
   "coverage_gap": "Coverage Gap",

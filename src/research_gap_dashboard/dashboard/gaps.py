@@ -190,6 +190,10 @@ class GapCard(BaseModel):
   data: GapData
   status: Status
   saturation: SaturationView
+  # Two witnesses: the corroborating limitation groups' labels; empty if none.
+  flagged_by_authors: list[str] = []
+  # Unanswered Limitations: the group's limitation type label; "" if untagged.
+  bucket_label: str = ""
 
 
 class GapCardsData(BaseModel):
@@ -528,6 +532,7 @@ def _card(  # pylint: disable=too-many-arguments,too-many-positional-arguments
   matrices: list[CoverageMatrixRecord],
   checks: list[SaturationCheckRecord],
   grow: _GrowContext,
+  group_labels: dict[str, str],
 ) -> GapCard:
   """Assemble one display card from an artifact record and its judgment."""
   return GapCard(
@@ -565,6 +570,15 @@ def _card(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     data=_data(record, matrices),
     status=status,
     saturation=_saturation(record, checks, grow),
+    flagged_by_authors=[
+      group_labels.get(group_id, group_id)
+      for group_id in record.corroborating_group_ids
+    ],
+    bucket_label=(
+      text.LIMITATION_BUCKET_LABELS.get(record.bucket, record.bucket)
+      if record.bucket
+      else ""
+    ),
   )
 
 
@@ -751,6 +765,10 @@ def build_gap_cards(  # pylint: disable=too-many-arguments
   checks_by_gap: dict[str, list[SaturationCheckRecord]] = {}
   for check in (saturation or SaturationChecksArtifact()).checks:
     checks_by_gap.setdefault(check.gap_id, []).append(check)
+  group_labels = {
+    group.group_id: group.label or group.group_id
+    for group in artifact.limitation_groups
+  }
   cards = [
     _card(
       record,
@@ -759,6 +777,7 @@ def build_gap_cards(  # pylint: disable=too-many-arguments
       artifact.matrices,
       checks_by_gap.get(record.gap_id, []),
       grow,
+      group_labels,
     )
     for record in artifact.gaps
   ]
