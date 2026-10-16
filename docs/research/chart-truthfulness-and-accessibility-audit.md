@@ -110,6 +110,15 @@ baseline). `docs/FUNCTIONALITY.md` was stale and has been corrected.
   and close to green in grayscale (ΔL\* 7.66); a hatch/pattern or darker grey
   would separate "not yet checkable" from "addressed" more safely.
 
+> **Resolved (#100).** The teal `#009E73` / vermillion `#D55E00` pair suggested
+> under C3 fails the grayscale screen (ΔL\* 3.5), so the bar now uses darkened
+> Okabe–Ito blue `#00497A` addressed / vermillion `#D55E00` open / grey
+> `#666666` no-later: each ≥ 3.87:1 on white, pairwise ΔL\* 11.0 / 13.4 /
+> 24.4, with count labels coloured to reach ≥ 4.5:1 on their segment (C3, C4).
+> The selected amber is darkened to `#C98714` (3.02:1 on white; ΔL\* ≥ 10.5
+> from connected and isolated) (C2). The screen is pinned by tests in
+> `tests/test_dashboard_meta_analysis.py`.
+
 ### Trends line chart
 
 - **C5 (severity 3).** Topic *status* is encoded redundantly (emerging solid /

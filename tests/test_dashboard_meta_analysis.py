@@ -27,7 +27,9 @@ from research_gap_dashboard.dashboard.limitations import (
   LimitationsData,
   SourceStatement,
 )
+from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard.meta_analysis import (
+  LimitationFollowUpView,
   build_author_table,
   build_citation_network,
   build_cooccurrence,
@@ -560,3 +562,93 @@ def test_meta_page_shows_the_six_graphs_as_gallery_tiles(tmp_path, monkeypatch):
   )
   citation_button.click().run()
   assert not app.exception
+
+
+# --- Colour-blind-safe palettes (chart audit C2-C4) ----------------------------
+#
+# The screen is the scientific-visualization skill's palette audit: every mark
+# reaches the WCAG 3:1 graphical contrast on the white background, and any two
+# colours that must be told apart differ by at least 10 in CIE L* so they still
+# separate in grayscale and for colour-blind readers.
+
+_WHITE = "#ffffff"
+_GRAPHICAL_CONTRAST = 3.0
+_TEXT_CONTRAST = 4.5
+_GRAYSCALE_DELTA_L = 10.0
+
+
+def _relative_luminance(colour: str) -> float:
+  """WCAG relative luminance of an sRGB hex colour."""
+  hex_digits = colour.lstrip("#")
+  channels = [int(hex_digits[i : i + 2], 16) / 255 for i in (0, 2, 4)]
+  linear = [
+    c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels
+  ]
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
+def _contrast(first: str, second: str) -> float:
+  darker, lighter = sorted([_relative_luminance(first), _relative_luminance(second)])
+  return (lighter + 0.05) / (darker + 0.05)
+
+
+def _lightness(colour: str) -> float:
+  """CIE L* of an sRGB hex colour (D65 white)."""
+  y = _relative_luminance(colour)
+  f = y ** (1 / 3) if y > 216 / 24389 else (24389 / 27 * y + 16) / 116
+  return 116 * f - 16
+
+
+def _limitation_view() -> LimitationFollowUpView:
+  return LimitationFollowUpView(
+    title="",
+    question="",
+    caveat="",
+    gap_lens="",
+    addressed_count=4,
+    open_checked_count=3,
+    no_later_count=2,
+  )
+
+
+def test_limitation_bar_palette_passes_contrast_and_grayscale_screen():
+  """Addressed / open / no-later stay legible on white and apart in grayscale."""
+  figure = build_limitation_bar_figure(_limitation_view())
+  colours = [trace.marker.color for trace in figure.data]
+
+  assert len(colours) == 3
+  for colour in colours:
+    assert _contrast(colour, _WHITE) >= _GRAPHICAL_CONTRAST, colour
+  for i, first in enumerate(colours):
+    for second in colours[i + 1 :]:
+      assert abs(_lightness(first) - _lightness(second)) >= _GRAYSCALE_DELTA_L, (
+        first,
+        second,
+      )
+
+
+def test_limitation_bar_avoids_the_red_green_pairing():
+  """The good/bad split no longer rides on the textbook red/green confusion."""
+  figure = build_limitation_bar_figure(_limitation_view())
+  colours = {trace.marker.color.lower() for trace in figure.data}
+
+  assert not colours & {"#2ca02c", "#d62728", "#9aa0a6"}
+
+
+def test_limitation_bar_segments_keep_readable_count_labels():
+  """Each segment still carries its count, in a colour readable on that segment."""
+  figure = build_limitation_bar_figure(_limitation_view())
+
+  assert [list(trace.text) for trace in figure.data] == [["4"], ["3"], ["2"]]
+  for trace in figure.data:
+    assert trace.textposition == "inside"
+    label_colour = trace.insidetextfont.color
+    assert _contrast(label_colour, trace.marker.color) >= _TEXT_CONTRAST
+
+
+def test_selected_node_colour_passes_contrast_and_grayscale_screen():
+  """The selected amber reaches 3:1 on white and stays apart from the other roles."""
+  assert _contrast(text.META_SELECTED_COLOR, _WHITE) >= _GRAPHICAL_CONTRAST
+  for other in (text.META_CONNECTED_COLOR, text.META_ISOLATED_COLOR):
+    delta = abs(_lightness(text.META_SELECTED_COLOR) - _lightness(other))
+    assert delta >= _GRAYSCALE_DELTA_L, other

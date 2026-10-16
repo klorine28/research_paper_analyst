@@ -742,7 +742,9 @@ META_NEIGHBOR_LEGEND = "Neighbour"
 META_FADED_LEGEND = "Other"
 META_CONNECTED_COLOR = "#2c7fb8"
 META_ISOLATED_COLOR = "#d62728"
-META_SELECTED_COLOR = "#e6a817"
+# Darkened amber: reaches 3:1 on white while staying at least 10 CIE L* from the
+# connected blue and isolated red, so the transient highlight survives grayscale.
+META_SELECTED_COLOR = "#c98714"
 META_CLICK_HINT = (
   "Click a node to highlight it and its neighbours; click empty space to clear. "
   "The data table below is the non-interactive way to read the same links."

@@ -834,9 +834,17 @@ def _add_node_trace(
 
 
 # The three follow-up buckets, in the order the segmented bar stacks them: taken
-# up, still open after a check (the gap signal), and not yet checkable.
-_LIMITATION_ADDRESSED_COLOR = "#2ca02c"
-_LIMITATION_NO_LATER_COLOR = "#9aa0a6"
+# up, still open after a check (the gap signal), and not yet checkable. The
+# good/bad split is blue/vermillion (Okabe-Ito, darkened) rather than red/green,
+# the most common colour-vision confusion. Each fill reaches 3:1 against white and
+# the three differ by at least 10 in CIE L*, so they separate in grayscale too;
+# each count label is coloured to reach 4.5:1 on its own segment.
+_LIMITATION_ADDRESSED_COLOR = "#00497a"
+_LIMITATION_OPEN_COLOR = "#d55e00"
+_LIMITATION_NO_LATER_COLOR = "#666666"
+_LIMITATION_ADDRESSED_LABEL_COLOR = "#ffffff"
+_LIMITATION_OPEN_LABEL_COLOR = "#000000"
+_LIMITATION_NO_LATER_LABEL_COLOR = "#ffffff"
 
 
 def build_limitation_bar_figure(view: LimitationFollowUpView) -> go.Figure:
@@ -852,20 +860,23 @@ def build_limitation_bar_figure(view: LimitationFollowUpView) -> go.Figure:
       text.META_LIMITATION_ADDRESSED_LABEL,
       view.addressed_count,
       _LIMITATION_ADDRESSED_COLOR,
+      _LIMITATION_ADDRESSED_LABEL_COLOR,
     ),
     (
       text.META_LIMITATION_OPEN_LABEL,
       view.open_checked_count,
-      text.META_ISOLATED_COLOR,
+      _LIMITATION_OPEN_COLOR,
+      _LIMITATION_OPEN_LABEL_COLOR,
     ),
     (
       text.META_LIMITATION_NO_LATER_LABEL,
       view.no_later_count,
       _LIMITATION_NO_LATER_COLOR,
+      _LIMITATION_NO_LATER_LABEL_COLOR,
     ),
   ]
   figure = go.Figure()
-  for label, count, colour in segments:
+  for label, count, colour, label_colour in segments:
     figure.add_trace(
       go.Bar(
         y=[text.META_LIMITATION_BAR_ROW],
@@ -876,6 +887,7 @@ def build_limitation_bar_figure(view: LimitationFollowUpView) -> go.Figure:
         text=[str(count) if count else ""],
         textposition="inside",
         insidetextanchor="middle",
+        insidetextfont={"color": label_colour},
         hovertemplate=f"{label}: %{{x}}<extra></extra>",
       )
     )
