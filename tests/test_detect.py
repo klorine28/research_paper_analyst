@@ -12,6 +12,7 @@ from research_gap_dashboard.aggregate import (
   AggregateReport,
   CategoryAssignment,
   NormalizedFacts,
+  TaxonomyProvenance,
 )
 from research_gap_dashboard import cli
 from research_gap_dashboard.cli import EXIT_ERROR, EXIT_OK, main
@@ -62,6 +63,9 @@ _LABELS = {
   "retrospective": "Retrospective Studies",
   "rct": "Randomized Controlled Trial",
   "aged": "Aged",
+  "cardiomyopathies": "Cardiomyopathies",
+  "dilated": "Dilated Cardiomyopathy",
+  "cohort": "Cohort Studies",
 }
 
 
@@ -91,6 +95,7 @@ def _write_corpus(
   manifest_keys: list[str] | None = None,
   extractions: list[Extraction] | None = None,
   years: dict[str, int | None] | None = None,
+  parents: dict[Axis, dict[str, str]] | None = None,
 ) -> Path:
   """Write the manifest, Extractions, and NormalizedFacts for a synthetic Corpus."""
   for name in ("papers", "paper-data", "artifacts", "judgments"):
@@ -116,7 +121,16 @@ def _write_corpus(
     corpus_root=root,
     prompt_version="aggregate-v2",
     tier="default",
-    taxonomies=[],
+    taxonomies=[
+      TaxonomyProvenance(
+        axis=axis,
+        domain="test",
+        source="test",
+        category_count=len(axis_parents),
+        parents=axis_parents,
+      )
+      for axis, axis_parents in (parents or {}).items()
+    ],
     normalized=[_facts(key, value) for key, value in placements.items()],
     failures=[],
   )
@@ -667,3 +681,82 @@ def test_an_artifact_written_before_the_trail_still_reads(tmp_path: Path) -> Non
     ("heuristic", "start", gap.confidence)
   ]
   assert gap.trail[0].reason == gap.confidence_reason
+
+
+# The taxonomy roll-up layer (L2, ADR 0008). Cardiomyopathies is the parent of
+# Takotsubo and of dilated cardiomyopathy. c1 is placed only on the parent, with
+# an RCT; d1 is placed on the parent and on its child "dilated", with a cohort
+# design. Heart failure has no place in the hierarchy.
+_ROLL_UP: Placements = {
+  "t1": [("topic", "takotsubo"), ("method", "retrospective")],
+  "t2": [("topic", "takotsubo"), ("method", "retrospective")],
+  "t3": [("topic", "takotsubo"), ("method", "retrospective")],
+  "t4": [("topic", "takotsubo"), ("method", "retrospective")],
+  "c1": [("topic", "cardiomyopathies"), ("method", "rct")],
+  "d1": [("topic", "dilated"), ("topic", "cardiomyopathies"), ("method", "cohort")],
+  "h1": [("topic", "heart-failure"), ("method", "rct")],
+  "h2": [("topic", "heart-failure"), ("method", "rct")],
+}
+_ROLL_UP_PARENTS: dict[Axis, dict[str, str]] = {
+  "topic": {"takotsubo": "cardiomyopathies", "dilated": "cardiomyopathies"},
+}
+
+
+def _roll_up_report(tmp_path: Path, parents: Any = _ROLL_UP_PARENTS) -> Any:
+  """Detect over the roll-up Corpus with the given hierarchy."""
+  return _detect(_write_corpus(tmp_path, _ROLL_UP, parents=parents))
+
+
+def test_an_ancestor_by_descendant_cell_is_rejected_but_kept(tmp_path: Path) -> None:
+  """A category paired with its own broader category is a taxonomy artifact."""
+  gap = _gap(_roll_up_report(tmp_path), "topicxtopic:cardiomyopathies:takotsubo")
+
+  last = gap.trail[-1]
+  assert (last.layer, last.effect) == ("taxonomy_roll_up", "reject")
+  assert "Cardiomyopathies" in last.reason
+  assert "Takotsubo Cardiomyopathy" in last.reason
+  assert "taxonomy artifact" in last.reason
+  assert gap.rejected
+  assert last.level_after == gap.trail[0].level_after
+
+
+def test_a_parent_only_fill_lowers_one_level_and_names_the_paper(
+  tmp_path: Path,
+) -> None:
+  """A Paper placed only on the broader category may cover the narrower cell."""
+  gap = _gap(_roll_up_report(tmp_path), "topicxmethod:takotsubo:rct")
+
+  assert [(s.layer, s.effect, s.level_after) for s in gap.trail] == [
+    ("heuristic", "start", "medium"),
+    ("taxonomy_roll_up", "lower", "low"),
+  ]
+  assert gap.confidence == "low"
+  assert "c1" in gap.trail[-1].reason
+  assert "Cardiomyopathies" in gap.trail[-1].reason
+  assert not gap.rejected
+
+
+def test_a_sibling_fill_changes_no_level(tmp_path: Path) -> None:
+  """A parent cell filled only by Papers on a narrower sibling is no cover."""
+  gap = _gap(_roll_up_report(tmp_path), "topicxmethod:takotsubo:cohort")
+
+  assert {step.level_after for step in gap.trail} == {gap.trail[0].level_after}
+  assert gap.trail[-1].effect == "none"
+  assert "d1" in gap.trail[-1].reason
+  assert not gap.rejected
+
+
+def test_a_cell_outside_the_hierarchy_gets_no_roll_up_step(tmp_path: Path) -> None:
+  """Categories with no parent and no children are left to the other layers."""
+  gap = _gap(_roll_up_report(tmp_path), "topicxmethod:heart-failure:retrospective")
+
+  assert [step.layer for step in gap.trail] == ["heuristic"]
+
+
+def test_without_a_hierarchy_the_roll_up_is_a_no_op(tmp_path: Path) -> None:
+  """A taxonomy without parents or tree numbers leaves every trail at its start."""
+  report = _roll_up_report(tmp_path, parents=None)
+
+  cells = [gap for gap in report.gaps if isinstance(gap, CellGap)]
+  assert all(len(gap.trail) == 1 and not gap.rejected for gap in cells)
+  assert _gap(report, "topicxmethod:takotsubo:rct").confidence == "medium"
