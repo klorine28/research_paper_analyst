@@ -22,9 +22,42 @@ SCOPE_STATEMENT = (
 # Corpus selection and navigation.
 CORPUS_PICKER_LABEL = "Corpus"
 NO_CORPORA = (
-  "No analysed corpora found. Run the pipeline (`ingest`) against a corpus "
-  "directory first, then point the dashboard at the folder that holds it."
+  "No Corpora yet. Start a new analysis below: name the Corpus and state its "
+  "scope, then add its Papers."
 )
+
+# Creating a Corpus and its scope statement (issue #74).
+NEW_CORPUS_HEADING = "New analysis"
+NEW_CORPUS_INTRO = (
+  "Create an empty Corpus and state its scope. The scope is shown on every page "
+  "so readers know what the Corpus was built from."
+)
+NEW_CORPUS_NAME_LABEL = "Corpus name"
+NEW_CORPUS_NAME_HELP = "Becomes the Corpus folder name: letters, digits, '-' or '_'."
+NEW_CORPUS_SUBMIT = "Create Corpus"
+SCOPE_QUESTION_LABEL = "Research question"
+SCOPE_FIELD_LABEL = "Field"
+SCOPE_SEARCHED_LABEL = "What was searched"
+SCOPE_SEARCHED_HELP = (
+  "Databases, search terms, date range and any filters, so a reader can tell "
+  "what this Corpus does and does not cover."
+)
+CORPUS_SCOPE_STATEMENT = (
+  "**Scope of this Corpus.** Question: {question} \u00b7 Field: {field} \u00b7 "
+  "Searched: {searched}. Everything shown here covers only the Papers in this "
+  "Corpus, not the whole literature."
+)
+SCOPE_MISSING_PROMPT = (
+  "This Corpus has no scope statement yet. Add its question, field and what was "
+  "searched, so every page can say what the Corpus covers."
+)
+SCOPE_ADD_EXPANDER = "Add a scope statement"
+SCOPE_SAVE_BUTTON = "Save scope"
+CORPUS_HAS_NO_PAPERS = (
+  "This Corpus has no ingested Papers yet. Put its PDFs in `{papers_dir}` and "
+  "its paper list (a `.bib` file or `dois.txt`) in `{root}`, then run ingest."
+)
+RUN_INGEST_BUTTON = "Run ingest"
 NAV_LABEL = "Page"
 PAGE_OVERVIEW = "Corpus Overview"
 PAGE_GAP_CARDS = "Gap Cards"

@@ -1,12 +1,13 @@
 """
 The Streamlit app shell: corpus selection, navigation, and page dispatch.
 
-This layer is deliberately thin. It picks a Corpus, applies any pending page
-switch, and hands the chosen page to its renderer in `dashboard.page_registry`;
-each page lives in its own module under `dashboard.views`. It holds no analysis
-logic and imports no pipeline stage (ADR 0002). Run it with `streamlit run` (see
-the justfile). Point it at the folder that holds your corpus directories with the
-RESEARCH_GAP_CORPORA_DIR environment variable.
+This layer is deliberately thin. It picks (or creates) a Corpus, states its
+scope, applies any pending page switch, and hands the chosen page to its
+renderer in `dashboard.page_registry`; each page lives in its own module under
+`dashboard.views`. It holds no analysis logic and imports no pipeline stage
+(ADR 0002). Run it with `streamlit run` (see the justfile). Point it at the
+folder that holds your corpus directories with the RESEARCH_GAP_CORPORA_DIR
+environment variable; new Corpora created in the app are made there.
 """
 
 import os
@@ -15,11 +16,22 @@ from pathlib import Path
 import streamlit as st
 
 from research_gap_dashboard.dashboard import text
-from research_gap_dashboard.dashboard.artifacts import CorpusChoice, discover_corpora
+from research_gap_dashboard.dashboard.artifacts import (
+  CorpusChoice,
+  discover_corpora,
+  has_manifest,
+)
 from research_gap_dashboard.dashboard.attention import build_attention
 from research_gap_dashboard.dashboard.page_registry import page_for, page_titles
+from research_gap_dashboard.dashboard.views.corpus_setup import (
+  render_new_analysis,
+  render_scope,
+  render_unbuilt_corpus,
+)
 from research_gap_dashboard.dashboard.views.session_keys import (
+  CORPUS_PICKER_KEY,
   NAV_PAGE_KEY,
+  PENDING_CORPUS_KEY,
   PENDING_NAV_KEY,
 )
 from research_gap_dashboard.env import load_env
@@ -35,12 +47,16 @@ def _corpora_root() -> Path:
 
 def _select_corpus(choices: list[CorpusChoice]) -> CorpusChoice:
   """Render the sidebar corpus picker and return the chosen corpus."""
-  chosen = st.sidebar.selectbox(
-    text.CORPUS_PICKER_LABEL,
-    choices,
-    format_func=lambda choice: choice.name,
+  by_name = {choice.name: choice for choice in choices}
+  pending = st.session_state.pop(PENDING_CORPUS_KEY, None)
+  if pending in by_name:
+    st.session_state[CORPUS_PICKER_KEY] = pending
+  elif st.session_state.get(CORPUS_PICKER_KEY) not in by_name:
+    st.session_state.pop(CORPUS_PICKER_KEY, None)
+  name = st.sidebar.selectbox(
+    text.CORPUS_PICKER_LABEL, list(by_name), key=CORPUS_PICKER_KEY
   )
-  return chosen
+  return by_name[name] if name in by_name else choices[0]
 
 
 def _apply_pending_nav() -> None:
@@ -72,12 +88,19 @@ def main() -> None:
   st.set_page_config(page_title=text.APP_TITLE, layout="wide")
   st.title(text.APP_TITLE)
 
-  choices = discover_corpora(_corpora_root())
+  corpora_root = _corpora_root()
+  choices = discover_corpora(corpora_root)
   if not choices:
-    st.warning(text.NO_CORPORA)
+    st.info(text.NO_CORPORA)
+    render_new_analysis(st.container(), corpora_root, expanded=True)
     return
 
   chosen = _select_corpus(choices)
+  render_new_analysis(st.sidebar, corpora_root, expanded=False)
+  render_scope(chosen.root)
+  if not has_manifest(chosen.root):
+    render_unbuilt_corpus(chosen)
+    return
   _render_incompleteness_banner(chosen.root)
   _apply_pending_nav()
   page = _select_page()
