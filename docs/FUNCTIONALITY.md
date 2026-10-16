@@ -220,6 +220,18 @@ last opened persist to `judgments/resume_point.json` (`resume.py`, issue #83):
 a reopened dashboard starts on the Corpus opened most recently, and its Home
 screen offers to **resume** at the furthest step.
 
+**Soft Trust gate** (issue #77, `trust_gate.py`). Once `extract` has run, a
+Corpus where Papers fell out or lost facts shows a lock screen instead of the
+Explore, Judge, Grow and Write pages. The screen states the denominator ("these
+gaps come from 10 of 15 Papers") and offers two ways on: fix the fallout on
+Needs Attention, or acknowledge the denominator and continue. The
+acknowledgement is saved to `judgments/trust-acknowledgement.json` with the
+Corpus state it covers (Papers reached, total, Papers missing facts). If that
+state changes, the gate asks again. The incompleteness banner stays on every
+page after acknowledging, and a complete Corpus never sees the gate. An
+acknowledged Corpus moves Home's recommendation past Trust, but Trust is only
+ticked when the Corpus is complete.
+
 | Page (step) | Module | Needs artifact | Shows |
 | --- | --- | --- | --- |
 | Home | `guided_flow.py`, `resume.py` | `corpus-manifest.json` (+ stage artifacts, `judgments/gap_judgments.json`, `judgments/resume_point.json`) | **Resume** at the furthest step reached, stating the saved verdicts and journal entries (once the Corpus was worked on); **Recommended next step** with its reason (no scope → Scope; a core stage not run or stale → Build; Papers fell out → Trust; no verdicts yet → Explore; undecided gaps → Judge; otherwise Write) and a button to it; Corpus health (Papers, Papers reached, pipeline stages done, Candidate Gaps, accepted, undecided); the seven steps with completed ones ticked |

@@ -6,7 +6,9 @@ scope, applies any pending page switch, draws the guided navigation (the
 phase-grouped sidebar, the step bar and Previous/Next, issue #76), records the
 resume point (issue #83) and hands the chosen page to its renderer in
 `dashboard.page_registry`; each page lives in its own module under
-`dashboard.views`. A new session reopens the Corpus worked on last. It holds no
+`dashboard.views`. A page on a step the soft Trust gate guards shows the gate's
+lock screen instead while the gate is closed (issue #77). A new session reopens
+the Corpus worked on last. It holds no
 analysis logic and imports no pipeline stage (ADR 0002). Run it with
 `streamlit run` (see the justfile). Point it at the folder that holds your
 corpus directories with the RESEARCH_GAP_CORPORA_DIR environment variable; new
@@ -26,9 +28,14 @@ from research_gap_dashboard.dashboard.artifacts import (
   has_manifest,
 )
 from research_gap_dashboard.dashboard.attention import build_attention
-from research_gap_dashboard.dashboard.guided_flow import Step, build_flow_progress
+from research_gap_dashboard.dashboard.guided_flow import (
+  GATED_STEPS,
+  Step,
+  build_flow_progress,
+)
 from research_gap_dashboard.dashboard.page_registry import first_page_title, page_for
 from research_gap_dashboard.dashboard.resume import last_opened_corpus, record_visit
+from research_gap_dashboard.dashboard.trust_gate import build_trust_gate
 from research_gap_dashboard.dashboard.views.corpus_setup import (
   render_new_analysis,
   render_scope,
@@ -42,6 +49,10 @@ from research_gap_dashboard.dashboard.views.navigation import (
 from research_gap_dashboard.dashboard.views.run_controls import (
   render_last_run,
   render_run_button,
+)
+from research_gap_dashboard.dashboard.views.trust_gate import (
+  render_acknowledged_note,
+  render_locked_step,
 )
 from research_gap_dashboard.dashboard.views.session_keys import (
   CORPUS_PICKER_KEY,
@@ -127,7 +138,13 @@ def main() -> None:
   progress = build_flow_progress(chosen.root)
   render_sidebar_nav(page.title, progress)
   render_step_bar(page.step, progress)
-  page.render(chosen)
+  gate = build_trust_gate(chosen.root)
+  if page.step is not None and page.step in GATED_STEPS and not gate.is_open:
+    render_locked_step(chosen.root, page.step, gate)
+  else:
+    if gate.state == "acknowledged":
+      render_acknowledged_note(gate)
+    page.render(chosen)
   st.divider()
   render_previous_next(page.step)
 
