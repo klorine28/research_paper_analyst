@@ -19,6 +19,10 @@ from research_gap_dashboard.dashboard.comparison import (
   build_comparison,
   selection_error,
 )
+from research_gap_dashboard.dashboard.views.run_controls import (
+  render_last_run,
+  render_run_buttons,
+)
 from research_gap_dashboard.dashboard.views.widgets import (
   paper_label,
 )
@@ -28,9 +32,11 @@ def render_page(chosen: CorpusChoice) -> None:
   """Assemble the Paper Comparison page's data and render it."""
   corpus_root = chosen.root
   st.header(text.COMPARISON_HEADING)
+  render_last_run(corpus_root)
   st.info(text.COMPARISON_INTRO)
   if not has_extractions(corpus_root) or not has_normalized_facts(corpus_root):
     st.warning(text.COMPARISON_NO_ARTIFACTS)
+    render_run_buttons(corpus_root, ["extract", "aggregate"], scope="comparison")
     return
 
   manifest = load_manifest(corpus_root)

@@ -19,6 +19,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from research_gap_dashboard.dashboard import text
 from research_gap_dashboard.dashboard.artifacts import (
   has_extractions,
   has_manifest,
@@ -94,9 +95,7 @@ def build_attention(corpus_root: Path) -> AttentionReport:
           citation_key=citation_key,
           title=title,
           kind="unparsed",
-          reason=parse_failures.get(
-            citation_key, "no parsed text on disk; run `parse`"
-          ),
+          reason=parse_failures.get(citation_key, text.ATTENTION_NO_PARSED_TEXT_REASON),
           has_parsed_text=False,
         )
       )

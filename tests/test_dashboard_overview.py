@@ -25,7 +25,12 @@ from research_gap_dashboard.dashboard.artifacts import (
 )
 from research_gap_dashboard.dashboard.attention import IncompletenessBanner
 from research_gap_dashboard.dashboard.overview import build_overview
-from research_gap_dashboard.dashboard.text import SCOPE_STATEMENT, UNKNOWN_YEAR_LABEL
+from research_gap_dashboard.dashboard.text import (
+  NEW_CORPUS_SUBMIT,
+  NO_CORPORA,
+  SCOPE_STATEMENT,
+  UNKNOWN_YEAR_LABEL,
+)
 from research_gap_dashboard.ingest import ingest_corpus
 
 
@@ -339,12 +344,13 @@ def test_app_runs_against_a_fixture_corpus(corpus: Path):
   assert any("not verdicts" in info.value.lower() for info in app.info)
 
 
-def test_app_warns_when_no_corpus_is_analysed(tmp_path: Path):
-  """With nothing ingested, the shell explains what to do rather than erroring."""
+def test_app_offers_a_new_analysis_when_there_is_no_corpus(tmp_path: Path):
+  """With no Corpus, the shell offers to create one rather than erroring."""
   app = _run_app(tmp_path)
 
   assert not app.exception
-  assert any("ingest" in warning.value.lower() for warning in app.warning)
+  assert NO_CORPORA in [info.value for info in app.info]
+  assert NEW_CORPUS_SUBMIT in [button.label for button in app.button]
 
 
 def test_dashboard_imports_no_pipeline_logic():

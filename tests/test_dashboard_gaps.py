@@ -8,6 +8,7 @@ must carry every field, including the verbatim Evidence passages, and reflect
 the researcher's saved accept/reject state.
 """
 
+import json
 from pathlib import Path
 
 import pytest
@@ -527,3 +528,28 @@ def test_every_card_expands_into_justification_and_data_tiers(
   data_text = " ".join(block.value for tier in data for block in tier.markdown)
   assert "Takotsubo Cardiomyopathy × Retrospective Studies: 4" in data_text
   assert "p01, p02, p03, p04" in data_text
+
+
+def test_the_read_model_mirrors_the_verdict_trail(corpus: Path):
+  """Each cell gap's layer steps reach the card's Tier 3 reasons, in order."""
+  artifact = load_candidate_gaps(corpus)
+  record = next(g for g in artifact.gaps if g.gap_id == "topicxmethod:takotsubo:rct")
+
+  assert [(s.layer, s.effect, s.level_after) for s in record.trail] == [
+    ("heuristic", "start", record.confidence)
+  ]
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+  assert card.data.reasons == [step.reason for step in record.trail]
+
+
+def test_an_artifact_without_trails_still_builds_cards(corpus: Path):
+  """A CandidateGaps artifact written before the trail existed reads cleanly."""
+  path = corpus / "artifacts" / "candidate_gaps.json"
+  data = json.loads(path.read_text(encoding="utf-8"))
+  for gap in data["gaps"]:
+    gap.pop("trail", None)
+  path.write_text(json.dumps(data), encoding="utf-8")
+
+  card = _card(corpus, "topicxmethod:takotsubo:rct")
+
+  assert card.data.reasons == [card.confidence_reason]

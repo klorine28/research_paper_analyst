@@ -321,7 +321,7 @@ def _data(record: CandidateGapRecord, matrices: list[CoverageMatrixRecord]) -> G
     neighbours=_neighbours(record, matrices),
     expected_count=expected,
     observed_count=record.cell_count,
-    reasons=[record.confidence_reason],
+    reasons=_reasons(record),
   )
 
 
@@ -392,6 +392,11 @@ def _saturation(
       for check in reversed(checks)
     ],
   )
+
+
+def _reasons(record: CandidateGapRecord) -> list[str]:
+  """List each layer's reason in order, or the lone reason a pre-trail card has."""
+  return [step.reason for step in record.trail] or [record.confidence_reason]
 
 
 def _card(  # pylint: disable=too-many-arguments,too-many-positional-arguments

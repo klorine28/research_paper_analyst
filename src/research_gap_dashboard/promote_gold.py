@@ -4,7 +4,8 @@ The promote-gold step: turn a reviewed Extraction into a Gold Extraction fixture
 A Gold Extraction is a human-verified Extraction kept as a committed regression
 fixture, so later pipeline changes are checked against what a person confirmed
 the Paper says (CONTEXT > Gold Extraction; ADR 0003). This step is pipeline-side
-and CLI-only, never the browser: it reads `extractions.json` plus the researcher's
+and runs only as a CLI command (the dashboard launches it as a subprocess, ADR
+0007, never in-process): it reads `extractions.json` plus the researcher's
 review overlay and writes the gold artifact. Running the in-app review over the
 cardiology fixture Corpus and promoting the result is what satisfies issue #9's
 human gate.
@@ -13,8 +14,10 @@ Applying the overlay is deterministic: an approved fact is kept as-is, an edited
 fact keeps the reviewer's corrected text and Evidence, a flagged or removed fact
 is dropped, an unreviewed fact is kept unchanged, and every added fact is appended
 to its field. Every kept passage is re-verified verbatim against the Paper's parsed
-text before the gold is written (CODING_STANDARDS > Research integrity); a Paper
-whose parsed text is missing keeps its facts unverified and is noted.
+text before the gold is written (CODING_STANDARDS > Research integrity). The check
+is strict: one unverifiable passage refuses the whole promotion, naming the Paper,
+so a fixture never holds a quote the Paper does not say. A Paper whose parsed text
+is missing keeps its facts unverified and is noted.
 """
 
 import logging
@@ -33,6 +36,7 @@ from research_gap_dashboard.dashboard.extraction_review import (
 )
 from research_gap_dashboard.extract import (
   Evidence,
+  EvidenceVerificationError,
   ExtractedFact,
   Extraction,
   ExtractionFields,
@@ -52,6 +56,15 @@ _SECTION_LABELS: frozenset[str] = frozenset(get_args(SectionLabel))
 def _as_section_label(section: str) -> SectionLabel:
   """Coerce a reviewer's section string to a valid label, defaulting to 'other'."""
   return cast(SectionLabel, section) if section in _SECTION_LABELS else "other"
+
+
+class GoldPromotionRefusedError(Exception):
+  """Raised when a reviewed Paper's Evidence fails strict verification."""
+
+  def __init__(self, citation_key: str, problem: str) -> None:
+    super().__init__(f"Paper '{citation_key}': {problem}")
+    self.citation_key = citation_key
+    self.problem = problem
 
 
 class GoldExtractions(BaseModel):
@@ -127,7 +140,8 @@ def promote_gold(corpus_root: Path) -> GoldExtractions:
 
   Every kept or added passage is re-verified verbatim against the Paper's parsed
   text before it enters the gold; a Paper with no parsed text is left unverified
-  and logged, so the gate is explicit rather than silent.
+  and logged, so the gate is explicit rather than silent. Raises
+  `GoldPromotionRefusedError` on the first passage that does not verify.
   """
   report = read_extractions(corpus_root)
   log = load_extraction_review(corpus_root)
@@ -153,7 +167,10 @@ def _reverify(corpus_root: Path, citation_key: str, fields: ExtractionFields) ->
       "No parsed text for %s; gold Evidence left unverified.", citation_key
     )
     return
-  _verify_evidence(parsed, fields)
+  try:
+    _verify_evidence(parsed, fields)
+  except EvidenceVerificationError as error:
+    raise GoldPromotionRefusedError(citation_key, str(error)) from error
 
 
 def write_gold(gold: GoldExtractions, output_path: Path) -> None:

@@ -184,6 +184,7 @@ a page.
 | Page | Module | Needs artifact | Shows |
 | --- | --- | --- | --- |
 | Corpus Overview | `overview.py` | `corpus-manifest.json` | scope statement, paper/venue/year metrics, papers-per-year bar, venue table, exclusions (unmatched entries, orphan PDFs) |
+| Pipeline | `pipeline_status.py`, `run_cost.py`, `pipeline_runner.py` | `corpus-manifest.json` (+ every stage artifact, `llm-usage.json`) | each stage as done / not run / stale (an input newer than its artifact), with a run or re-run button per stage; a collapsed **Run details** with each LLM stage's estimated cost and its last run's actual cost; a run estimated above `LLM_COST_CONFIRM_ABOVE` asks for confirmation |
 | Field Meta-Analysis | `meta_analysis.py`, `coverage.py` | `corpus-manifest.json` (+ `normalized_facts.json`, `candidate_gaps.json`) | a gallery of six graphs: citation network, Topic and Method co-occurrence (with ranked missing pairs that jump to Gap Cards), Trends (emerging/abandoned Topics), an author collaboration table, and limitation follow-up status; each carries its question, gap lens, denominator, caveat and a data-table fallback |
 | Gap Cards | `gaps.py`, `judgments.py` | `candidate_gaps.json` | one card per Candidate Gap with type, confidence + reasoning, denominator, Evidence passages, and **accept/reject/clear** buttons that persist to `judgments/`; cell gaps carry a wider-literature badge (from `saturation_checks.json`), the queries/hits drill-down, and a **Check wider literature** button that runs `saturate --gap` |
 | Unanswered Limitations | `limitations.py` | `candidate_gaps.json` | every limitation group (addressed or not) with its follow-up count, source Papers, and verbatim source passages; unanswered groups called out from addressed ones |
@@ -211,8 +212,9 @@ budget; when nothing matches, the model is told so and answers "not in this
 Corpus". A missing `ANTHROPIC_API_KEY` degrades the page to a clear message, not a crash.
 
 ### Not yet built (dashboard)
-- Driving pipeline commands from the app (proposed in `docs/HANDOFF.md`; needs
-  an ADR because it touches ADR 0002's read-only boundary).
+- The rest of ADR 0007: in-app upload and Corpus creation, and buttons for the
+  seam commands (apply correction and re-extract, promote gold). Running and
+  re-running stages is built (Pipeline page, Gap Cards empty state).
 
 ---
 
@@ -220,7 +222,9 @@ Corpus". A missing `ANTHROPIC_API_KEY` degrades the page to a clear message, not
 
 Read once from the project-root `.env` (see `README.md` and ADR 0001):
 `ANTHROPIC_API_KEY` (unset ⇒ offline/recorded runs only), `LLM_DEFAULT_MODEL`,
-`LLM_CHEAP_MODEL`, `LLM_MAX_TOKENS`. `just test` never calls the API or network.
+`LLM_CHEAP_MODEL`, `LLM_MAX_TOKENS`, `LLM_COST_CONFIRM_ABOVE` (dashboard run
+confirmation threshold in US dollars, default 1.00). `just test` never calls the
+API or network.
 
 ## Canonical dev commands
 

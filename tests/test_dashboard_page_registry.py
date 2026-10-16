@@ -15,6 +15,7 @@ from research_gap_dashboard.ingest import ingest_corpus
 
 _SIDEBAR_ORDER = [
   text.PAGE_OVERVIEW,
+  text.PAGE_PIPELINE,
   text.PAGE_META,
   text.PAGE_GAP_CARDS,
   text.PAGE_LIMITATIONS,

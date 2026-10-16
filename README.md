@@ -159,7 +159,32 @@ app must be launched from the project directory). It refuses to start without
 `ANTHROPIC_API_KEY`, refuses a second run while one is in progress on the same
 corpus (a lock under `judgments/`), and reports the run as succeeded, completed
 but incomplete (exit code 2), or failed (exit code 1), with stdout and stderr
-under **Run details**.
+under **Run output**.
+
+The Pipeline page lists every stage (`ingest`, `parse`, `extract`, `explain`,
+`aggregate`, `detect`, `retrieve`) as **done**, **not run**, or **stale**, read
+only from which artifacts exist and when they were written: a stage is stale
+when one of its inputs (say, a PDF added after `ingest`) is newer than its
+artifact, and the page names the changed inputs. Every stage has a **Run** or
+**Re-run** button, always available, that launches the stage the same way. Cost
+stays out of the way in a collapsed **Run details** expander: each LLM stage's
+estimated cost (a rough upper bound — Papers × a per-Paper token allowance at
+the default model's list price, as if nothing were cached) and the actual cost
+of its last run, priced from the token usage the CLI records in
+`artifacts/llm-usage.json`. A run whose estimate is above
+`LLM_COST_CONFIRM_ABOVE` asks for confirmation before it starts; a model with
+no known price always asks.
+
+| Variable | Default | Why |
+| --- | --- | --- |
+| `LLM_COST_CONFIRM_ABOVE` | `1.00` | US dollars. A dashboard run estimated above this asks "Run anyway?" first, so an expensive run never surprises you. `0` confirms every LLM run; a value that isn't a non-negative number is reported in the app and treated as `0`. |
+
+Every other page's empty or guard state works the same way: instead of naming
+a command, it offers the button that runs the missing stage (e.g. **Run
+extract** on Verify Extractions, **Run retrieve** on Retrieval Gaps, **Run
+ingest with DOI resolution** on the citation and author graphs). With no
+ingested corpus at all, the app offers **Run ingest** for each folder under
+`RESEARCH_GAP_CORPORA_DIR` that holds a `papers/` directory.
 
 The Verify Extractions page (available once `extract` and `parse` have run) lets
 a researcher check each Paper's Extraction against its own text, one field at a
@@ -168,9 +193,18 @@ hallucinated fact, or add a missing one. Verdicts are annotation-only (see
 `docs/adr/0003-...`): they persist to a review overlay under `judgments/` and
 never change `extractions.json`, so `aggregate`/`detect` stay deterministic. Any
 edited or added Evidence must be a verbatim quote from the Paper's parsed text,
-re-verified before it is saved. Promote a reviewed Extraction to a committed
-Gold Extraction regression fixture with the command-line step (not the browser):
+re-verified before it is saved. **Promote to Gold Extraction** on that page
+turns the reviewed Extraction into a committed Gold Extraction regression
+fixture by running the pipeline's `promote-gold` command through the runner
+(the browser never writes the fixture itself). Promotion is strict: if any kept
+quote is not verbatim in its Paper, nothing is written and the page shows which
+Paper and passage refused it. The same step from a terminal:
 
 ```shell
 uv run research-gap-dashboard promote-gold path/to/corpus
 ```
+
+On the Needs Attention page, pasting a broken Paper's correct text and clicking
+**Apply correction & re-extract** saves the text to a `judgments/` overlay, then
+runs `apply-parse-corrections` and `extract` in one locked run and redraws the
+queue (ADR 0006/0007).

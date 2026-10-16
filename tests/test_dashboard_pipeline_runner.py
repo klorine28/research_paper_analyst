@@ -18,7 +18,12 @@ from test_detect import _PLACEMENTS, _write_corpus
 
 import research_gap_dashboard.dashboard as dashboard_pkg
 from research_gap_dashboard.dashboard import pipeline_runner, text
-from research_gap_dashboard.dashboard.pipeline_runner import RunOutcome, run_stage
+from research_gap_dashboard.dashboard.pipeline_runner import (
+  RunOutcome,
+  failure_reason,
+  run_stage,
+  run_stages,
+)
 
 _KEY_ENV = {"ANTHROPIC_API_KEY": "sk-test"}
 
@@ -60,6 +65,22 @@ def test_detect_runs_the_cli_as_a_subprocess(tmp_path: Path, fake_run: _FakeRun)
   assert kwargs["capture_output"] is True
   assert kwargs["text"] is True
   assert kwargs["check"] is False
+
+
+def test_stage_options_follow_the_corpus_path(tmp_path: Path, fake_run: _FakeRun):
+  """Options such as ingest's `--resolve` are passed after the Corpus path."""
+  result = run_stage(tmp_path, "ingest", env={}, args=["--resolve"])
+
+  expected = [
+    "uv",
+    "run",
+    "research-gap-dashboard",
+    "ingest",
+    str(tmp_path.resolve()),
+    "--resolve",
+  ]
+  assert fake_run.calls[0][0] == expected
+  assert result.command == expected
 
 
 @pytest.mark.parametrize(
@@ -159,6 +180,76 @@ def test_a_missing_uv_executable_is_a_failed_run(
   assert result.outcome == RunOutcome.FAILED
   assert result.exit_code is None
   assert "uv" in result.stderr
+
+
+# --- Chained runs (a seam command, then the stage it feeds) -------------------
+
+
+def test_a_chain_runs_each_command_in_order(tmp_path: Path, fake_run: _FakeRun):
+  """Apply-then-extract launches both CLI commands, in that order."""
+  results = run_stages(tmp_path, ["apply-parse-corrections", "extract"], env=_KEY_ENV)
+
+  assert [args[3] for args, _ in fake_run.calls] == [
+    "apply-parse-corrections",
+    "extract",
+  ]
+  assert [result.outcome for result in results] == [
+    RunOutcome.SUCCEEDED,
+    RunOutcome.SUCCEEDED,
+  ]
+
+
+def test_a_chain_stops_at_the_first_failure(tmp_path: Path, fake_run: _FakeRun):
+  """If applying the correction fails, extract is never launched."""
+  fake_run.returncode = 1
+
+  results = run_stages(tmp_path, ["apply-parse-corrections", "extract"], env=_KEY_ENV)
+
+  assert len(fake_run.calls) == 1
+  assert [result.outcome for result in results] == [RunOutcome.FAILED]
+
+
+def test_a_chain_checks_the_key_before_launching_anything(
+  tmp_path: Path, fake_run: _FakeRun
+):
+  """A later stage's missing key stops the chain before its first command runs."""
+  results = run_stages(tmp_path, ["apply-parse-corrections", "extract"], env={})
+
+  assert not fake_run.calls
+  assert [(r.stage, r.outcome) for r in results] == [
+    ("extract", RunOutcome.MISSING_KEY)
+  ]
+
+
+def test_a_chain_holds_the_lock_throughout(tmp_path: Path, fake_run: _FakeRun):
+  """No other run can slip in between the two commands of a chain."""
+  nested: list[Any] = []
+  fake_run.during = lambda: nested.append(run_stage(tmp_path, "detect", env=_KEY_ENV))
+
+  run_stages(tmp_path, ["apply-parse-corrections", "extract"], env=_KEY_ENV)
+
+  assert [result.outcome for result in nested] == [RunOutcome.LOCKED] * 2
+  assert len(fake_run.calls) == 2
+
+
+def test_promote_gold_needs_no_key(tmp_path: Path, fake_run: _FakeRun):
+  """promote-gold makes no LLM call, so it launches without a key."""
+  result = run_stage(tmp_path, "promote-gold", env={})
+
+  assert result.outcome == RunOutcome.SUCCEEDED
+  assert fake_run.calls[0][0][3] == "promote-gold"
+
+
+def test_a_failure_reason_is_the_last_line_of_stderr(
+  tmp_path: Path, fake_run: _FakeRun
+):
+  """The CLI logs its reason last, so that line is what the page shows."""
+  fake_run.returncode = 1
+  fake_run.stderr = "Building...\nGold promotion refused: Paper 'a'.\n\n"
+
+  result = run_stage(tmp_path, "promote-gold", env={})
+
+  assert failure_reason(result) == "Gold promotion refused: Paper 'a'."
 
 
 # --- The Gap Cards empty state -------------------------------------------------
