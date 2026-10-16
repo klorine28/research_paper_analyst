@@ -335,6 +335,7 @@ class SaturationSearchRecord(_ReadModel):
 
   source: str
   query: str = ""
+  attempt: str = "base"
   returned_work_ids: list[str] = []
   in_corpus_work_ids: list[str] = []
   error: str = ""
@@ -352,6 +353,17 @@ class SaturationHitRecord(_ReadModel):
   pmid: str = ""
   verdict: str = ""
   reason: str = ""
+  attempt: str = "base"
+
+
+class SaturationSecondAttemptRecord(_ReadModel):
+  """The LLM-rephrased second attempt of a check, with its provenance."""
+
+  label: str = ""
+  model: str = ""
+  prompt_version: str = ""
+  concepts: list[SaturationConceptRecord] = []
+  note: str = ""
 
 
 class SaturationCheckRecord(_ReadModel):
@@ -366,6 +378,7 @@ class SaturationCheckRecord(_ReadModel):
   concepts: list[SaturationConceptRecord] = []
   searches: list[SaturationSearchRecord] = []
   hits: list[SaturationHitRecord] = []
+  second_attempt: SaturationSecondAttemptRecord | None = None
 
 
 class SaturationChecksArtifact(_ReadModel):

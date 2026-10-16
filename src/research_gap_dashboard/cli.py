@@ -41,8 +41,10 @@ from research_gap_dashboard.ingest import (
 )
 from research_gap_dashboard.llm import (
   LlmClient,
+  LlmConfig,
   LlmConfigError,
   LlmUsage,
+  ModelTier,
   build_llm_client,
   write_usage,
 )
@@ -58,7 +60,11 @@ from research_gap_dashboard.retrieval import (
   DEFAULT_MIN_OVERLAP,
   detect_retrieval_gaps,
 )
-from research_gap_dashboard.saturate import SaturationError, saturate_gap
+from research_gap_dashboard.saturate import (
+  QueryVariantModel,
+  SaturationError,
+  saturate_gap,
+)
 from research_gap_dashboard.sources import (
   DEFAULT_SEARCH_LIMIT,
   OpenAlexAdapter,
@@ -98,7 +104,7 @@ LLM_CACHE_DIR = ".llm-cache"
 # details to report what a run actually cost (issue #70).
 LLM_USAGE_PATH = Path("artifacts") / "llm-usage.json"
 # The commands whose LLM usage is recorded.
-_LLM_COMMANDS = frozenset({"extract", "explain", "aggregate", "detect"})
+_LLM_COMMANDS = frozenset({"extract", "explain", "aggregate", "detect", "saturate"})
 
 # Works fetched per source per saturation-check query.
 SATURATE_SEARCH_LIMIT = DEFAULT_SEARCH_LIMIT
@@ -412,6 +418,25 @@ def _build_search_sources() -> list[TopicSearchSource]:
   ]
 
 
+def _query_variant_model(arguments: argparse.Namespace) -> QueryVariantModel:
+  """
+  Build the LLM the second attempt rephrases queries with, on the cheap tier.
+
+  A missing API key is not a failure here: the check runs without the second
+  attempt, which records why (ADR 0009: surface, don't block).
+  """
+  tier: ModelTier = "cheap"
+  try:
+    return QueryVariantModel(
+      client=_llm_client(arguments),
+      model=LlmConfig.from_env().model_for(tier),
+      tier=tier,
+    )
+  except LlmConfigError as error:
+    logger.warning("No LLM second attempt: %s", error)
+    return QueryVariantModel(client=None, tier=tier, unavailable_reason=str(error))
+
+
 def _run_saturate(arguments: argparse.Namespace) -> int:
   """Check one gap against the wider literature and append the dated snapshot."""
   paths = arguments.taxonomy or list(SEED_PATHS.values())
@@ -430,6 +455,7 @@ def _run_saturate(arguments: argparse.Namespace) -> int:
       _build_search_sources(),
       taxonomies,
       limit=SATURATE_SEARCH_LIMIT,
+      query_variants=_query_variant_model(arguments),
     )
   except SaturationError as error:
     logger.error("%s", error)
@@ -439,9 +465,11 @@ def _run_saturate(arguments: argparse.Namespace) -> int:
     return EXIT_ERROR
 
   for search in check.searches:
-    logger.info("  %s: %s", search.source, search.query)
+    logger.info("  %s (%s): %s", search.source, search.attempt, search.query)
     if search.error:
       logger.warning("    not searched: %s", search.error)
+  if check.second_attempt is not None and check.second_attempt.note:
+    logger.info("Second attempt: %s", check.second_attempt.note)
   logger.info("%s", check.status_reason)
   # Offline or rate-limited: the run completes, but the check did not happen
   # (ADR 0009: surface, don't block).

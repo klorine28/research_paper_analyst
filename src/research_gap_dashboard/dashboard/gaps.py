@@ -83,6 +83,7 @@ class SaturationSearchView(BaseModel):
 
   source: str
   query: str
+  attempt: str = Field(default="base", description='"base" or "llm_variant".')
   returned_count: int
   in_corpus_count: int
   error: str
@@ -95,6 +96,9 @@ class SaturationHitView(BaseModel):
   details: str = Field(description="Year, venue, DOI or PMID and sources.")
   screened: bool = Field(description="Its title/abstract mention both concepts.")
   reason: str
+  second_attempt: bool = Field(
+    default=False, description="Found only by the LLM-rephrased second attempt."
+  )
 
 
 class SaturationView(BaseModel):
@@ -116,6 +120,11 @@ class SaturationView(BaseModel):
   hits: list[SaturationHitView] = []
   screened_count: int = 0
   history: list[str] = []
+  second_attempt_label: str = Field(
+    default="", description="Set when the base queries found nothing."
+  )
+  second_attempt_provenance: str = ""
+  second_attempt_note: str = ""
 
 
 class GapCard(BaseModel):
@@ -367,6 +376,7 @@ def _saturation(
       SaturationSearchView(
         source=search.source,
         query=search.query,
+        attempt=search.attempt,
         returned_count=len(search.returned_work_ids),
         in_corpus_count=len(search.in_corpus_work_ids),
         error=search.error,
@@ -384,6 +394,7 @@ def _saturation(
         ),
         screened=hit.verdict == "mentions_both",
         reason=hit.reason,
+        second_attempt=hit.attempt == "llm_variant",
       )
       for hit in latest.hits
     ],
@@ -394,7 +405,26 @@ def _saturation(
       )
       for check in reversed(checks)
     ],
+    **_second_attempt(latest),
   )
+
+
+def _second_attempt(check: SaturationCheckRecord) -> dict[str, str]:
+  """Return the label, model/prompt provenance and note of the second attempt."""
+  attempt = check.second_attempt
+  if attempt is None:
+    return {}
+  provenance = ""
+  if attempt.concepts:
+    provenance = text.GAP_SATURATION_SECOND_ATTEMPT_PROVENANCE.format(
+      model=attempt.model or text.GAP_SATURATION_UNKNOWN_MODEL,
+      prompt_version=attempt.prompt_version,
+    )
+  return {
+    "second_attempt_label": attempt.label,
+    "second_attempt_provenance": provenance,
+    "second_attempt_note": attempt.note,
+  }
 
 
 def _reasons(record: CandidateGapRecord) -> list[str]:

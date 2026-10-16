@@ -493,6 +493,11 @@ GAP_SATURATION_FROM = "from {sources}"
 GAP_SATURATION_SCREENED_MARKER = "\u2714"
 GAP_SATURATION_UNSCREENED_MARKER = "\u2716"
 GAP_SATURATION_HISTORY_HEADING = "Check history"
+GAP_SATURATION_SECOND_ATTEMPT_PROVENANCE = (
+  "Terms proposed by {model} (prompt {prompt_version}); queries below, verbatim."
+)
+GAP_SATURATION_UNKNOWN_MODEL = "an unrecorded model"
+GAP_SATURATION_SECOND_ATTEMPT_MARKER = " [second attempt]"
 GAP_SATURATION_HISTORY_ENTRY = "- {date}: {badge}"
 
 # How each Candidate Gap's kind and confidence read to the researcher; kept here
